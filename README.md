@@ -1,7 +1,7 @@
 Babbling
 ========
 
-**Cast Streaming service videos to Chromecast**
+*Cast Streaming service videos to Chromecast*
 
 ## What?
 
