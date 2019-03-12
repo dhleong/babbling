@@ -1,4 +1,4 @@
-Babbling
+Babbling [![npm](https://img.shields.io/npm/v/babbling.svg)](https://www.npmjs.com/package/babbling)
 ========
 
 *Cast Streaming service videos to Chromecast*
