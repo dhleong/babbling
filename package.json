@@ -2,8 +2,14 @@
   "name": "babbling",
   "version": "1.0.0",
   "description": "Cast Streaming service videos to Chromecast",
-  "main": "index.js",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
+    "build": "tsc -p .",
+    "check": "npm run lint && npm run build",
+    "lint": "tslint -p .",
+    "prepare": "npm run build",
+    "prepublishOnly": "npm run check",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -12,6 +18,7 @@
   },
   "keywords": [
     "chromecast",
+    "hulu",
     "youtube"
   ],
   "author": "Daniel Leong",
@@ -25,5 +32,11 @@
     "nodecastor": "^0.1.8",
     "request": "^2.88.0",
     "request-promise-native": "^1.0.7"
+  },
+  "devDependencies": {
+    "@types/debug": "^4.1.2",
+    "@types/node": "^11.11.3",
+    "@types/request-promise-native": "^1.0.15",
+    "typescript": "^3.3.3333"
   }
 }
