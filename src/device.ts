@@ -4,7 +4,7 @@ import { IDevice } from "nodecastor";
 import _debug from "debug";
 const debug = _debug("babbling:device");
 
-import { IApp, IAppConstructor } from "./app";
+import { AppFor, IApp, IAppConstructor, OptionsFor, Opts } from "./app";
 
 export class ChromecastDevice {
 
@@ -21,12 +21,15 @@ export class ChromecastDevice {
      * `appConstructor`, and are App-specific. See the relevant
      * constructor for more information on what is accepted here.
      */
-    public async openApp<TOptions, TApp extends IApp>(
-        appConstructor: IAppConstructor<TOptions, TApp>,
-        options?: TOptions,
-    ): Promise<TApp> {
+    public async openApp<TConstructor extends IAppConstructor<Opts, IApp>>(
+        appConstructor: TConstructor,
+        ...options: OptionsFor<TConstructor>  // tslint:disable-line
+    ): Promise<AppFor<TConstructor>> {
         const device = await this.getCastorDevice();
-        const app = new appConstructor(device, options);
+        const app = new appConstructor(
+            device,
+            ...options,
+        ) as AppFor<TConstructor>;
 
         debug("Starting", appConstructor.name);
         await app.start();

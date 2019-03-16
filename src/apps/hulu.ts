@@ -39,23 +39,6 @@ function eabIdFromEntity(entity: any) {
     return `EAB::${entity.id}::${contentId}::${bundleId}`;
 }
 
-export interface IYoutubeOpts {
-    /**
-     * A string of cookies as might be retrieved from the "copy as
-     * cURL" from any request on youtube.com in Chrome's network
-     * inspector
-     */
-    cookies?: string;
-
-    /**
-     * The name of the "device" to show when we connect to the
-     * Chromecast. It will be rendered simply as "<deviceName>" at the
-     * top of the screen, or "<owner>'s <deviceName> has joined" if
-     * `cookies` is provided
-     */
-    deviceName?: string;
-}
-
 export interface IHuluOpts {
     /**
      * A string of cookies as might be retrieved from the "copy as
