@@ -1,15 +1,19 @@
-const nodecastor = require('nodecastor');
-const debug = require('debug')('babbling:device');
+import nodecastor from "nodecastor";
+import { IDevice } from "nodecastor";
 
-class ChromecastDevice {
+import _debug from "debug";
+const debug = _debug("babbling:device");
 
-    constructor(friendlyName, timeout) {
-        this.friendlyName = friendlyName;
-        this.timeout = timeout;
-        if (timeout === undefined) {
-            this.timeout = 10000;
-        }
-    }
+import { AppFor, IApp, IAppConstructor, OptionsFor, Opts } from "./app";
+
+export class ChromecastDevice {
+
+    private castorDevice: IDevice | null = null;
+
+    constructor(
+        public friendlyName: string,
+        private timeout: number = 10000,
+    ) { }
 
     /**
      * @param appConstructor The constructor of an App
@@ -17,24 +21,30 @@ class ChromecastDevice {
      * `appConstructor`, and are App-specific. See the relevant
      * constructor for more information on what is accepted here.
      */
-    async openApp(appConstructor, ...options) {
-        const device = await this._getCastorDevice();
-        const app = new appConstructor(device, ...options);
+    public async openApp<TConstructor extends IAppConstructor<Opts, IApp>>(
+        appConstructor: TConstructor,
+        ...options: OptionsFor<TConstructor>  // tslint:disable-line
+    ): Promise<AppFor<TConstructor>> {
+        const device = await this.getCastorDevice();
+        const app = new appConstructor(
+            device,
+            ...options,
+        ) as AppFor<TConstructor>;
 
-        debug('Starting', appConstructor.name);
+        debug("Starting", appConstructor.name);
         await app.start();
         return app;
     }
 
-    close() {
-        const device = this._castorDevice;
-        this._castorDevice = null;
+    public close() {
+        const device = this.castorDevice;
+        this.castorDevice = null;
         if (device) device.stop();
     }
 
-    async _getCastorDevice() {
+    private async getCastorDevice(): Promise<IDevice> {
         return new Promise((resolve, reject) => {
-            const existing = this._castorDevice;
+            const existing = this.castorDevice;
             if (existing) {
                 resolve(existing);
                 return;
@@ -51,10 +61,10 @@ class ChromecastDevice {
 
             const timeoutId = setTimeout(() => {
                 scanner.end();
-                reject(new Error('Could not find device'));
+                reject(new Error("Could not find device"));
             }, this.timeout);
 
-            scanner.on('online', device => {
+            scanner.on("online", device => {
                 if (!(
                     !this.friendlyName
                     || device.friendlyName === this.friendlyName
@@ -74,10 +84,10 @@ class ChromecastDevice {
                     scanner.browser.stop();
                 }
 
-                debug('connecting to ', device.friendlyName);
-                device.on('connect', () => {
-                    debug('connected to ', device.friendlyName);
-                    this._castorDevice = device;
+                debug("connecting to ", device.friendlyName);
+                device.on("connect", () => {
+                    debug("connected to ", device.friendlyName);
+                    this.castorDevice = device;
                     resolve(device);
                 });
             });
@@ -86,7 +96,3 @@ class ChromecastDevice {
         });
     }
 }
-
-module.exports = {
-    ChromecastDevice,
-};
