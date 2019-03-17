@@ -147,19 +147,19 @@ export class YoutubeApp extends BaseApp {
      * Add a video to the end of the queue
      */
     public async addToQueue(videoId: string) {
-        await this._queueAction(videoId, "add");
+        await this.queueAction(videoId, "add");
     }
 
     public async playNext(videoId: string) {
-        await this._queueAction(videoId, "insert");
+        await this.queueAction(videoId, "insert");
     }
 
     public async playVideo(videoId: string) {
-        await this._queueAction(videoId, "remove");
+        await this.queueAction(videoId, "remove");
     }
 
     public async clearPlaylist() {
-        await this._queueAction("", "clear");
+        await this.queueAction("", "clear");
     }
 
     private get inSession() {
@@ -221,7 +221,7 @@ export class YoutubeApp extends BaseApp {
         debug("got sid=", sid, "gsid=", gsessionId);
     }
 
-    private async _queueAction(
+    private async queueAction(
         videoId: string,
         actionKey: Action,
     ) {
