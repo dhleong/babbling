@@ -32,12 +32,14 @@
   "homepage": "https://github.com/dhleong/babbling#readme",
   "dependencies": {
     "debug": "^4.1.1",
+    "jsonwebtoken": "^8.5.1",
     "nodecastor": "dhleong/nodecastor#e18189c",
     "request": "^2.88.0",
     "request-promise-native": "^1.0.7"
   },
   "devDependencies": {
     "@types/debug": "^4.1.2",
+    "@types/jsonwebtoken": "^8.3.2",
     "@types/node": "^11.11.3",
     "@types/request-promise-native": "^1.0.15",
     "typescript": "^3.3.3333"

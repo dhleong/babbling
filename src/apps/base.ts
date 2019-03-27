@@ -34,16 +34,29 @@ export abstract class BaseApp implements IApp, IBaseAppProps {
     }
 
     protected async ensureCastSession() {
-        const app = await this.ensureApp();
-        if (!this.session) {
-            this.session = await this.joinOrRunSession(app, this.sessionNs);
-        }
+        await this.ensureApp();
 
         if (!this.session) {
-            throw new Error(`Could not get session ${this.sessionNs} for ${app.id}`);
+            this.session = await this.joinOrRunNamespace(this.sessionNs);
         }
 
         return this.session;
+    }
+
+    protected async joinOrRunNamespace(ns: string) {
+        const app = await this.ensureApp();
+
+        const s = await this.joinOrRunSession(app, ns);
+        if (!s) {
+            throw new Error(`Could not get session ${ns} for ${app.id}`);
+        }
+
+        return s;
+    }
+
+    protected async requestStatus() {
+        const loadStatus = util.promisify((this.device as any).status.bind(this.device));
+        return loadStatus();
     }
 
     private async ensureApp() {
