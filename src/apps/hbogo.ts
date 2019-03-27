@@ -32,6 +32,11 @@ export interface IHboGoPlayOptions {
     /** Eg "ENG" */
     language?: string;
     showSubtitles?: boolean;
+
+    /**
+     * In seconds
+     */
+    startTime?: number;
 }
 
 export class HboGoApp extends BaseApp {
@@ -99,7 +104,7 @@ export class HboGoApp extends BaseApp {
                 isFree: false, // ?
                 isPreview: false, // ?
                 language: options.language || "ENG",
-                // position: 26.048875, // ?
+                position: options.startTime,
                 userTkey,
 
                 // senderSessionId: "", // what should go here?
