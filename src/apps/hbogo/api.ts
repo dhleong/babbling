@@ -1,43 +1,3 @@
-/*
-
-Fetch Markers (last watch indicators:)
-
-   GET https://markers.api.hbo.com/markers/{id,...}?limit=N
-   IE: comma-separated list
-       N = number of items in the list
-
-   Returns:
-
-   [{"created": "2019-03-27T23:16:25Z",
-     "cutId": "GVU3WpwOjOYNJjhsJAX5-",
-     "id": "urn:hbo:episode:GVU3WpwOjOYNJjhsJAX5-",
-     "position": 600,
-     "runtime": 3910},
-     ...
-     ]
-
-   Or, without the [] if limit=1
-
-Query Markers:
-
-   POST https://comet.api.hbo.com/content
-   [{"id": "urn:hbo:series-markers:mine"}]
-
-   Returns a list of Markers for a bunch of series,
-   possibly suggesting the episode to continue for
-   each series:
-
-   [{"body": {
-      "seriesMarkers": {
-        "urn:hbo:series:<SERIES_ID>": {
-          "focusEpisode": "urn:hbo:episode:<EP_ID>",
-          "markerStatus": "<START|LATEST|CONTINUE|TOPICAL>",
-        }
-      }
-    }}]
-
- */
-
 import jwt from "jsonwebtoken";
 import request, {OptionsWithUrl} from "request-promise-native";
 
@@ -54,6 +14,35 @@ export const HBO_HEADERS = {
     "X-Hbo-Client-Version": "Hadron/21.0.1.176 desktop (DESKTOP)",
 };
 
+export interface IMarker {
+    /** Formatted as eg: "2019-03-27T23:16:25Z" */
+    created: string;
+
+    /** The part after `urn:hbo:episode:` */
+    cutId: string;
+
+    /** The URN */
+    id: string;
+
+    /** In seconds */
+    position: number;
+
+    /** In seconds */
+    runtime: number;
+}
+
+export interface ISeriesMarker {
+    focusEpisode: string;
+    markerStatus: "START" | "LATEST" | "CONTINUE" | "TOPICAL";
+}
+
+function extractIdFromUrn(urnOrId: string) {
+    const lastColon = urnOrId.lastIndexOf(":");
+    return lastColon === -1
+        ? urnOrId
+        : urnOrId.substring(lastColon + 1);
+}
+
 export class HboGoApi {
 
     private refreshToken: string | undefined;
@@ -69,10 +58,13 @@ export class HboGoApi {
         });
     }
 
+    /**
+     * Given a series Urn, attempt to determine the Urn and
+     * start position (in seconds) of the next episode (or
+     * episode to resume) for that series
+     */
     public async fetchNextEpisodeForSeries(seriesUrn: string) {
-        const markersResult = await this.fetchContent(["urn:hbo:series-markers:mine"]);
-        const markersBySeries = markersResult[0].body.seriesMarkers;
-
+        const markersBySeries = await this.getSeriesMarkers();
         const seriesMarker = markersBySeries[seriesUrn];
         if (!seriesMarker) {
             // TODO we could fetch the series' episodes and pick the first
@@ -80,36 +72,84 @@ export class HboGoApi {
         }
 
         // NOTE: I'm not sure what to do with `markerStatus`...
-        const { focusEpisode } = seriesMarker;
-        const focusEpisodeUrn = focusEpisode as string;
-        let episodeMarker;
-        try {
-            const episodeId = focusEpisodeUrn.substring(focusEpisodeUrn.lastIndexOf(":") + 1);
-            episodeMarker = await this.request("get", {
-                json: true,
-                qs: {
-                    limit: 1,
-                },
-                url: `https://markers.api.hbo.com/markers/${episodeId}`,
-            });
-
-            debug("Loaded marker for", focusEpisode, ":", episodeMarker);
-        } catch (e) {
-            // no marker, probably
-            debug("Error fetching marker for", focusEpisode, ":", e);
-        }
+        const focusEpisode: string = seriesMarker.focusEpisode;
+        const episodeMarker = await this.getMarkerForEpisode(focusEpisode);
 
         const result = {
-            position: undefined,
-            urn: focusEpisodeUrn,
+            position: undefined as number | undefined,
+            urn: focusEpisode,
         };
 
-        if (episodeMarker && episodeMarker.position) {
+        if (episodeMarker) {
             result.position = episodeMarker.position;
         }
 
         return result;
     }
+
+    /**
+     * Fetch a map of series URN to its `ISeriesMarker`. It's
+     * unclear what criteria is used to determine which series
+     * are included in this map.
+     */
+    public async getSeriesMarkers(): Promise<{[urn: string]: ISeriesMarker}> {
+        const markersResult = await this.fetchContent(["urn:hbo:series-markers:mine"]);
+        return markersResult[0].body.seriesMarkers;
+    }
+
+    /**
+     * Given `urn:hbo:episode:<ID>` or just `<ID>`,
+     * fetch a marker for the episode, or null if none
+     */
+    public async getMarkerForEpisode(
+        episodeUrnOrId: string,
+    ): Promise<null | IMarker> {
+        const result = await this.getMarkersForEpisodes([episodeUrnOrId]);
+        if (result.length) return result[0];
+        return null;
+    }
+
+    /**
+     * Given an array of `urn:hbo:episode:<ID>` or just `<ID>`,
+     * fetch a marker for each episode. Episodes for which there
+     * are no markers will not have a corresponding element in the
+     * responding array, so you should not expect the Markers in
+     * the resulting array to be in the same order as the provided
+     * array
+     */
+    public async getMarkersForEpisodes(
+        episodeUrnOrIds: string[],
+    ): Promise<IMarker[]> {
+        const ids = episodeUrnOrIds.map(extractIdFromUrn);
+
+        let episodeMarkers;
+        try {
+            episodeMarkers = await this.request("get", {
+                json: true,
+                qs: {
+                    limit: ids.length,
+                },
+                url: `https://markers.api.hbo.com/markers/${ids.join(",")}`,
+            });
+
+            debug("Loaded markers for", ids, ":", episodeMarkers);
+        } catch (e) {
+            // no marker, probably
+            debug("Error fetching marker for", ids, ":", e);
+        }
+
+        if (Array.isArray(episodeMarkers)) {
+            return episodeMarkers;
+        } else if (episodeMarkers) {
+            return [episodeMarkers];
+        }
+
+        return [];
+    }
+
+    /*
+     * Util methods
+     */
 
     public extractTokenInfo() {
         const tokenData = jwt.decode(this.token) as any;
