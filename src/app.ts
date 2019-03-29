@@ -35,6 +35,6 @@ extends IAppConstructor<TOptions, TSelf> {
      * If the URL resolves to something that can't be played,
      * the returned Promise should reject.
      */
-    createPlayable(url: string): Promise<IPlayable<AppFor<TSelf>>>;
+    createPlayable(url: string, ...options: OptionsFor<TSelf>): Promise<IPlayable<AppFor<TSelf>>>;
 
 }

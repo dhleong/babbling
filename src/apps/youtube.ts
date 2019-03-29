@@ -3,6 +3,7 @@
  */
 
 import request from "request-promise-native";
+import URL from "url";
 
 import _debug from "debug";
 const debug = _debug("babbling:youtube");
@@ -78,6 +79,53 @@ export interface IYoutubeOpts {
 
 export class YoutubeApp extends BaseApp {
 
+    public static ownsUrl(url: string) {
+        return url.includes("youtube.com") || url.includes("youtu.be");
+    }
+
+    public static async createPlayable(url: string, options?: IYoutubeOpts) {
+        let videoId = "";
+        let listId = "";
+        let startTime = -1;
+
+        const parsed = URL.parse(url, true);
+
+        if (url.startsWith("youtu.be")) {
+            videoId = url.substring(url.lastIndexOf("/") + 1);
+            debug("got short URL video id", videoId);
+        } else if (parsed.query.v) {
+            videoId = parsed.query.v as string;
+            debug("got video id", videoId);
+        }
+
+        if (parsed.query.list) {
+            listId = parsed.query.list as string;
+            debug("extracted listId", listId);
+
+            // watch later requires auth
+            if (listId === "WL" && !(options && options.cookies)) {
+                throw new Error("Cannot use watch later playlist without cookies");
+            }
+        }
+
+        if (parsed.query.t) {
+            startTime = parseInt(parsed.query.t as string, 10);
+            debug("detected start time", startTime);
+        }
+
+        // TODO with the right credentials we could resume
+        // most-recently-watched video in the playlist...?
+
+        if (listId !== "" || videoId !== "") {
+            return async (app: YoutubeApp) => app.play(videoId, {
+                listId,
+                startTime,
+            });
+        }
+
+        throw new Error(`Not sure how to play '${url}'`);
+    }
+
     private readonly cookies: string;
     private readonly bindData: typeof BIND_DATA;
 
@@ -134,7 +182,7 @@ export class YoutubeApp extends BaseApp {
             data: {
                 [KEYS.listId]: listId || "",
                 [KEYS.action]: ACTIONS.setPlaylist,
-                [KEYS.currentTime]: startTime === undefined || -1,
+                [KEYS.currentTime]: startTime === undefined ? -1 : startTime,
                 [KEYS.currentIndex]: -1,
                 [KEYS.audioOnly]: "false",
                 [KEYS.videoId]: videoId,

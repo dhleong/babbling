@@ -40,9 +40,12 @@ class Player {
 
     public async playUrl(url: string) {
         const configured = pickAppForUrl(this.apps, url);
-        debug("Chose", configured.appConstructor, "to play", url);
+        debug("Chose", configured.appConstructor.name, "to play", url);
 
-        const playable = await configured.appConstructor.createPlayable(url);
+        const playable = await configured.appConstructor.createPlayable(
+            url,
+            ... configured.options,
+        );
         debug("Successfully created player for", url);
 
         return Promise.all(this.devices.map(async d => {
