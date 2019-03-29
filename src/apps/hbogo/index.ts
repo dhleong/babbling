@@ -132,6 +132,8 @@ export class HboGoApp extends BaseApp {
      */
     public async resumeSeries(urn: string) {
         const info = await this.api.fetchNextEpisodeForSeries(urn);
+        debug(`found next episode for '${urn}':`, info);
+
         return this.play(info.urn, {
             startTime: info.position,
         });
