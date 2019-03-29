@@ -34,7 +34,7 @@ export interface IHboGoPlayOptions {
 
 export class HboGoApp extends BaseApp {
 
-    public static canPlayUrl(url: string) {
+    public static ownsUrl(url: string) {
         return url.includes("play.hbogo.com");
     }
 

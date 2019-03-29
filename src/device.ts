@@ -36,6 +36,9 @@ export class ChromecastDevice {
         return app;
     }
 
+    /**
+     * Close any active connection to this device
+     */
     public close() {
         const device = this.castorDevice;
         this.castorDevice = null;
@@ -43,13 +46,10 @@ export class ChromecastDevice {
     }
 
     private async getCastorDevice(): Promise<IDevice> {
-        return new Promise((resolve, reject) => {
-            const existing = this.castorDevice;
-            if (existing) {
-                resolve(existing);
-                return;
-            }
+        const existing = this.castorDevice;
+        if (existing) return existing;
 
+        return new Promise((resolve, reject) => {
             let options;
             if (debug.enabled) {
                 options = {

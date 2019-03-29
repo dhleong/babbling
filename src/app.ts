@@ -24,9 +24,11 @@ export interface IPlayerEnabledConstructor<TOptions extends Opts, TSelf extends 
 extends IAppConstructor<TOptions, TSelf> {
 
     /**
-     * Return true if your app "owns" the given URL
+     * Return true if your app "owns" the given URL. The first
+     * app that returns `true` from this method will be elected
+     * to `createPlayable` for the URL.
      */
-    canPlayUrl(url: string): boolean;
+    ownsUrl(url: string): boolean;
 
     /**
      * Will only be called if {@see canPlayUrl} returned `true`.

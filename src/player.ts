@@ -10,11 +10,11 @@ interface IConfiguredApp<TConstructor extends IPlayerEnabledConstructor<Opts, IA
 }
 
 function pickAppForUrl(
-    apps: Array<IConfiguredApp<any>>,
+    apps: Array<IConfiguredApp<IPlayerEnabledConstructor<any, any>>>,
     url: string,
 ) {
     for (const candidate of apps) {
-        if (candidate.appConstructor.canPlayUrl(url)) {
+        if (candidate.appConstructor.ownsUrl(url)) {
             return candidate;
         }
     }
@@ -22,10 +22,20 @@ function pickAppForUrl(
     throw new Error(`No configured app could play ${url}`);
 }
 
+export interface IPlayerOpts {
+    /**
+     * If true (the default) each device will be closed
+     * automatically after each Player method call. Set
+     * to false if you want to keep the connection alive.
+     */
+    autoClose?: boolean;
+}
+
 class Player {
     constructor(
         private apps: Array<IConfiguredApp<any>>,
         private devices: ChromecastDevice[],
+        private opts: IPlayerOpts,
     ) {}
 
     public async playUrl(url: string) {
@@ -35,14 +45,23 @@ class Player {
         const playable = await configured.appConstructor.createPlayable(url);
         debug("Successfully created player for", url);
 
-        return await Promise.all(this.devices.map(async d => {
-            const app = await d.openApp(
-                configured.appConstructor,
-                ...configured.options,
-            );
+        return Promise.all(this.devices.map(async d => {
 
-            debug("Playing", url, "on", d.friendlyName);
-            return playable(app);
+            try {
+                const app = await d.openApp(
+                    configured.appConstructor,
+                    ...configured.options,
+                );
+
+                debug("Playing", url, "on", d.friendlyName);
+                await playable(app);
+            } finally {
+                if (this.opts.autoClose !== false) {
+                    debug("auto-close", d.friendlyName);
+                    d.close();
+                }
+            }
+
         }));
     }
 }
@@ -51,6 +70,7 @@ export class PlayerBuilder {
 
     private apps: Array<IConfiguredApp<any>> = [];
     private devices: ChromecastDevice[] = [];
+    private opts: IPlayerOpts = {};
 
     public withApp<TConstructor extends IPlayerEnabledConstructor<Opts, IApp>>(
         appConstructor: TConstructor,
@@ -68,6 +88,11 @@ export class PlayerBuilder {
         return this;
     }
 
+    public configure(opts: IPlayerOpts) {
+        this.opts = opts;
+        return this;
+    }
+
     public build() {
         if (!this.apps.length) {
             throw new Error("You must have at least one app enabled");
@@ -77,6 +102,6 @@ export class PlayerBuilder {
             throw new Error("You must have at least one device");
         }
 
-        return new Player(this.apps, this.devices);
+        return new Player(this.apps, this.devices, this.opts);
     }
 }

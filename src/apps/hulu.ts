@@ -48,7 +48,37 @@ export interface IHuluOpts {
     cookies: string;
 }
 
+const UUID_LENGTH = 36;
+
+function seemsLikeValidUUID(uuid: string) {
+    return /^[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}$/.test(uuid);
+}
+
 export class HuluApp extends BaseApp {
+
+    public static ownsUrl(url: string) {
+        return url.includes("hulu.com");
+    }
+
+    public static async createPlayable(url: string) {
+        if (url.length < UUID_LENGTH) {
+            throw new Error(`'${url}' doesn't seem playable`);
+        }
+
+        const id = url.substr(-UUID_LENGTH);
+        if (url.includes("/series/")) {
+            debug("detected series", id);
+
+            return async (app: HuluApp) => app.resumeSeries(id);
+        }
+
+        if (seemsLikeValidUUID(id)) {
+            debug("detected some specific entity", id);
+            return async (app: HuluApp) => app.play(id, {});
+        }
+
+        throw new Error(`Not sure how to play '${url}'`);
+    }
 
     private readonly cookies: string;
 
@@ -237,9 +267,13 @@ export class HuluApp extends BaseApp {
             url: ENTITY_DISCOVER_URL,
         });
 
-        if (entity._type !== "episode") {
+        debug(`loaded entity ${entityId}:`, entity);
+
+        if (
+            entity._type !== "episode"
+            && entity._type !== "movie"
+        ) {
             // for example, 'series'
-            debug(`loaded entity ${entityId}:`, entity);
             throw new Error(`Unsupported entity '${entity.name}' (type '${entity._type}')`);
         }
 
