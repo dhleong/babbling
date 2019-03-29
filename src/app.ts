@@ -17,3 +17,22 @@ export type OptionsFor<T> =
 export type AppFor<T> =
     T extends IAppConstructor<infer TOpt, infer TSelf> ? TSelf :
     never;
+
+type IPlayable<T extends IApp> = (app: T) => Promise<void>;
+
+export interface IPlayerEnabledConstructor<TOptions extends Opts, TSelf extends IApp>
+extends IAppConstructor<TOptions, TSelf> {
+
+    /**
+     * Return true if your app "owns" the given URL
+     */
+    canPlayUrl(url: string): boolean;
+
+    /**
+     * Will only be called if {@see canPlayUrl} returned `true`.
+     * If the URL resolves to something that can't be played,
+     * the returned Promise should reject.
+     */
+    createPlayable(url: string): Promise<IPlayable<AppFor<TSelf>>>;
+
+}
