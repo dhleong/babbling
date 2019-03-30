@@ -18,7 +18,26 @@ export type AppFor<T> =
     T extends IAppConstructor<infer TOpt, infer TSelf> ? TSelf :
     never;
 
-type IPlayable<T extends IApp> = (app: T) => Promise<void>;
+export interface IPlayableOptions {
+    /**
+     * By default, if the app supports it (and we know how) we will
+     * attempt to resume playback of whatever entity is represented by
+     * a Playable:
+     *
+     * - Series (and playlists) should resume the next episode in the
+     *   series, or the last watched if unfinished
+     * - Episodes and movies should resume wherever we left off, or
+     *   start at the beginning if new or completed
+     *
+     * If you prefer to start at the beginning regardless of whatever
+     * resume features the app supports for the given entity---assuming
+     * the app supports disabling resume for the entity---pass `false`
+     * for this value.
+     */
+    resume?: boolean;
+}
+
+export type IPlayable<T extends IApp> = (app: T, opts: IPlayableOptions) => Promise<void>;
 
 export interface IPlayerEnabledConstructor<TOptions extends Opts, TSelf extends IApp>
 extends IAppConstructor<TOptions, TSelf> {

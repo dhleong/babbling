@@ -9,7 +9,9 @@ import _debug from "debug";
 const debug = _debug("babbling:youtube");
 
 import { ICastSession, IDevice } from "nodecastor";
-import { IApp, IAppConstructor } from "../app";
+import { ICreds, WatchHistory, YoutubePlaylist } from "youtubish";
+
+import { IApp, IAppConstructor, IPlayableOptions } from "../app";
 import { BaseApp } from "./base";
 import { awaitMessageOfType } from "./util";
 
@@ -60,6 +62,10 @@ async function getMdxScreenId(session: ICastSession) {
     return status.data.screenId;
 }
 
+export interface IPlaylistCache {
+    [id: string]: any;
+}
+
 export interface IYoutubeOpts {
     /**
      * A string of cookies as might be retrieved from the "copy as
@@ -67,6 +73,21 @@ export interface IYoutubeOpts {
      * inspector
      */
     cookies?: string;
+
+    /**
+     * Credentials from Youtubish
+     */
+    youtubish?: ICreds;
+
+    /**
+     * Optional cache storage for playlist data, when youtubish
+     * credentials are provided for resuming playlists. If not
+     * provided, playlists will be fetched for each request.
+     *
+     * It is recommended to use the cache for long-running
+     * processes
+     */
+    playlistsCache?: IPlaylistCache;
 
     /**
      * The name of the "device" to show when we connect to the
@@ -113,20 +134,28 @@ export class YoutubeApp extends BaseApp {
             debug("detected start time", startTime);
         }
 
-        // TODO with the right credentials we could resume
-        // most-recently-watched video in the playlist...?
+        if (listId === "" && videoId === "") {
+            throw new Error(`Not sure how to play '${url}'`);
+        }
 
-        if (listId !== "" || videoId !== "") {
-            return async (app: YoutubeApp) => app.play(videoId, {
+        return async (app: YoutubeApp, opts: IPlayableOptions) => {
+            if (
+                opts.resume !== false
+                && app.youtubish
+                && listId !== ""
+                && videoId === ""
+            ) {
+                return app.resumePlaylist(listId);
+            }
+
+            return app.play(videoId, {
                 listId,
                 startTime,
             });
-        }
-
-        throw new Error(`Not sure how to play '${url}'`);
+        };
     }
 
-    private readonly cookies: string;
+    private cookies: string;
     private readonly bindData: typeof BIND_DATA;
 
     // youtube session state:
@@ -136,6 +165,10 @@ export class YoutubeApp extends BaseApp {
     private gsessionId: string | undefined;
     private loungeId: string | undefined;
     private existingScreen: string | undefined;
+
+    // youtubish state
+    private readonly youtubish: ICreds | undefined;
+    private readonly playlistsCache: IPlaylistCache | undefined;
 
     constructor(device: IDevice, options: IYoutubeOpts = {}) {
         super(device, {
@@ -156,6 +189,11 @@ export class YoutubeApp extends BaseApp {
         this.bindData = Object.assign({}, BIND_DATA);
         if (options && options.deviceName) {
             this.bindData.name = options.deviceName;
+        }
+
+        if (options && options.youtubish) {
+            this.youtubish = options.youtubish;
+            this.playlistsCache = options.playlistsCache;
         }
     }
 
@@ -188,6 +226,38 @@ export class YoutubeApp extends BaseApp {
                 [KEYS.videoId]: videoId,
                 [KEYS.count]: 1,
             },
+        });
+    }
+
+    /**
+     * Requires Youtubish credentials
+     */
+    public async resumePlaylist(id: string) {
+        if (!this.youtubish) {
+            throw new Error("Cannot resume playlist without youtubish credentials");
+        }
+
+        debug("attempting to resume playlist", id);
+        let playlist: YoutubePlaylist;
+        if (this.playlistsCache && this.playlistsCache[id]) {
+            playlist = this.playlistsCache[id] as any;
+            debug("Reusing playlist from cache", id);
+        } else {
+            playlist = new YoutubePlaylist(this.youtubish, id);
+            debug("Fresh playlist", id);
+
+            if (this.playlistsCache) {
+                this.playlistsCache[id] = playlist;
+            }
+        }
+
+        const video = await playlist.findMostRecentlyPlayed(
+            new WatchHistory(this.youtubish),
+        );
+
+        debug("Resuming playlist", id, "at", video);
+        return this.play(video.id, {
+            listId: id,
         });
     }
 
@@ -329,7 +399,7 @@ export class YoutubeApp extends BaseApp {
                 form: data,
                 headers: {
                     "X-YouTube-LoungeId-Token": this.loungeId,
-                    "cookie": this.cookies,
+                    "cookie": await this.getCookies(),
                     "origin": YOUTUBE_BASE_URL,
                 },
                 json: !isBind,
@@ -355,6 +425,17 @@ export class YoutubeApp extends BaseApp {
             }
 
             throw e;
+        }
+    }
+
+    private async getCookies() {
+        if (this.cookies) return this.cookies;
+        if (!this.youtubish) return undefined;
+
+        if (this.youtubish instanceof Promise) {
+            const filled = await this.youtubish;
+            this.cookies = filled.cookies;
+            return filled.cookies;
         }
     }
 }

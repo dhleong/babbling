@@ -1,7 +1,7 @@
 import _debug from "debug";
 const debug = _debug("babbling:player");
 
-import { AppFor, IApp, IPlayerEnabledConstructor, OptionsFor, Opts } from "./app";
+import { AppFor, IApp, IPlayableOptions, IPlayerEnabledConstructor, OptionsFor, Opts } from "./app";
 import { ChromecastDevice } from "./device";
 
 interface IConfiguredApp<TConstructor extends IPlayerEnabledConstructor<Opts, IApp>> {
@@ -38,7 +38,7 @@ class Player {
         private opts: IPlayerOpts,
     ) {}
 
-    public async playUrl(url: string) {
+    public async playUrl(url: string, opts: IPlayableOptions = {}) {
         const configured = pickAppForUrl(this.apps, url);
         debug("Chose", configured.appConstructor.name, "to play", url);
 
@@ -57,7 +57,7 @@ class Player {
                 );
 
                 debug("Playing", url, "on", d.friendlyName);
-                await playable(app);
+                await playable(app, opts);
             } finally {
                 if (this.opts.autoClose !== false) {
                     debug("auto-close", d.friendlyName);

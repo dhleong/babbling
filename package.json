@@ -35,7 +35,8 @@
     "jsonwebtoken": "^8.5.1",
     "nodecastor": "dhleong/nodecastor#e18189c",
     "request": "^2.88.0",
-    "request-promise-native": "^1.0.7"
+    "request-promise-native": "^1.0.7",
+    "youtubish": "^0.1.2"
   },
   "devDependencies": {
     "@types/debug": "^4.1.3",
