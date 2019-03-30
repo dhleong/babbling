@@ -214,7 +214,23 @@ export class YoutubeApp extends BaseApp {
     ) {
         const { listId, startTime } = options;
 
-        // TODO support video URLs?
+        if (
+            videoId === ""
+            && listId
+            && listId.length
+            && this.youtubish
+        ) {
+            // starting a playlist works best when we actually
+            // load the first video in it (if we can)
+            try {
+                const video = await this.playlistById(listId).get(0);
+                videoId = video.id;
+            } catch (e) {
+                // ignore; this is best-effort
+                debug(`Failed to load playlist '${listId}':`, e);
+            }
+        }
+
         await this.ensureYoutubeSession();
         await this.sessionRequest(URLS.bind, {
             data: {
@@ -238,19 +254,7 @@ export class YoutubeApp extends BaseApp {
         }
 
         debug("attempting to resume playlist", id);
-        let playlist: YoutubePlaylist;
-        if (this.playlistsCache && this.playlistsCache[id]) {
-            playlist = this.playlistsCache[id] as any;
-            debug("Reusing playlist from cache", id);
-        } else {
-            playlist = new YoutubePlaylist(this.youtubish, id);
-            debug("Fresh playlist", id);
-
-            if (this.playlistsCache) {
-                this.playlistsCache[id] = playlist;
-            }
-        }
-
+        const playlist = this.playlistById(id);
         const video = await playlist.findMostRecentlyPlayed(
             new WatchHistory(this.youtubish),
         );
@@ -436,6 +440,26 @@ export class YoutubeApp extends BaseApp {
             const filled = await this.youtubish;
             this.cookies = filled.cookies;
             return filled.cookies;
+        }
+    }
+
+    private playlistById(id: string) {
+        if (!this.youtubish) {
+            throw new Error("Cannot resume playlist without youtubish credentials");
+        }
+
+        // TODO probably, expire cache periodically
+        if (this.playlistsCache && this.playlistsCache[id]) {
+            debug("Reusing playlist from cache", id);
+            return this.playlistsCache[id] as YoutubePlaylist;
+        } else {
+            const playlist = new YoutubePlaylist(this.youtubish, id);
+            debug("Fresh playlist", id);
+
+            if (this.playlistsCache) {
+                this.playlistsCache[id] = playlist;
+            }
+            return playlist;
         }
     }
 }
