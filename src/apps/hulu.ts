@@ -6,6 +6,7 @@ const debug = _debug("babbling:hulu");
 
 import { ICastSession, IDevice } from "nodecastor";
 import { IApp, IAppConstructor } from "../app";
+import { CookiesConfigurable } from "../cli/configurables";
 import { BaseApp } from "./base";
 import { awaitMessageOfType } from "./util";
 
@@ -55,6 +56,8 @@ function seemsLikeValidUUID(uuid: string) {
 }
 
 export class HuluApp extends BaseApp {
+
+    public static configurable = new CookiesConfigurable<IHuluOpts>("https://www.hulu.com");
 
     public static ownsUrl(url: string) {
         return url.includes("hulu.com");

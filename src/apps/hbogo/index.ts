@@ -8,18 +8,12 @@ import { BaseApp } from "../base";
 import { awaitMessageOfType } from "../util";
 
 import { HboGoApi } from "./api";
+import { HboGoConfigurable, IHboGoOpts } from "./config";
+export { IHboGoOpts } from "./config";
 
 const APP_ID = "144BDEF0";
 const HBO_GO_NS = "urn:x-cast:hbogo";
 const MEDIA_NS = "urn:x-cast:com.google.cast.media";
-
-export interface IHboGoOpts {
-    /**
-     * The bearer token, as found in the Authorization header
-     * for a request to `https://comet.api.hbo.com/content`
-     */
-    token: string;
-}
 
 export interface IHboGoPlayOptions {
     /** Eg "ENG" */
@@ -33,6 +27,8 @@ export interface IHboGoPlayOptions {
 }
 
 export class HboGoApp extends BaseApp {
+
+    public static configurable = new HboGoConfigurable();
 
     public static ownsUrl(url: string) {
         return url.includes("play.hbogo.com");
