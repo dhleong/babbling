@@ -14,7 +14,7 @@ async function cookieString(c: CookieExtractor, url: string) {
             str += "; ";
         }
 
-        str += `${cookie.name}: ${cookie.value}`;
+        str += `${cookie.name}=${cookie.value}`;
     }
 
     return str;
