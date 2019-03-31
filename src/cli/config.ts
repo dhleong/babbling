@@ -7,7 +7,7 @@ import _debug from "debug";
 const debug = _debug("babbling:config");
 
 import { CookieExtractor, LocalStorageExtractor } from "chromagnon";
-import { IApp, IAppConstructor } from "../app";
+import { IApp, IAppConstructor, IPlayerEnabledConstructor, Opts } from "../app";
 import { isConfigurable } from "./model";
 
 export const DEFAULT_CONFIG_PATH = pathlib.join(
@@ -59,11 +59,13 @@ export async function *importConfig(configPath?: string) {
     yield *importConfigFromJson(config);
 }
 
+type ConfigPair<TOpts extends Opts> = [IPlayerEnabledConstructor<TOpts, IApp>, Opts];
+
 export async function *importConfigFromJson(config: any) {
 
     for await (const app of getAppConstructors()) {
         if (config[app.name]) {
-            yield [app, config[app.name]];
+            yield [app, config[app.name]] as ConfigPair<any>;
         }
     }
 }
