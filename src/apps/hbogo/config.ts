@@ -1,6 +1,6 @@
 import { CookieExtractor, LocalStorageExtractor } from "chromagnon";
 
-import { IConfigurable } from "../../cli/model";
+import { IConfigSource, IConfigurable } from "../../cli/model";
 
 export interface IHboGoOpts {
     /**
@@ -12,10 +12,10 @@ export interface IHboGoOpts {
 
 export class HboGoConfigurable implements IConfigurable<IHboGoOpts> {
     public async extractConfig(
-        cookies: CookieExtractor,
-        storage: LocalStorageExtractor,
+        source: IConfigSource,
     ) {
-        for await (const { key, value } of storage.readAll("https://play.hbogo.com")) {
+        const stream = source.storage.readAll("https://play.hbogo.com");
+        for await (const { key, value } of stream) {
             if (key.includes("LoginInfo.user")) {
                 const entry = JSON.parse(value);
                 const token = entry.accessToken;

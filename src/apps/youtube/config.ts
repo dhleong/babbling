@@ -2,7 +2,7 @@ import { CookieExtractor, LocalStorageExtractor } from "chromagnon";
 import { ICreds } from "youtubish";
 
 import { CookiesConfigurable } from "../../cli/configurables";
-import { IConfigurable } from "../../cli/model";
+import { IConfigSource, IConfigurable } from "../../cli/model";
 
 export interface IPlaylistCache {
     [id: string]: any;
@@ -44,10 +44,9 @@ const baseConfigurable = new CookiesConfigurable("https://www.youtube.com");
 
 export class YoutubeConfigurable implements IConfigurable<IYoutubeOpts> {
     public async extractConfig(
-        cookies: CookieExtractor,
-        storage: LocalStorageExtractor,
+        source: IConfigSource,
     ) {
-        const base = await baseConfigurable.extractConfig(cookies, storage);
+        const base = await baseConfigurable.extractConfig(source);
         if (!base || !base.cookies) return;
 
         return {

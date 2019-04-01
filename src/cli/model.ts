@@ -1,10 +1,22 @@
 import { CookieExtractor, LocalStorageExtractor } from "chromagnon";
 import { IAppConstructor } from "../app";
 
+export interface ICookieSource {
+    query(url: string): AsyncIterable<{name: string, value: string}>;
+}
+
+export interface ILocalStorageSource {
+    readAll(url: string): AsyncIterable<{key: string, value: string}>;
+}
+
+export interface IConfigSource {
+    cookies: ICookieSource;
+    storage: ILocalStorageSource;
+}
+
 export interface IConfigurable<TConfig> {
     extractConfig(
-        cookies: CookieExtractor,
-        storage: LocalStorageExtractor,
+        source: IConfigSource,
     ): Promise<Partial<TConfig> | undefined>;
 }
 

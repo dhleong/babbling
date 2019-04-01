@@ -1,12 +1,12 @@
 import { CookieExtractor, LocalStorageExtractor } from "chromagnon";
 
-import { IConfigurable } from "./model";
+import { IConfigSource, IConfigurable, ICookieSource } from "./model";
 
 export interface ICookieConfig {
     cookies: string;
 }
 
-async function cookieString(c: CookieExtractor, url: string) {
+async function cookieString(c: ICookieSource, url: string) {
     let str = "";
 
     for await (const cookie of c.query(url)) {
@@ -24,10 +24,9 @@ export class CookiesConfigurable<T extends ICookieConfig> implements IConfigurab
     constructor(private url: string) {}
 
     public async extractConfig(
-        cookies: CookieExtractor,
-        storage: LocalStorageExtractor,
+        source: IConfigSource,
     ): Promise<Partial<T> | undefined> {
-        const s = await cookieString(cookies, this.url);
+        const s = await cookieString(source.cookies, this.url);
         if (s) {
             return { cookies: s } as Partial<T>;
         }
