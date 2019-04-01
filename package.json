@@ -53,6 +53,6 @@
     "typescript": "^3.3.4000"
   },
   "optionalDependencies": {
-    "chromagnon": "file:~/git/chromagnon"
+    "chromagnon": "^1.0.0"
   }
 }
