@@ -1,6 +1,6 @@
 {
   "name": "babbling",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "Cast Streaming service videos to Chromecast",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
