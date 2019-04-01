@@ -9,6 +9,7 @@ const debug = _debug("babbling:config");
 import { CookieExtractor, LocalStorageExtractor } from "chromagnon";
 import { IApp, IAppConstructor, IPlayerEnabledConstructor, Opts } from "../app";
 import { isConfigurable } from "./model";
+import { readConfig } from "./commands/config";
 
 export const DEFAULT_CONFIG_PATH = pathlib.join(
     os.homedir(),
@@ -45,16 +46,10 @@ export class ConfigExtractor {
 
         return config;
     }
-
-    public async writeConfig(path: string, config: any) {
-        await fs.mkdirp(pathlib.dirname(path));
-        return fs.writeFile(path, JSON.stringify(config, null, "  "));
-    }
 }
 
 export async function *importConfig(configPath?: string) {
-    const contents = await fs.readFile(configPath || DEFAULT_CONFIG_PATH);
-    const config = JSON.parse(contents.toString());
+    const config = await readConfig(configPath || DEFAULT_CONFIG_PATH);
 
     yield *importConfigFromJson(config);
 }

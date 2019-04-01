@@ -76,10 +76,10 @@ type IPlayerEnabled = IPlayerEnabledConstructor<Opts, IApp>;
 type IPlayerConfigurable = IPlayerEnabledConstructor<Opts, IApp> & IConfigurableApp<Opts>;
 
 export class PlayerBuilder {
-    public static async autoInflate() {
+    public static async autoInflate(configPath?: string) {
         const builder = new PlayerBuilder();
 
-        for await (const [app, opts] of importConfig()) {
+        for await (const [app, opts] of importConfig(configPath)) {
             builder.withApp(app, opts);
         }
 
