@@ -8,8 +8,8 @@ const debug = _debug("babbling:config");
 
 import { CookieExtractor, LocalStorageExtractor } from "chromagnon";
 import { IApp, IAppConstructor, IPlayerEnabledConstructor, Opts } from "../app";
-import { isConfigurable } from "./model";
 import { readConfig } from "./commands/config";
+import { isConfigurable } from "./model";
 
 export const DEFAULT_CONFIG_PATH = pathlib.join(
     os.homedir(),
