@@ -1,4 +1,3 @@
-import { CookieExtractor, LocalStorageExtractor } from "chromagnon";
 import { IAppConstructor } from "../app";
 
 export interface ICookieSource {

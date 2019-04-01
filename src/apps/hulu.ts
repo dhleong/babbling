@@ -4,8 +4,7 @@ import request from "request-promise-native";
 import _debug from "debug";
 const debug = _debug("babbling:hulu");
 
-import { ICastSession, IDevice } from "nodecastor";
-import { IApp, IAppConstructor } from "../app";
+import { IDevice } from "nodecastor";
 import { CookiesConfigurable } from "../cli/configurables";
 import { BaseApp } from "./base";
 import { awaitMessageOfType } from "./util";
@@ -198,7 +197,14 @@ export class HuluApp extends BaseApp {
     }
 
     private async ensureUserToken() {
-        if (this.userToken) return;
+        if (
+            this.userToken
+            && this.userTokenExpires
+            && Date.now() < this.userTokenExpires
+        ) {
+            // still valid
+            return;
+        }
 
         await this.ensureCSRF();
 

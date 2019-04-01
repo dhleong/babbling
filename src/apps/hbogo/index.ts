@@ -1,5 +1,3 @@
-import request from "request-promise-native";
-
 import _debug from "debug";
 const debug = _debug("babbling:hbogo");
 

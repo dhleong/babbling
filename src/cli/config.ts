@@ -1,11 +1,8 @@
-import fs from "fs-extra";
 import os from "os";
 import pathlib from "path";
-import util from "util";
 
 import { IApp, IAppConstructor, IPlayerEnabledConstructor, Opts } from "../app";
 import { readConfig } from "./commands/config";
-import { isConfigurable } from "./model";
 
 export const DEFAULT_CONFIG_PATH = pathlib.join(
     os.homedir(),

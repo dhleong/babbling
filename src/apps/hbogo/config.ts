@@ -1,5 +1,3 @@
-import { CookieExtractor, LocalStorageExtractor } from "chromagnon";
-
 import { IConfigSource, IConfigurable } from "../../cli/model";
 
 export interface IHboGoOpts {

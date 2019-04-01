@@ -11,7 +11,7 @@ const debug = _debug("babbling:youtube");
 import { ICastSession, IDevice } from "nodecastor";
 import { ICreds, WatchHistory, YoutubePlaylist } from "youtubish";
 
-import { IApp, IAppConstructor, IPlayableOptions } from "../../app";
+import { IPlayableOptions } from "../../app";
 import { BaseApp } from "../base";
 import { awaitMessageOfType } from "../util";
 import { IPlaylistCache, IYoutubeOpts, YoutubeConfigurable } from "./config";

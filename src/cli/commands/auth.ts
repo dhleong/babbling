@@ -8,7 +8,7 @@ const debug = _debug("babbling:config");
 import { consoleWrite, prompt } from "./util";
 
 import { DEFAULT_CONFIG_PATH, getAppConstructors } from "../config";
-import { IConfigSource, ICookieSource, ILocalStorageSource, isConfigurable } from "../model";
+import { IConfigSource, ILocalStorageSource, isConfigurable } from "../model";
 import { writeConfig } from "./config";
 
 class ChromagnonSource implements IConfigSource {

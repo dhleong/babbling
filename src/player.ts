@@ -1,9 +1,8 @@
 import _debug from "debug";
 const debug = _debug("babbling:player");
 
-import { AppFor, IApp, IPlayableOptions, IPlayerEnabledConstructor, OptionsFor, Opts } from "./app";
+import { IApp, IPlayableOptions, IPlayerEnabledConstructor, OptionsFor, Opts } from "./app";
 import { importConfig } from "./cli/config";
-import { IConfigurable, IConfigurableApp } from "./cli/model";
 import { ChromecastDevice } from "./device";
 
 interface IConfiguredApp<TConstructor extends IPlayerEnabledConstructor<Opts, IApp>> {
@@ -72,9 +71,6 @@ class Player {
     }
 }
 
-type IPlayerEnabled = IPlayerEnabledConstructor<Opts, IApp>;
-type IPlayerConfigurable = IPlayerEnabledConstructor<Opts, IApp> & IConfigurableApp<Opts>;
-
 export class PlayerBuilder {
     public static async autoInflate(configPath?: string) {
         const builder = new PlayerBuilder();
@@ -90,7 +86,7 @@ export class PlayerBuilder {
     private devices: ChromecastDevice[] = [];
     private opts: IPlayerOpts = {};
 
-    public withApp<TConstructor extends IPlayerEnabled>(
+    public withApp<TConstructor extends IPlayerEnabledConstructor<Opts, IApp>>(
         appConstructor: TConstructor,
         ...options: OptionsFor<TConstructor>  // tslint:disable-line
     ) {

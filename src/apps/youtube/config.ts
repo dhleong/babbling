@@ -1,4 +1,3 @@
-import { CookieExtractor, LocalStorageExtractor } from "chromagnon";
 import { ICreds } from "youtubish";
 
 import { CookiesConfigurable } from "../../cli/configurables";

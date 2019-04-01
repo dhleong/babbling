@@ -1,5 +1,3 @@
-import { CookieExtractor, LocalStorageExtractor } from "chromagnon";
-
 import { IConfigSource, IConfigurable, ICookieSource } from "./model";
 
 export interface ICookieConfig {
