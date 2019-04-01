@@ -2,11 +2,14 @@ import _debug from "debug";
 const debug = _debug("babbling:player");
 
 import { AppFor, IApp, IPlayableOptions, IPlayerEnabledConstructor, OptionsFor, Opts } from "./app";
+import { importConfig } from "./cli/config";
+import { IConfigurable, IConfigurableApp } from "./cli/model";
 import { ChromecastDevice } from "./device";
 
 interface IConfiguredApp<TConstructor extends IPlayerEnabledConstructor<Opts, IApp>> {
     appConstructor: TConstructor;
     options: OptionsFor<TConstructor>;
+    autoConfigure?: boolean;
 }
 
 function pickAppForUrl(
@@ -69,20 +72,40 @@ class Player {
     }
 }
 
+type IPlayerEnabled = IPlayerEnabledConstructor<Opts, IApp>;
+type IPlayerConfigurable = IPlayerEnabledConstructor<Opts, IApp> & IConfigurableApp<Opts>;
+
 export class PlayerBuilder {
+    public static async autoInflate(configPath?: string) {
+        const builder = new PlayerBuilder();
+
+        for await (const [app, opts] of importConfig(configPath)) {
+            builder.withApp(app, opts);
+        }
+
+        return builder;
+    }
 
     private apps: Array<IConfiguredApp<any>> = [];
     private devices: ChromecastDevice[] = [];
     private opts: IPlayerOpts = {};
 
-    public withApp<TConstructor extends IPlayerEnabledConstructor<Opts, IApp>>(
+    public withApp<TConstructor extends IPlayerEnabled>(
         appConstructor: TConstructor,
         ...options: OptionsFor<TConstructor>  // tslint:disable-line
     ) {
-        this.apps.push({
-            appConstructor,
-            options,
-        });
+        const index = this.apps.findIndex(old => old.appConstructor === appConstructor);
+        if (index !== -1) {
+            // extend existing config, for use with autoInflate();
+            this.apps[index].options = this.apps[index].options.map((old, i) => {
+                return Object.assign(old, options[i]);
+            });
+        } else {
+            this.apps.push({
+                appConstructor,
+                options,
+            });
+        }
         return this;
     }
 

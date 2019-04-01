@@ -11,9 +11,12 @@ const debug = _debug("babbling:youtube");
 import { ICastSession, IDevice } from "nodecastor";
 import { ICreds, WatchHistory, YoutubePlaylist } from "youtubish";
 
-import { IApp, IAppConstructor, IPlayableOptions } from "../app";
-import { BaseApp } from "./base";
-import { awaitMessageOfType } from "./util";
+import { IApp, IAppConstructor, IPlayableOptions } from "../../app";
+import { BaseApp } from "../base";
+import { awaitMessageOfType } from "../util";
+import { IPlaylistCache, IYoutubeOpts, YoutubeConfigurable } from "./config";
+
+export { IYoutubeOpts } from "./config";
 
 const APP_ID = "233637DE";
 const MDX_NS = "urn:x-cast:com.google.youtube.mdx";
@@ -62,43 +65,9 @@ async function getMdxScreenId(session: ICastSession) {
     return status.data.screenId;
 }
 
-export interface IPlaylistCache {
-    [id: string]: any;
-}
-
-export interface IYoutubeOpts {
-    /**
-     * A string of cookies as might be retrieved from the "copy as
-     * cURL" from any request on youtube.com in Chrome's network
-     * inspector
-     */
-    cookies?: string;
-
-    /**
-     * Credentials from Youtubish
-     */
-    youtubish?: ICreds;
-
-    /**
-     * Optional cache storage for playlist data, when youtubish
-     * credentials are provided for resuming playlists. If not
-     * provided, playlists will be fetched for each request.
-     *
-     * It is recommended to use the cache for long-running
-     * processes
-     */
-    playlistsCache?: IPlaylistCache;
-
-    /**
-     * The name of the "device" to show when we connect to the
-     * Chromecast. It will be rendered simply as "<deviceName>" at the
-     * top of the screen, or "<owner>'s <deviceName> has joined" if
-     * `cookies` is provided
-     */
-    deviceName?: string;
-}
-
 export class YoutubeApp extends BaseApp {
+
+    public static configurable = new YoutubeConfigurable();
 
     public static ownsUrl(url: string) {
         return url.includes("youtube.com") || url.includes("youtu.be");
