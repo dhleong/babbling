@@ -41,6 +41,8 @@ export class ConfigExtractor {
                     debug("Configuring", app.name);
                     const extracted = await app.configurable.extractConfig(source);
                     config[app.name] = extracted;
+                } else {
+                    debug("Unable to auto-configure", app.name);
                 }
             }
         } finally {
