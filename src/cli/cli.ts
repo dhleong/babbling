@@ -65,5 +65,12 @@ parser.help()
     .demandCommand(1);
 
 export async function main(args: any[]) {
-    parser.parse(args.slice(2));
+    const result = parser.parse(args.slice(2));
+    if (result.config) {
+        // we loaded config, which means yargs handled it
+        return;
+    }
+
+    parser.showHelp();
+    console.log("Unknown command", result._[0]);
 }
