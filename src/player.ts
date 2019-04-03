@@ -1,7 +1,8 @@
 import _debug from "debug";
 const debug = _debug("babbling:player");
 
-import { IApp, IPlayableOptions, IPlayerEnabledConstructor, OptionsFor, Opts } from "./app";
+import { IApp, IPlayable, IPlayableOptions, IPlayerEnabledConstructor, IQueryResult, OptionsFor, Opts } from "./app";
+import { mergeAsyncIterables } from "./async";
 import { importConfig } from "./cli/config";
 import { ChromecastDevice } from "./device";
 
@@ -24,6 +25,19 @@ function pickAppForUrl(
     throw new Error(`No configured app could play ${url}`);
 }
 
+function findAppNamed(
+    apps: Array<IConfiguredApp<IPlayerEnabledConstructor<any, any>>>,
+    appName: string,
+) {
+    for (const candidate of apps) {
+        if (candidate.appConstructor.name === appName) {
+            return candidate;
+        }
+    }
+
+    throw new Error(`Could not find configured app named ${appName}`);
+}
+
 export interface IPlayerOpts {
     /**
      * If true (the default) each device will be closed
@@ -35,7 +49,7 @@ export interface IPlayerOpts {
 
 class Player {
     constructor(
-        private apps: Array<IConfiguredApp<any>>,
+        private apps: Array<IConfiguredApp<IPlayerEnabledConstructor<any, any>>>,
         private devices: ChromecastDevice[],
         private opts: IPlayerOpts,
     ) {}
@@ -50,16 +64,47 @@ class Player {
         );
         debug("Successfully created player for", url);
 
+        return this.playOnEachDevice(configured, playable, url, opts);
+    }
+
+    public async play(result: IQueryResult, opts: IPlayableOptions = {}) {
+        const configured = findAppNamed(this.apps, result.appName);
+
+        return this.playOnEachDevice(
+            configured, result.playable, result.title, opts,
+        );
+    }
+
+    public async *queryByTitle(title: string): AsyncIterable<IQueryResult> {
+        const iterables = this.apps.filter(it => it.appConstructor.queryByTitle !== undefined)
+            .map(it => it.appConstructor!.queryByTitle!(title, ...it.options));
+        yield *mergeAsyncIterables(iterables);
+    }
+
+    private async playOnEachDevice(
+        configured: IConfiguredApp<any>,
+        playable: IPlayable<any>,
+        label: string,
+        opts: IPlayableOptions,
+    ) {
+        return this.withEachDevice(async d => {
+            const app = await d.openApp(
+                configured.appConstructor,
+                ...configured.options,
+            );
+
+            debug("Playing", label, "on", d.friendlyName);
+            await playable(app, opts);
+        });
+    }
+
+    private async withEachDevice(
+        block: (device: ChromecastDevice) => Promise<void>,
+    ) {
         return Promise.all(this.devices.map(async d => {
 
             try {
-                const app = await d.openApp(
-                    configured.appConstructor,
-                    ...configured.options,
-                );
-
-                debug("Playing", url, "on", d.friendlyName);
-                await playable(app, opts);
+                await block(d);
             } finally {
                 if (this.opts.autoClose !== false) {
                     debug("auto-close", d.friendlyName);

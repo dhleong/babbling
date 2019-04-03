@@ -147,6 +147,22 @@ export class HboGoApi {
         return [];
     }
 
+    public async *search(title: string) {
+        const searchUrn = "urn:hbo:search:" + encodeURIComponent(title);
+        const content = await this.fetchContent([searchUrn]);
+
+        const results = content.slice(1);
+        for (const result of results) {
+            const urn = result.body.references.viewable;
+            if (!urn) continue;
+
+            yield {
+                title: result.body.titles.full,
+                urn,
+            };
+        }
+    }
+
     /*
      * Util methods
      */

@@ -39,6 +39,31 @@ export interface IPlayableOptions {
 
 export type IPlayable<T extends IApp> = (app: T, opts: IPlayableOptions) => Promise<void>;
 
+export interface IQueryResult {
+    /**
+     * The name of the app that provided the result
+     */
+    appName: string;
+
+    /**
+     * Title of the entity that matched the query
+     */
+    title: string;
+
+    /**
+     * Description of the entity, if available
+     */
+    desc?: string;
+
+    /**
+     * Playable URL for this entity, if available
+     */
+    url?: string;
+
+    /** @internal */
+    playable: IPlayable<any>;
+}
+
 export interface IPlayerEnabledConstructor<TOptions extends Opts, TSelf extends IApp>
 extends IAppConstructor<TOptions, TSelf> {
 
@@ -55,5 +80,10 @@ extends IAppConstructor<TOptions, TSelf> {
      * the returned Promise should reject.
      */
     createPlayable(url: string, ...options: OptionsFor<TSelf>): Promise<IPlayable<AppFor<TSelf>>>;
+
+    /**
+     *
+     */
+    queryByTitle?(title: string, ...options: OptionsFor<TSelf>): AsyncIterable<IQueryResult>;
 
 }
