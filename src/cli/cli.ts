@@ -63,14 +63,14 @@ parser.command(
 
 if (canAutoConfigure) {
     parser.command(
-        "auto-auth", `Automatically authenticate available apps`, {
-            // no command-specific config
+        "auto-auth", `Automatically authenticate available apps`, args => {
+            return withConfig(args);
         }, async argv => {
             // chromagnon is a huge dependency, and installs don't need
             // to require it since it's just for config, so we lazily
             // import the dependency in case it's not available
-            const { default: authenticate } = require("./commands/auth");
-            await authenticate();
+            const { authenticate } = require("./commands/auth");
+            await authenticate(argv);
         },
     );
 }

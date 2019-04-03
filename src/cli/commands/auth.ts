@@ -7,9 +7,9 @@ const debug = _debug("babbling:config");
 
 import { consoleWrite, prompt } from "./util";
 
-import { DEFAULT_CONFIG_PATH, getAppConstructors } from "../config";
+import { getAppConstructors } from "../config";
 import { IConfigSource, ILocalStorageSource, isConfigurable } from "../model";
-import { writeConfig } from "./config";
+import { readConfig, writeConfig } from "./config";
 
 class ChromagnonSource implements IConfigSource {
 
@@ -53,7 +53,11 @@ export class ConfigExtractor {
     }
 }
 
-export default async function authenticate() {
+export interface IAuthOpts {
+    config: string;
+}
+
+export async function authenticate(opts: IAuthOpts) {
     consoleWrite(`
 This process will attempt to extract authentication for as many Apps as
 possible from Chrome. You should close Chrome now for this to complete
@@ -72,9 +76,12 @@ cookies for some apps.
         consoleWrite(`Extracted auth:`);
         console.log(config);
 
-        await writeConfig(DEFAULT_CONFIG_PATH, config);
+        // don't delete pre-existing values
+        const existing = await readConfig(opts.config);
+
+        await writeConfig(opts.config, Object.assign(existing, config));
         consoleWrite(`
-Wrote config to: ${DEFAULT_CONFIG_PATH}
+Wrote config to: ${opts.config}
         `);
 
     } catch (e) {

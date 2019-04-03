@@ -2,7 +2,12 @@ import fs from "fs-extra";
 import pathlib from "path";
 
 export async function readConfig(path: string) {
-    const raw = await fs.readFile(path);
+    let raw: Buffer;
+    try {
+        raw = await fs.readFile(path);
+    } catch (e) {
+        return {};
+    }
     return JSON.parse(raw.toString());
 }
 
