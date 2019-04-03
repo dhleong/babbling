@@ -147,6 +147,24 @@ export class HboGoApi {
         return [];
     }
 
+    public async *search(title: string) {
+        const searchUrn = "urn:hbo:search:" + encodeURIComponent(title);
+        const content = await this.fetchContent([searchUrn]);
+
+        // NOTE: the first one just has references to the ids of
+        // the results, which are resolved after it, so skip it
+        const results = content.slice(1);
+        for (const result of results) {
+            const urn: string = result.body.references.viewable;
+            if (!urn) continue;
+
+            yield {
+                title: result.body.titles.full as string,
+                urn,
+            };
+        }
+    }
+
     /*
      * Util methods
      */

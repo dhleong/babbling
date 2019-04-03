@@ -2,9 +2,11 @@
 
 import yargs from "yargs";
 
-import { withConfig, withKey, withValue } from "./args";
+import { withConfig, withDevice, withKey, withValue } from "./args";
 import cast from "./commands/cast";
 import { config, unconfig } from "./commands/config";
+import findByTitle from "./commands/find";
+import searchByTitle from "./commands/search";
 
 let canAutoConfigure = false;
 try {
@@ -19,17 +21,29 @@ const parser = yargs;
 
 parser.command(
     "cast <url>", `Cast a video by URL`, args => {
-        return withConfig(args).positional("url", {
+        return withDevice(withConfig(args)).positional("url", {
             describe: "The URL to play",
             type: "string",
-        }).demand("url")
-            .option("device", {
-                alias: "d",
-                demandOption: true,
-                desc: "The name of the Chromecast device to cast to",
-                type: "string",
-            });
+        }).demand("url");
     }, cast,
+);
+
+parser.command(
+    "find <title>", `Find and Cast by title`, args => {
+        return withDevice(withConfig(args)).positional("title", {
+            describe: "The title to play",
+            type: "string",
+        }).demand("title");
+    }, findByTitle,
+);
+
+parser.command(
+    "search <title>", `List matching titles`, args => {
+        return withConfig(args).positional("title", {
+            describe: "The title to search for",
+            type: "string",
+        }).demand("title");
+    }, searchByTitle,
 );
 
 parser.command(
@@ -65,5 +79,12 @@ parser.help()
     .demandCommand(1);
 
 export async function main(args: any[]) {
-    parser.parse(args.slice(2));
+    const result = parser.parse(args.slice(2));
+    if (result.config) {
+        // we loaded config, which means yargs handled it
+        return;
+    }
+
+    parser.showHelp();
+    console.log("Unknown command", result._[0]);
 }

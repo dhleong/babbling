@@ -5,6 +5,7 @@ import { IDevice } from "nodecastor";
 import { BaseApp } from "../base";
 import { awaitMessageOfType } from "../util";
 
+import { IQueryResult } from "../../app";
 import { HboGoApi } from "./api";
 import { HboGoConfigurable, IHboGoOpts } from "./config";
 export { IHboGoOpts } from "./config";
@@ -54,6 +55,22 @@ export class HboGoApp extends BaseApp {
         }
 
         throw new Error(`Not sure how to play '${urn}'`);
+    }
+
+    public static async *queryByTitle(
+        title: string,
+        opts: IHboGoOpts,
+    ): AsyncIterable<IQueryResult> {
+        const api = new HboGoApi(opts.token.trim());
+        for await (const result of api.search(title)) {
+            const url = "https://play.hbogo.com/" + result.urn;
+            yield {
+                appName: "HboGoApp",
+                playable: await HboGoApp.createPlayable(url),
+                title: result.title,
+                url,
+            };
+        }
     }
 
     private readonly api: HboGoApi;
