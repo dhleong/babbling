@@ -36,6 +36,11 @@ export default async function searchByTitle(opts: ISearchByTitleOpts) {
         if (match.url) {
             console.log(`    - ${match.url}`);
         }
+        if (match.desc) {
+            console.log(`    ${match.desc}`);
+        }
+
+        console.log();
     }
 
     if (!found) {
