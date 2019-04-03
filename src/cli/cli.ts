@@ -8,11 +8,18 @@ import { config, unconfig } from "./commands/config";
 import findByTitle from "./commands/find";
 import searchByTitle from "./commands/search";
 
+// type-safe conditional import via reference elision
+import * as AuthCommand from "./commands/auth";
+let authCommandModule: typeof AuthCommand;
+
 let canAutoConfigure = false;
 try {
-    // tslint:disable-next-line no-var-requires
+    // tslint:disable no-var-requires
     require("chromagnon");
     canAutoConfigure = true;
+
+    authCommandModule = require("./commands/auth");
+    // tslint:enable no-var-requires
 } catch (e) {
     /* ignore */
 }
@@ -69,8 +76,7 @@ if (canAutoConfigure) {
             // chromagnon is a huge dependency, and installs don't need
             // to require it since it's just for config, so we lazily
             // import the dependency in case it's not available
-            const { authenticate } = require("./commands/auth");
-            await authenticate(argv);
+            await authCommandModule.authenticate(argv);
         },
     );
 }
