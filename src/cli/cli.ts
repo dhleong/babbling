@@ -2,9 +2,10 @@
 
 import yargs from "yargs";
 
-import { withConfig, withKey, withValue } from "./args";
+import { withConfig, withDevice, withKey, withValue } from "./args";
 import cast from "./commands/cast";
 import { config, unconfig } from "./commands/config";
+import findByTitle from "./commands/find";
 
 let canAutoConfigure = false;
 try {
@@ -19,17 +20,20 @@ const parser = yargs;
 
 parser.command(
     "cast <url>", `Cast a video by URL`, args => {
-        return withConfig(args).positional("url", {
+        return withDevice(withConfig(args)).positional("url", {
             describe: "The URL to play",
             type: "string",
-        }).demand("url")
-            .option("device", {
-                alias: "d",
-                demandOption: true,
-                desc: "The name of the Chromecast device to cast to",
-                type: "string",
-            });
+        }).demand("url");
     }, cast,
+);
+
+parser.command(
+    "find <title>", `Find and Cast by title`, args => {
+        return withDevice(withConfig(args)).positional("title", {
+            describe: "The title to play",
+            type: "string",
+        }).demand("title");
+    }, findByTitle,
 );
 
 parser.command(
