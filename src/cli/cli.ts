@@ -6,6 +6,7 @@ import { withConfig, withDevice, withKey, withValue } from "./args";
 import cast from "./commands/cast";
 import { config, unconfig } from "./commands/config";
 import findByTitle from "./commands/find";
+import searchByTitle from "./commands/search";
 
 let canAutoConfigure = false;
 try {
@@ -34,6 +35,15 @@ parser.command(
             type: "string",
         }).demand("title");
     }, findByTitle,
+);
+
+parser.command(
+    "search <title>", `List matching titles`, args => {
+        return withConfig(args).positional("title", {
+            describe: "The title to search for",
+            type: "string",
+        }).demand("title");
+    }, searchByTitle,
 );
 
 parser.command(
