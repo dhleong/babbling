@@ -63,13 +63,12 @@ export class HboGoApp extends BaseApp {
     ): AsyncIterable<IQueryResult> {
         const api = new HboGoApi(opts.token.trim());
         for await (const result of api.search(title)) {
+            const url = "https://play.hbogo.com/" + result.urn;
             yield {
                 appName: "HboGoApp",
-                playable: async (app: HboGoApp) => {
-                    return app.play(result.urn);
-                },
+                playable: await HboGoApp.createPlayable(url),
                 title: result.title,
-                url: "https://play.hbogo.com/" + result.urn,
+                url,
             };
         }
     }
