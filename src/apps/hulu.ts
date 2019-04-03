@@ -55,6 +55,8 @@ function seemsLikeValidUUID(uuid: string) {
     return /^[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}$/.test(uuid);
 }
 
+const supportedEntityTypes = new Set(["series", "movie", "episode"]);
+
 export class HuluApp extends BaseApp {
 
     public static configurable = new CookiesConfigurable<IHuluOpts>("https://www.hulu.com");
@@ -105,10 +107,18 @@ export class HuluApp extends BaseApp {
             it.category === "top results",
         );
         for (const item of results) {
-            if (item.actions.upsell) continue;
+            if (item.actions.upsell) {
+                // if it's prompting to upsell, we probably can't cast it
+                continue;
+            }
 
             const id = item.metrics_info.entity_id;
             const type = item.metrics_info.entity_type;
+            if (!supportedEntityTypes.has(type)) {
+                // skip!
+                continue;
+            }
+
             const url = "https://www.hulu.com/" + type + "/" + id;
             yield {
                 appName: "HuluApp",
@@ -322,10 +332,11 @@ export class HuluApp extends BaseApp {
 
         debug(`loaded entity ${entityId}:`, entity);
 
-        if (
-            entity._type !== "episode"
-            && entity._type !== "movie"
-        ) {
+        if (entity._type === "series") {
+            throw new Error("Use resumeSeries for series");
+        }
+
+        if (!supportedEntityTypes.has(entity._type)) {
             // for example, 'series'
             throw new Error(`Unsupported entity '${entity.name}' (type '${entity._type}')`);
         }
