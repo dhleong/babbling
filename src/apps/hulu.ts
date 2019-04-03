@@ -20,6 +20,7 @@ const CHROMECAST_AUTH_URL = "https://auth.hulu.com/v1/web/chromecast/authenticat
 // tslint:disable
 const ENTITY_DISCOVER_URL = "https://discover.hulu.com/content/v4/entity/deeplink?schema=2&referral_host=www.hulu.com";
 const SERIES_HUB_URL_FORMAT = "https://discover.hulu.com/content/v4/hubs/series/%s/?schema=2&referral_host=www.hulu.com";
+const SEARCH_URL = "https://discover.hulu.com/content/v4/search/entity?language=en&device_context_id=2&limit=64&include_offsite=false&schema=2&referral_host=www.hulu.com";
 
 const USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.121 Safari/537.36";
 // tslint:enable
@@ -80,6 +81,49 @@ export class HuluApp extends BaseApp {
         }
 
         throw new Error(`Not sure how to play '${url}'`);
+    }
+
+    public static async *queryByTitle(
+        title: string,
+        opts: IHuluOpts,
+    ) {
+        const { groups } = await request({
+            headers: {
+                "Cookie": opts.cookies,
+                "Origin": "https://www.hulu.com",
+                "Referer": "https://www.hulu.com/",
+                "User-Agent": USER_AGENT,
+            },
+            json: true,
+            qs: {
+                search_query: title,
+            },
+            url: SEARCH_URL,
+        });
+
+        const { results } = groups.find((it: any) =>
+            it.category === "top results",
+        );
+        for (const item of results) {
+            if (item.actions.upsell) continue;
+
+            const id = item.metrics_info.entity_id;
+            const type = item.metrics_info.entity_type;
+            const url = "https://www.hulu.com/" + type + "/" + id;
+            yield {
+                appName: "HuluApp",
+                desc: item.visuals.body.text,
+                title: item.metrics_info.entity_name,
+                url,
+
+                playable: async (app: HuluApp) => {
+                    if (type === "series") {
+                        return app.resumeSeries(id);
+                    }
+                    return app.play(id, {});
+                },
+            };
+        }
     }
 
     private readonly cookies: string;
