@@ -139,7 +139,7 @@ export class PlayerBuilder {
         if (index !== -1) {
             // extend existing config, for use with autoInflate();
             this.apps[index].options = this.apps[index].options.map((old, i) => {
-                return Object.assign(old, options[i]);
+                return Object.assign({}, old, options[i]);
             });
         } else {
             this.apps.push({

@@ -213,9 +213,9 @@ export class HboGoApi {
     private async fillRequest(opts: OptionsWithUrl) {
         const token = await this.getRefreshToken();
         return Object.assign({
-            headers: Object.assign(HBO_HEADERS, {
+            headers: Object.assign({
                 Authorization: `Bearer ${token}`,
-            }),
+            }, HBO_HEADERS),
         }, opts);
     }
 
@@ -252,9 +252,9 @@ export class HboGoApi {
                 refresh_token: this.token,
                 scope: "browse video_playback device",
             },
-            headers: Object.assign(HBO_HEADERS, {
+            headers: Object.assign({
                 Authorization: `Bearer ${baseTokens.refresh_token}`,
-            }),
+            }, HBO_HEADERS),
             json: true,
             url: TOKENS_URL,
         });
