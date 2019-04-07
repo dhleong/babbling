@@ -6,6 +6,8 @@ const debug = _debug("babbling:base");
 import { ICastApp, ICastSession, IDevice } from "nodecastor";
 import { IApp } from "../app";
 
+export const MEDIA_NS = "urn:x-cast:com.google.cast.media";
+
 export interface IBaseAppProps {
     appId: string;
     sessionNs: string;

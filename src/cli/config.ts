@@ -2,6 +2,7 @@ import os from "os";
 import pathlib from "path";
 
 import { IApp, IAppConstructor, IPlayerEnabledConstructor, Opts } from "../app";
+import { BabblerBaseApp } from "../apps/base-babbler";
 import { readConfig } from "./commands/config";
 
 export const DEFAULT_CONFIG_PATH = pathlib.join(
@@ -30,7 +31,16 @@ export async function *importConfigFromJson(config: any) {
 
     for await (const app of getAppConstructors()) {
         if (config[app.name]) {
-            yield [app, config[app.name]] as ConfigPair<any>;
+            const appConfig = config[app.name];
+            if (
+                app instanceof BabblerBaseApp
+                && config.babbler
+                && !appConfig.appId
+            ) {
+                appConfig.appId = config.babbler;
+            }
+
+            yield [app, appConfig] as ConfigPair<any>;
         }
     }
 }
