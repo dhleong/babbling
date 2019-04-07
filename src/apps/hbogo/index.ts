@@ -2,7 +2,7 @@ import _debug from "debug";
 const debug = _debug("babbling:hbogo");
 
 import { IDevice } from "nodecastor";
-import { BaseApp } from "../base";
+import { BaseApp, MEDIA_NS } from "../base";
 import { awaitMessageOfType } from "../util";
 
 import { IQueryResult } from "../../app";
@@ -12,7 +12,6 @@ export { IHboGoOpts } from "./config";
 
 const APP_ID = "144BDEF0";
 const HBO_GO_NS = "urn:x-cast:hbogo";
-const MEDIA_NS = "urn:x-cast:com.google.cast.media";
 
 export interface IHboGoPlayOptions {
     /** Eg "ENG" */
