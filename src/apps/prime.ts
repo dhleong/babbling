@@ -42,21 +42,52 @@ export class PrimeApp extends BabblerBaseApp {
     public async playEpisode(
         id: string,
     ) {
-        debug("play episode", id);
+        // resolve the ID first; amazon's ID usage is... odd.
+        // plus, it gives us the chance to fetch metadata
+        const episodes = await this.api.getEpisodes(id);
+        if (!episodes || !episodes.length) {
+            throw new Error(`Unable to resolve episode with id ${id}`);
+        }
+
+        if (episodes.length !== 1) {
+            throw new Error(`${id} is not an episode id`);
+        }
+
+        const episode = episodes[0];
+
+        debug("play episode", episode);
         const {
             manifests,
             licenseUrl,
-        } = await this.api.getPlaybackInfo(id);
+        } = await this.api.getPlaybackInfo(episode.id);
 
         // pick *some* manifest
         shuffle(manifests);
 
+        let title = episode.title;
+        let images: string[] | undefined;
+
+        if (episode.cover) {
+            images = [episode.cover];
+        }
+
+        if (episode.series) {
+            title = `${episode.series.title} - ${title}`;
+
+            if (!images && episode.series.cover) {
+                images = [episode.series.cover];
+            }
+        }
+
         const chosenUrl =  manifests[0].url;
         debug("got playback info; loading manifest @", chosenUrl);
-        return this.loadUrl(
-            chosenUrl,
+        return this.loadUrl(chosenUrl, {
             licenseUrl,
-        );
+            metadata: {
+                images,
+                title,
+            },
+        });
     }
 
     protected async performLicenseRequest(

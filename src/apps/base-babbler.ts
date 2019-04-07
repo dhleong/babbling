@@ -12,6 +12,11 @@ export interface IBabblerOpts {
     useLicenseIpc: boolean;
 }
 
+export interface IMediaMetadata {
+    title: string;
+    images?: string[];
+}
+
 /**
  * Base class for apps that use Babbler for playback
  */
@@ -42,24 +47,42 @@ export class BabblerBaseApp extends BaseApp {
 
     protected async loadUrl(
         url: string,
-        licenseUrl?: string,
+        opts: {
+            licenseUrl?: string,
+            metadata?: IMediaMetadata,
+        } = {},
     ) {
         const s = await this.ensureCastSession();
+
+        let metadata: any;
+        if (opts.metadata) {
+            metadata = Object.assign({
+                metadataType: 0,
+                title: opts.metadata.title,
+                type: 0,
+            });
+
+            if (opts.metadata.images && opts.metadata.images.length) {
+
+                metadata.images = opts.metadata.images.map(imageUrl => ({
+                    url: imageUrl,
+                }));
+            }
+        }
 
         s.send({
             autoplay: true,
             customData: {
                 license: {
                     ipc: this.babblerOpts.useLicenseIpc,
-                    url: licenseUrl,
+                    url: opts.licenseUrl,
                 },
             },
             media: {
                 contentId: url,
                 contentType: "video/mp4",
+                metadata,
                 streamType: "BUFFERED",
-
-                // TODO metadata
             },
             sessionId: s.id,
             type: "LOAD",
