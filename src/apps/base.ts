@@ -22,7 +22,7 @@ export abstract class BaseApp implements IApp, IBaseAppProps {
     private session: ICastSession | undefined;
 
     constructor(
-        private device: IDevice,
+        protected device: IDevice,
         props: IBaseAppProps,
     ) {
         this.appId = props.appId;

@@ -1,0 +1,101 @@
+import debug_ from "debug";
+const debug = debug_("babbling:daemon");
+
+import childProc from "child_process";
+import fs from "fs";
+import { getAppConstructors } from "../../cli/config";
+import { ChromecastDevice } from "../../device";
+import { BabblerBaseApp } from "./base";
+
+const DAEMON_ENV = "IS_BABBLER_DAEMON";
+
+export type RPCMethod = "loadUrl";
+export type RPC = [ RPCMethod, any[] ]; // TODO type safety on args?
+
+export interface IDaemonOptions {
+    deviceName: string;
+    appName: string;
+    appOptions: any;
+
+    /**
+     * If provided, the first item in the array is the
+     * method to call, and the second is an array of
+     * parameters to be applied to it
+     */
+    rpc?: RPC;
+}
+
+export class BabblerDaemon {
+    public static spawn(opts: IDaemonOptions) {
+        const out = fs.openSync("daemon.log", "a");
+
+        const args = [
+            JSON.stringify(opts),
+        ];
+        const proc = childProc.fork("daemon", args, {
+            cwd: __dirname,
+            detached: true,
+            env: {
+                DEBUG: process.env.DEBUG,
+                [DAEMON_ENV]: "true",
+            },
+            stdio: [ "ignore", out, out, "ipc" ],
+        });
+        proc.unref();
+
+        return new Promise((resolve, reject) => {
+            proc.on("message", _ => {
+                debug("child has started!");
+                proc.disconnect();
+                resolve();
+            });
+            proc.on("error", e => reject(e));
+            debug("waiting for child");
+        });
+    }
+
+    constructor(private opts: IDaemonOptions) {}
+
+    public async run() {
+        const appCtor = await this.findAppCtor();
+        debug("found", appCtor.name);
+
+        const device = new ChromecastDevice(this.opts.deviceName);
+        const app = await device.openApp(
+            appCtor,
+            this.opts.appOptions,
+        ) as BabblerBaseApp;
+
+        await app.runDaemon();
+        debug("daemon init completed");
+
+        if (this.opts.rpc) {
+            debug("performing rpc", this.opts.rpc);
+            await app.rpc(this.opts.rpc);
+        }
+    }
+
+    private async findAppCtor() {
+        for await (const ctor of getAppConstructors()) {
+            if (ctor.name === this.opts.appName) {
+                return ctor;
+            }
+        }
+
+        throw new Error(`Unknown app ${this.opts.appName}`);
+    }
+}
+
+function runDaemon(args: string[]) {
+    if (!process.send) throw new Error();
+    process.send("running");
+    debug("daemon started");
+
+    const opts = JSON.parse(args[args.length - 1]) as IDaemonOptions;
+    const daemon = new BabblerDaemon(opts);
+    daemon.run();
+}
+
+if (process.env[DAEMON_ENV]) {
+    runDaemon(process.argv);
+}

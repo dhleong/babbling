@@ -21,12 +21,50 @@ declare module "nodecastor" {
         send(message: any): void;
     }
 
+    export interface IAppStatus {
+        appId: string;
+        displayName: string;
+        iconUrl: string;
+        isIdleScreen: boolean;
+        launchedFromCloud: boolean;
+        namespaces: Array<{name: string}>;
+        sessionId: string;
+        statusText: string;
+        transportId: string;
+    }
+
+    export interface IReceiverStatusMessage {
+        applications?: IAppStatus[];
+        volume: {
+            controlType: string,
+            level: number,
+            muted: boolean,
+            stepInterval: number,
+        };
+    }
+
+    export interface IMediaStatus {
+        currentItemId: number;
+
+        /** floating point number in seconds */
+        currentTime: number;
+
+        mediaSessionId: number;
+        playbackRate: number;
+        playerState: "BUFFERING" | "IDLE" | "LOADING" | "PAUSED" | "PLAYING";
+    }
+
+    export interface IMediaStatusMessage {
+        status: IMediaStatus[];
+    }
+
     export interface IDevice {
         friendlyName: string;
 
         application(id: string, callback: Callback<ICastApp>): void;
         stop(): void;
         on(event: "connect", handler: () => any): IDevice;
+        on(event: "status", handler: (status: IReceiverStatusMessage) => any): IDevice;
     }
 
     export interface IScanner {

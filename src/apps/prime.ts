@@ -4,7 +4,7 @@ const debug = debug_("babbling:prime");
 import { ChakramApi } from "chakram-ts";
 import { IDevice } from "nodecastor";
 
-import { BabblerBaseApp } from "./base-babbler";
+import { BabblerBaseApp } from "./babbler/base";
 
 export interface IPrimeOpts {
     appId: string;
@@ -33,6 +33,7 @@ export class PrimeApp extends BabblerBaseApp {
     ) {
         super(device, {
             appId: opts.appId,
+            daemonOptions: opts,
             useLicenseIpc: true,
         });
 
@@ -96,5 +97,9 @@ export class PrimeApp extends BabblerBaseApp {
     ): Promise<Buffer> {
         if (!url) throw new Error("No license url provided");
         return this.api.fetchLicense(url, buffer);
+    }
+
+    protected async onPlayerPaused(currentTimeSeconds: number) {
+        debug("TODO submit time", currentTimeSeconds);
     }
 }
