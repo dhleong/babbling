@@ -2,7 +2,7 @@ import os from "os";
 import pathlib from "path";
 
 import { IApp, IAppConstructor, IPlayerEnabledConstructor, Opts } from "../app";
-import { BabblerBaseApp } from "../apps/base-babbler";
+import { BabblerBaseApp } from "../apps/babbler/base";
 import { readConfig } from "./commands/config";
 
 export const DEFAULT_CONFIG_PATH = pathlib.join(
