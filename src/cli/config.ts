@@ -33,7 +33,7 @@ export async function *importConfigFromJson(config: any) {
         if (config[app.name]) {
             const appConfig = config[app.name];
             if (
-                app instanceof BabblerBaseApp
+                app.prototype instanceof BabblerBaseApp
                 && config.babbler
                 && !appConfig.appId
             ) {
