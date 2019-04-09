@@ -40,8 +40,18 @@ export class PrimeApp extends BabblerBaseApp {
         this.api = new ChakramApi(opts.cookies);
     }
 
+    /**
+     * Options:
+     * - listId: Id of playlist to enqueue. The given `videoId` should
+     *   probably be a member of this playlist
+     * - startTime: Time in seconds to start playback. Defaults to 0
+     *   which starts from the beginning
+     */
     public async playEpisode(
         id: string,
+        opts: {
+            startTime?: number,
+        } = {},
     ) {
         // resolve the ID first; amazon's ID usage is... odd.
         // plus, it gives us the chance to fetch metadata
@@ -89,6 +99,7 @@ export class PrimeApp extends BabblerBaseApp {
                 images,
                 title,
             },
+            startTime: opts.startTime,
         });
     }
 
