@@ -127,6 +127,7 @@ export class BabblerBaseApp<TMedia = {}> extends BaseApp {
             licenseUrl?: string,
             metadata?: IMediaMetadata,
             media?: TMedia,
+            startTime?: number,
         } = {},
     ) {
         if (!this.isDaemon && this.babblerOpts.daemonOptions) {
@@ -165,6 +166,7 @@ export class BabblerBaseApp<TMedia = {}> extends BaseApp {
 
         s.send({
             autoplay: true,
+            currentTime: opts.startTime,
             customData: {
                 license: {
                     ipc: this.babblerOpts.useLicenseIpc,
