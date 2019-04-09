@@ -1,9 +1,11 @@
 import debug_ from "debug";
 const debug = debug_("babbling:prime");
 
-import { ChakramApi, ContentType, IBaseObj, IEpisode } from "chakram-ts";
+import { ChakramApi, ContentType, IBaseObj, IEpisode, ISeason } from "chakram-ts";
 import { IDevice } from "nodecastor";
 
+import { IPlayableOptions } from "../app";
+import { CookiesConfigurable } from "../cli/configurables";
 import { BabblerBaseApp } from "./babbler/base";
 
 export interface IPrimeOpts {
@@ -25,6 +27,49 @@ function shuffle(a: any[]) {
  * Amazon Prime Video
  */
 export class PrimeApp extends BabblerBaseApp {
+
+    public static configurable = new CookiesConfigurable<IPrimeOpts>("https://www.amazon.com");
+
+    public static ownsUrl(url: string) {
+        // TODO other domains
+        return url.includes("amazon.com");
+    }
+
+    public static async createPlayable(url: string, options: IPrimeOpts) {
+        const m = url.match(/video\/detail\/([^\/]+)/);
+        if (!m) {
+            throw new Error(`Unsure how to play ${url}`);
+        }
+
+        const api = new ChakramApi(options.cookies);
+        const titleId = m[1];
+        const info = await api.getTitleInfo(titleId);
+
+        if (info.type === ContentType.SERIES) {
+            debug("playable for series", info.id);
+            return async (app: PrimeApp) => app.resumeSeries(titleId);
+        } else if (info.type === ContentType.SEASON) {
+            // probably they want to resume the series
+            const season = info as ISeason;
+            if (season.series) {
+                const seriesId = season.series.id;
+                debug("playable for series given season", seriesId);
+                return async (app: PrimeApp) => app.resumeSeries(
+                    seriesId,
+                );
+            }
+        }
+
+        debug("playable for title", info.id);
+        return async (app: PrimeApp, opts: IPlayableOptions) => {
+            if (opts.resume === false) {
+                return app.playTitle(titleId, { startTime: 0 });
+            } else {
+                return app.playTitle(titleId);
+            }
+        };
+    }
+
     private api: ChakramApi;
 
     constructor(
@@ -76,6 +121,8 @@ export class PrimeApp extends BabblerBaseApp {
 
         if (info.type === ContentType.SERIES) {
             throw new Error(`${id} is a series; use resumeSeries instead`);
+        } else if (info.type === ContentType.SEASON) {
+            throw new Error(`${id} is a season`);
         }
 
         const {

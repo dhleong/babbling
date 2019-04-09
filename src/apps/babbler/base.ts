@@ -54,6 +54,10 @@ export class BabblerBaseApp<TMedia = {}> extends BaseApp {
         super(device, Object.assign({
             sessionNs: MEDIA_NS,
         }, babblerOpts));
+
+        if (!this.appId) {
+            throw new Error("No babbler app ID configured");
+        }
     }
 
     /** @internal */
