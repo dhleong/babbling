@@ -1,7 +1,7 @@
 import debug_ from "debug";
 const debug = debug_("babbling:prime");
 
-import { ChakramApi } from "chakram-ts";
+import { ChakramApi, IBaseObj } from "chakram-ts";
 import { IDevice } from "nodecastor";
 
 import { BabblerBaseApp } from "./babbler/base";
@@ -84,6 +84,7 @@ export class PrimeApp extends BabblerBaseApp {
         debug("got playback info; loading manifest @", chosenUrl);
         return this.loadUrl(chosenUrl, {
             licenseUrl,
+            media: episode,
             metadata: {
                 images,
                 title,
@@ -99,7 +100,16 @@ export class PrimeApp extends BabblerBaseApp {
         return this.api.fetchLicense(url, buffer);
     }
 
-    protected async onPlayerPaused(currentTimeSeconds: number) {
-        debug("TODO submit time", currentTimeSeconds);
+    protected async onPlayerPaused(
+        currentTimeSeconds: number,
+        media?: IBaseObj,
+    ) {
+        if (!media) {
+            debug("no media; cannot submit time", currentTimeSeconds);
+            return;
+        }
+
+        debug("save watch time", currentTimeSeconds, media);
+        await this.api.saveWatchTime(media.id, currentTimeSeconds);
     }
 }

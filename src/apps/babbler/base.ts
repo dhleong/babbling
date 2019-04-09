@@ -28,7 +28,7 @@ export interface IMediaMetadata {
 /**
  * Base class for apps that use Babbler for playback
  */
-export class BabblerBaseApp extends BaseApp {
+export class BabblerBaseApp<TMedia = {}> extends BaseApp {
 
     /** @internal */
     private isDaemon: boolean = false;
@@ -44,6 +44,8 @@ export class BabblerBaseApp extends BaseApp {
      * the time in SECONDS at which we started playback
      */
     private playbackLastCurrentTime: number = -1;
+
+    private currentMedia: TMedia | undefined;
 
     constructor(
         device: IDevice,
@@ -124,6 +126,7 @@ export class BabblerBaseApp extends BaseApp {
         opts: {
             licenseUrl?: string,
             metadata?: IMediaMetadata,
+            media?: TMedia,
         } = {},
     ) {
         if (!this.isDaemon && this.babblerOpts.daemonOptions) {
@@ -141,6 +144,8 @@ export class BabblerBaseApp extends BaseApp {
         }
 
         const s = await this.ensureCastSession();
+
+        this.currentMedia = opts.media;
 
         let metadata: any;
         if (opts.metadata) {
@@ -187,7 +192,7 @@ export class BabblerBaseApp extends BaseApp {
      * Called if we're running in daemon mode and the media
      * has been paused, or the player stopped
      */
-    protected async onPlayerPaused(currentTimeSeconds: number) {
+    protected async onPlayerPaused(currentTimeSeconds: number, media: TMedia | undefined) {
         // nop
     }
 
@@ -218,15 +223,17 @@ export class BabblerBaseApp extends BaseApp {
         // NOTE: Date.now() is in millis; onPlayerPaused is in seconds
         const delta = (Date.now() - this.playbackStartedAt) / 1000;
         const currentTime = this.playbackLastCurrentTime + delta;
+        const media = this.currentMedia;
 
         // reset state to avoid dups
         this.playbackStartedAt = -1;
         this.playbackLastCurrentTime = -1;
+        this.currentMedia = undefined;
 
         debug(`triggering onPaused(${currentTime}) from close event`);
 
         // trigger "paused"
-        await this.onPlayerPaused(currentTime);
+        await this.onPlayerPaused(currentTime, media);
     }
 
     private async handleMediaStatus(status: IMediaStatus) {
@@ -234,7 +241,7 @@ export class BabblerBaseApp extends BaseApp {
         case "PAUSED":
             this.playbackStartedAt = -1;
             this.playbackLastCurrentTime = -1;
-            await this.onPlayerPaused(status.currentTime);
+            await this.onPlayerPaused(status.currentTime, this.currentMedia);
             break;
 
         case "PLAYING":
