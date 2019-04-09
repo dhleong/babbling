@@ -93,7 +93,9 @@ export class BabblerBaseApp<TMedia = {}> extends BaseApp {
             case "MEDIA_STATUS":
                 const statusMessage = m as IMediaStatusMessage;
                 if (!statusMessage.status.length) return;
+
                 this.handleMediaStatus(statusMessage.status[0]);
+                break;
             }
         });
     }
