@@ -1,7 +1,7 @@
 import debug_ from "debug";
 const debug = debug_("babbling:prime");
 
-import { ChakramApi, IBaseObj } from "chakram-ts";
+import { ChakramApi, ContentType, IBaseObj, IEpisode } from "chakram-ts";
 import { IDevice } from "nodecastor";
 
 import { BabblerBaseApp } from "./babbler/base";
@@ -41,13 +41,26 @@ export class PrimeApp extends BabblerBaseApp {
     }
 
     /**
-     * Options:
-     * - listId: Id of playlist to enqueue. The given `videoId` should
-     *   probably be a member of this playlist
-     * - startTime: Time in seconds to start playback. Defaults to 0
-     *   which starts from the beginning
+     * Attempt to resume playback of the series with the
+     * given ID
      */
-    public async playEpisode(
+    public async resumeSeries(
+        id: string,
+    ) {
+        const toResume = await this.api.guessResumeInfo(id);
+
+        return this.playTitle(toResume.id, {
+            startTime: toResume.startTimeSeconds,
+        });
+    }
+
+    /**
+     * Options:
+     * - id: ID of a title to play
+     * - startTime: Time in seconds to start playback. If unspecified,
+     *   we attempt to resume where you left off
+     */
+    public async playTitle(
         id: string,
         opts: {
             startTime?: number,
@@ -55,33 +68,32 @@ export class PrimeApp extends BabblerBaseApp {
     ) {
         // resolve the ID first; amazon's ID usage is... odd.
         // plus, it gives us the chance to fetch metadata
-        const episodes = await this.api.getEpisodes(id);
-        if (!episodes || !episodes.length) {
-            throw new Error(`Unable to resolve episode with id ${id}`);
+        const info = await this.api.getTitleInfo(id);
+        if (!info) {
+            throw new Error(`Unable to resolve title with id ${id}`);
+        }
+        debug("play title", info);
+
+        if (info.type === ContentType.SERIES) {
+            throw new Error(`${id} is a series; use resumeSeries instead`);
         }
 
-        if (episodes.length !== 1) {
-            throw new Error(`${id} is not an episode id`);
-        }
-
-        const episode = episodes[0];
-
-        debug("play episode", episode);
         const {
             manifests,
             licenseUrl,
-        } = await this.api.getPlaybackInfo(episode.id);
+        } = await this.api.getPlaybackInfo(info.id);
 
         // pick *some* manifest
         shuffle(manifests);
 
-        let title = episode.title;
+        let title = info.title;
         let images: string[] | undefined;
 
-        if (episode.cover) {
-            images = [episode.cover];
+        if (info.cover) {
+            images = [info.cover];
         }
 
+        const episode = info as IEpisode;
         if (episode.series) {
             title = `${episode.series.title} - ${title}`;
 
@@ -90,16 +102,30 @@ export class PrimeApp extends BabblerBaseApp {
             }
         }
 
+        let startTime = opts.startTime;
+        if (startTime === undefined) {
+            try {
+                const resume = await this.api.guessResumeInfo(info.id);
+                startTime = resume.startTimeSeconds;
+            } catch (e) {
+                // best effort; no resume info found, so ignore
+            }
+        }
+
         const chosenUrl =  manifests[0].url;
-        debug("got playback info; loading manifest @", chosenUrl);
+        debug(
+            "got playback info; loading manifest @",
+            chosenUrl,
+            "; starting at", startTime,
+        );
         return this.loadUrl(chosenUrl, {
             licenseUrl,
-            media: episode,
+            media: info,
             metadata: {
                 images,
                 title,
             },
-            startTime: opts.startTime,
+            startTime,
         });
     }
 
