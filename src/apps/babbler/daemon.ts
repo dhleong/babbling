@@ -29,10 +29,8 @@ export class BabblerDaemon {
     public static spawn(opts: IDaemonOptions) {
         const out = fs.openSync("daemon.log", "a");
 
-        const args = [
-            JSON.stringify(opts),
-        ];
-        const proc = childProc.fork("daemon", args, {
+        debug("spawn daemon with", process.env.DEBUG);
+        const proc = childProc.fork("daemon", [], {
             cwd: __dirname,
             detached: true,
             env: {
@@ -44,6 +42,7 @@ export class BabblerDaemon {
         proc.unref();
 
         return new Promise((resolve, reject) => {
+            proc.send(opts);
             proc.on("message", _ => {
                 debug("child has started!");
                 proc.disconnect();
@@ -86,16 +85,25 @@ export class BabblerDaemon {
     }
 }
 
-function runDaemon(args: string[]) {
+function runDaemon() {
+    // quick reject
     if (!process.send) throw new Error();
-    process.send("running");
-    debug("daemon started");
+    debug("daemon started; waiting for opts...");
 
-    const opts = JSON.parse(args[args.length - 1]) as IDaemonOptions;
-    const daemon = new BabblerDaemon(opts);
-    daemon.run();
+    process.on("message", message => {
+        // satisfy the compiler that it still exists:
+        if (!process.send) throw new Error();
+        process.send("running");
+
+        // the parent proc will send a *single* message with our opts
+        const opts = message as IDaemonOptions;
+        debug("daemon received opts");
+
+        const daemon = new BabblerDaemon(opts);
+        daemon.run();
+    });
 }
 
 if (process.env[DAEMON_ENV]) {
-    runDaemon(process.argv);
+    runDaemon();
 }
