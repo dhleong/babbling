@@ -7,6 +7,7 @@ import { IDevice } from "nodecastor";
 import { IPlayableOptions, IQueryResult } from "../app";
 import { CookiesConfigurable } from "../cli/configurables";
 import { BabblerBaseApp } from "./babbler/base";
+import { SenderCapabilities } from "./babbler/model";
 
 export interface IPrimeOpts {
     appId: string;
@@ -100,6 +101,12 @@ export class PrimeApp extends BabblerBaseApp {
     ) {
         super(device, {
             appId: opts.appId,
+
+            // tslint:disable no-bitwise
+            capabilities: SenderCapabilities.QueueNext
+                | SenderCapabilities.QueuePrev,
+            // tslint:enable no-bitwise
+
             daemonOptions: opts,
             useLicenseIpc: true,
         });
@@ -204,6 +211,15 @@ export class PrimeApp extends BabblerBaseApp {
     ): Promise<Buffer> {
         if (!url) throw new Error("No license url provided");
         return this.api.fetchLicense(url, buffer);
+    }
+
+    protected async performQueueRequest(
+        mode: string,
+        contentId: string,
+    ) {
+        debug("TODO: queue", mode, contentId);
+        // TODO
+        return [];
     }
 
     protected async onPlayerPaused(

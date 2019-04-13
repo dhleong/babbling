@@ -5,6 +5,7 @@ import { ICastSession, IDevice, IMediaStatus, IMediaStatusMessage } from "nodeca
 import { BaseApp, MEDIA_NS } from "../base";
 import { awaitMessageOfType } from "../util";
 import { BabblerDaemon, RPC } from "./daemon";
+import { SenderCapabilities } from "./model";
 
 const BABBLER_SESSION_NS = "urn:x-cast:com.github.dhleong.babbler";
 
@@ -16,6 +17,7 @@ const NOT_ATTACHED = -1;
 
 export interface IBabblerOpts {
     appId: string;
+    capabilities: SenderCapabilities;
     useLicenseIpc: boolean;
 
     /**
@@ -29,6 +31,34 @@ export interface IBabblerOpts {
 export interface IMediaMetadata {
     title: string;
     images?: string[];
+}
+
+function handleErrors<T>(promise: Promise<T>) {
+    return promise.catch(e => {
+        throw e;
+    });
+}
+
+function formatMetadata(metadata: IMediaMetadata) {
+    const formatted: any = Object.assign({
+        metadataType: 0,
+        title: metadata.title,
+        type: 0,
+    });
+
+    if (metadata.images && metadata.images.length) {
+
+        formatted.images = metadata.images.map(imageUrl => ({
+            url: imageUrl,
+        }));
+    }
+
+    return formatted;
+}
+
+export interface IQueueItem {
+    url: string;
+    metadata: IMediaMetadata;
 }
 
 /**
@@ -122,16 +152,20 @@ export class BabblerBaseApp<TMedia = {}> extends BaseApp {
     public async start() {
         await super.start();
 
-        if (this.babblerOpts.useLicenseIpc) {
-            const s = await this.joinOrRunNamespace(BABBLER_SESSION_NS);
-            s.on("message", m => {
-                if (m.type === "LICENSE") {
-                    this.handleLicenseRequest(s, m).catch(e => {
-                        throw e;
-                    });
+        const s = await this.joinOrRunNamespace(BABBLER_SESSION_NS);
+        s.on("message", m => {
+            switch (m.type) {
+            case "LICENSE":
+                if (this.babblerOpts.useLicenseIpc) {
+                    handleErrors(this.handleLicenseRequest(s, m));
                 }
-            });
-        }
+                break;
+
+            case "QUEUE":
+                handleErrors(this.handleQueueRequest(s, m));
+                break;
+            }
+        });
     }
 
     protected async loadUrl(
@@ -163,24 +197,14 @@ export class BabblerBaseApp<TMedia = {}> extends BaseApp {
 
         let metadata: any;
         if (opts.metadata) {
-            metadata = Object.assign({
-                metadataType: 0,
-                title: opts.metadata.title,
-                type: 0,
-            });
-
-            if (opts.metadata.images && opts.metadata.images.length) {
-
-                metadata.images = opts.metadata.images.map(imageUrl => ({
-                    url: imageUrl,
-                }));
-            }
+            metadata = formatMetadata(opts.metadata);
         }
 
         s.send({
             autoplay: true,
             currentTime: opts.startTime,
             customData: {
+                capabilities: this.babblerOpts.capabilities,
                 license: {
                     ipc: this.babblerOpts.useLicenseIpc,
                     url: opts.licenseUrl,
@@ -215,6 +239,17 @@ export class BabblerBaseApp<TMedia = {}> extends BaseApp {
      * Called if we're running in daemon mode and the media
      * has been paused, or the player stopped
      */
+    protected async onFetchQueue(
+        mode: "before" | "after",
+        itemContentId: string,
+    ) {
+        return [];
+    }
+
+    /**
+     * Called if we're running in daemon mode and the media
+     * has been paused, or the player stopped
+     */
     protected async onPlayerPaused(currentTimeSeconds: number, media: TMedia | undefined) {
         // nop
     }
@@ -224,6 +259,13 @@ export class BabblerBaseApp<TMedia = {}> extends BaseApp {
         url: string | undefined,
     ): Promise<Buffer> {
         throw new Error("performLicenseRequest not implemented");
+    }
+
+    protected async performQueueRequest(
+        mode: string,
+        contentId: string,
+    ): Promise<IQueueItem[]> {
+        throw new Error("performQueueRequest not implemented");
     }
 
     private async handleLicenseRequest(s: ICastSession, message: any) {
@@ -237,6 +279,25 @@ export class BabblerBaseApp<TMedia = {}> extends BaseApp {
             response: response.toString("base64"),
             responseTo: requestId,
             type: "LICENSE_RESPONSE",
+        });
+    }
+
+    private async handleQueueRequest(
+        s: ICastSession,
+        message: any,
+    ) {
+        const { contentId, mode, requestId } = message;
+
+        debug("incoming queue request");
+        const items = await this.performQueueRequest(mode, contentId);
+
+        s.send({
+            response: items.map(item => ({
+                contentId: item.url,
+                metadata: formatMetadata(item.metadata),
+            })),
+            responseTo: requestId,
+            type: "QUEUE_RESPONSE",
         });
     }
 
