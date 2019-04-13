@@ -8,6 +8,12 @@ import { BabblerDaemon, RPC } from "./daemon";
 
 const BABBLER_SESSION_NS = "urn:x-cast:com.github.dhleong.babbler";
 
+/**
+ * value of attachedMediaSessionId when we haven't yet been attached to
+ * a session
+ */
+const NOT_ATTACHED = -1;
+
 export interface IBabblerOpts {
     appId: string;
     useLicenseIpc: boolean;
@@ -46,6 +52,7 @@ export class BabblerBaseApp<TMedia = {}> extends BaseApp {
     private playbackLastCurrentTime: number = -1;
 
     private currentMedia: TMedia | undefined;
+    private attachedMediaSessionId = NOT_ATTACHED;
 
     constructor(
         device: IDevice,
@@ -189,11 +196,19 @@ export class BabblerBaseApp<TMedia = {}> extends BaseApp {
             type: "LOAD",
         });
 
-        let ms;
+        let ms: IMediaStatusMessage;
         do {
             ms = await awaitMessageOfType(s, "MEDIA_STATUS");
             debug(ms);
         } while (!ms.status.length);
+
+        if (
+            ms.status.length
+            && this.attachedMediaSessionId === NOT_ATTACHED
+        ) {
+            this.attachedMediaSessionId = ms.status[0].mediaSessionId;
+            debug("attached to media session", this.attachedMediaSessionId);
+        }
     }
 
     /**
@@ -255,6 +270,19 @@ export class BabblerBaseApp<TMedia = {}> extends BaseApp {
         case "PLAYING":
             this.playbackStartedAt = Date.now();
             this.playbackLastCurrentTime = status.currentTime;
+            break;
+
+        case "IDLE":
+            if (this.attachedMediaSessionId === NOT_ATTACHED) {
+                this.attachedMediaSessionId = status.mediaSessionId;
+                debug(`attached to mediaSession #${status.mediaSessionId}`);
+            } else if (status.mediaSessionId !== this.attachedMediaSessionId) {
+                // if a new mediaSession starts, we can go (and should)
+                // go ahead and hang up
+                debug(`new mediaSession (${status.mediaSessionId} != ${this.attachedMediaSessionId})`);
+                await this.handleClose();
+                this.device.stop();
+            }
             break;
         }
     }
