@@ -9,7 +9,7 @@ import { BabblerBaseApp } from "./base";
 
 const DAEMON_ENV = "IS_BABBLER_DAEMON";
 
-export type RPCMethod = "loadUrl";
+export type RPCMethod = "loadMedia";
 export type RPC = [ RPCMethod, any[] ]; // TODO type safety on args?
 
 export interface IDaemonOptions {

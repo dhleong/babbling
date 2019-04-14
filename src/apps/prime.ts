@@ -6,7 +6,8 @@ import { IDevice } from "nodecastor";
 
 import { IPlayableOptions, IQueryResult } from "../app";
 import { CookiesConfigurable } from "../cli/configurables";
-import { BabblerBaseApp } from "./babbler/base";
+import { BabblerBaseApp, IPlayableInfo, IQueueItem } from "./babbler/base";
+import { SenderCapabilities } from "./babbler/model";
 
 export interface IPrimeOpts {
     appId: string;
@@ -22,6 +23,36 @@ function shuffle(a: any[]) {
         a[j] = x;
     }
 }
+
+function toQueueItem(item: IBaseObj): IQueueItem<IBaseObj> {
+    let title = item.title;
+    let images: string[] | undefined;
+
+    if (item.cover) {
+        images = [item.cover];
+    }
+
+    const episode = item as IEpisode;
+    if (episode.series) {
+        title = `${episode.series.title} - ${title}`;
+
+        if (!images && episode.series.cover) {
+            images = [episode.series.cover];
+        }
+    }
+
+    return {
+        id: item.id,
+        media: item,
+        metadata: {
+            images,
+            title,
+        },
+    };
+}
+
+/** Number of items to return for QUEUE requests */
+const QUEUE_SIZE = 5;
 
 /**
  * Amazon Prime Video
@@ -100,6 +131,13 @@ export class PrimeApp extends BabblerBaseApp {
     ) {
         super(device, {
             appId: opts.appId,
+
+            // tslint:disable no-bitwise
+            capabilities: SenderCapabilities.DeferredInfo
+                | SenderCapabilities.QueueNext
+                | SenderCapabilities.QueuePrev,
+            // tslint:enable no-bitwise
+
             daemonOptions: opts,
             useLicenseIpc: true,
         });
@@ -147,30 +185,6 @@ export class PrimeApp extends BabblerBaseApp {
             throw new Error(`${id} is a season`);
         }
 
-        const {
-            manifests,
-            licenseUrl,
-        } = await this.api.getPlaybackInfo(info.id);
-
-        // pick *some* manifest
-        shuffle(manifests);
-
-        let title = info.title;
-        let images: string[] | undefined;
-
-        if (info.cover) {
-            images = [info.cover];
-        }
-
-        const episode = info as IEpisode;
-        if (episode.series) {
-            title = `${episode.series.title} - ${title}`;
-
-            if (!images && episode.series.cover) {
-                images = [episode.series.cover];
-            }
-        }
-
         let startTime = opts.startTime;
         if (startTime === undefined) {
             try {
@@ -181,21 +195,10 @@ export class PrimeApp extends BabblerBaseApp {
             }
         }
 
-        const chosenUrl =  manifests[0].url;
-        debug(
-            "got playback info; loading manifest @",
-            chosenUrl,
-            "; starting at", startTime,
-        );
-        return this.loadUrl(chosenUrl, {
-            licenseUrl,
-            media: info,
-            metadata: {
-                images,
-                title,
-            },
-            startTime,
-        });
+        debug("load", info, "at", startTime);
+        return this.loadMedia(Object.assign({
+            currentTime: startTime,
+        }, toQueueItem(info)));
     }
 
     protected async performLicenseRequest(
@@ -204,6 +207,104 @@ export class PrimeApp extends BabblerBaseApp {
     ): Promise<Buffer> {
         if (!url) throw new Error("No license url provided");
         return this.api.fetchLicense(url, buffer);
+    }
+
+    protected async loadInfoFor(
+        contentId: string,
+    ): Promise<IPlayableInfo> {
+        debug(`load playableInfo for ${contentId}`);
+
+        const {
+            manifests,
+            licenseUrl,
+        } = await this.api.getPlaybackInfo(contentId);
+
+        // pick *some* manifest
+        shuffle(manifests);
+
+        const chosenUrl = manifests[0].url;
+        debug(
+            `got playback info for ${contentId}; loading manifest @`,
+            chosenUrl,
+        );
+
+        return {
+            contentId,
+            contentUrl: chosenUrl,
+            customData: {
+                license: {
+                    ipc: true,
+                    url: licenseUrl,
+                },
+            },
+        };
+    }
+
+    protected async loadQueueAfter(
+        contentId: string,
+        media?: IBaseObj,
+    ): Promise<Array<IQueueItem<IBaseObj>>> {
+        return this.loadQueueRelative(
+            "after",
+            contentId,
+            media,
+            (episodes, index) => episodes.slice(
+                index + 1,
+                Math.min(index + 1 + QUEUE_SIZE, episodes.length - 1),
+            ),
+        );
+    }
+
+    protected async loadQueueBefore(
+        contentId: string,
+        media?: IBaseObj,
+    ): Promise<Array<IQueueItem<IBaseObj>>> {
+        return this.loadQueueRelative(
+            "before",
+            contentId,
+            media,
+            (episodes, index) => episodes.slice(
+                Math.max(0, index - 1 - QUEUE_SIZE),
+                Math.max(0, index - 1),
+            ),
+        );
+    }
+
+    protected async loadQueueRelative(
+        mode: string,
+        contentId: string,
+        media: IBaseObj | undefined,
+        sliceEpisodes: (
+            episodes: IEpisode[],
+            currentIndex: number,
+        ) => IEpisode[],
+    ): Promise<Array<IQueueItem<IBaseObj>>> {
+        // TODO we could fetch it, since we have the contentId
+        if (!media) return [];
+
+        if (media.type !== ContentType.EPISODE) {
+            debug(`cannot load queue for ${media.type} media`);
+            return [];
+        }
+
+        const episode = media as IEpisode;
+        if (!episode.series) {
+            // TODO we could fetch it...?
+            debug(`series for ${contentId} unknown`);
+            return [];
+        }
+
+        debug(`queue ${mode} for`, contentId, media);
+
+        const episodes = await this.api.getEpisodes(episode.series.id);
+        const index = episodes.findIndex(ep => ep.id === contentId);
+        if (index === -1) {
+            debug(`couldn't find ${contentId} in episodes of ${episode.series.id}`);
+            return [];
+        }
+
+        const queue = sliceEpisodes(episodes, index);
+        return queue.map(toQueueItem);
     }
 
     protected async onPlayerPaused(

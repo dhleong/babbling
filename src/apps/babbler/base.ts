@@ -5,6 +5,7 @@ import { ICastSession, IDevice, IMediaStatus, IMediaStatusMessage } from "nodeca
 import { BaseApp, MEDIA_NS } from "../base";
 import { awaitMessageOfType } from "../util";
 import { BabblerDaemon, RPC } from "./daemon";
+import { SenderCapabilities } from "./model";
 
 const BABBLER_SESSION_NS = "urn:x-cast:com.github.dhleong.babbler";
 
@@ -16,6 +17,7 @@ const NOT_ATTACHED = -1;
 
 export interface IBabblerOpts {
     appId: string;
+    capabilities: SenderCapabilities;
     useLicenseIpc: boolean;
 
     /**
@@ -29,6 +31,49 @@ export interface IBabblerOpts {
 export interface IMediaMetadata {
     title: string;
     images?: string[];
+}
+
+function handleErrors<T>(promise: Promise<T>) {
+    return promise.catch(e => {
+        throw e;
+    });
+}
+
+function formatMetadata(metadata: IMediaMetadata) {
+    const formatted: any = Object.assign({
+        metadataType: 0,
+        title: metadata.title,
+        type: 0,
+    });
+
+    if (metadata.images && metadata.images.length) {
+
+        formatted.images = metadata.images.map(imageUrl => ({
+            url: imageUrl,
+        }));
+    }
+
+    return formatted;
+}
+
+export interface IQueueItem<TMedia> {
+    id: string;
+    licenseUrl?: string;
+    media?: TMedia;
+    metadata: IMediaMetadata;
+    currentTime?: number;
+}
+
+export interface IPlayableInfo {
+    contentId: string;
+    contentUrl: string;
+    customData?: {
+        license?: {
+            ipc?: boolean;
+            url?: string;
+        };
+    };
+    metadata?: IMediaMetadata;
 }
 
 /**
@@ -111,38 +156,38 @@ export class BabblerBaseApp<TMedia = {}> extends BaseApp {
     public async rpc(call: RPC) {
         const [ m, args ] = call;
         switch (m) {
-        case "loadUrl":
-            if (args.length < 1) throw new Error("Invalid args to loadUrl");
+        case "loadMedia":
+            if (args.length < 1) throw new Error("Invalid args to loadMedia");
 
-            const [ url, ...options ] = args;
-            await this.loadUrl(url, ...options);
+            const [ options ] = args;
+            await this.loadMedia(options);
         }
     }
 
     public async start() {
         await super.start();
 
-        if (this.babblerOpts.useLicenseIpc) {
-            const s = await this.joinOrRunNamespace(BABBLER_SESSION_NS);
-            s.on("message", m => {
-                if (m.type === "LICENSE") {
-                    this.handleLicenseRequest(s, m).catch(e => {
-                        throw e;
-                    });
+        const s = await this.joinOrRunNamespace(BABBLER_SESSION_NS);
+        s.on("message", m => {
+            switch (m.type) {
+            case "INFO":
+                handleErrors(this.handleInfoRequest(s, m));
+                break;
+
+            case "LICENSE":
+                if (this.babblerOpts.useLicenseIpc) {
+                    handleErrors(this.handleLicenseRequest(s, m));
                 }
-            });
-        }
+                break;
+
+            case "QUEUE":
+                handleErrors(this.handleQueueRequest(s, m));
+                break;
+            }
+        });
     }
 
-    protected async loadUrl(
-        url: string,
-        opts: {
-            licenseUrl?: string,
-            metadata?: IMediaMetadata,
-            media?: TMedia,
-            startTime?: number,
-        } = {},
-    ) {
+    protected async loadMedia(item: IQueueItem<TMedia>) {
         if (!this.isDaemon && this.babblerOpts.daemonOptions) {
             debug("spawning daemon");
             return BabblerDaemon.spawn({
@@ -151,43 +196,27 @@ export class BabblerBaseApp<TMedia = {}> extends BaseApp {
                 deviceName: this.device.friendlyName,
 
                 rpc: [
-                    "loadUrl",
-                    [url, opts],
+                    "loadMedia",
+                    [item],
                 ],
             });
         }
 
         const s = await this.ensureCastSession();
 
-        this.currentMedia = opts.media;
+        this.currentMedia = item.media;
 
         let metadata: any;
-        if (opts.metadata) {
-            metadata = Object.assign({
-                metadataType: 0,
-                title: opts.metadata.title,
-                type: 0,
-            });
-
-            if (opts.metadata.images && opts.metadata.images.length) {
-
-                metadata.images = opts.metadata.images.map(imageUrl => ({
-                    url: imageUrl,
-                }));
-            }
+        if (item.metadata) {
+            metadata = formatMetadata(item.metadata);
         }
 
         s.send({
             autoplay: true,
-            currentTime: opts.startTime,
-            customData: {
-                license: {
-                    ipc: this.babblerOpts.useLicenseIpc,
-                    url: opts.licenseUrl,
-                },
-            },
+            currentTime: item.currentTime,
+            customData: this.createCustomData(item),
             media: {
-                contentId: url,
+                contentId: item.id,
                 contentType: "video/mp4",
                 metadata,
                 streamType: "BUFFERED",
@@ -215,8 +244,25 @@ export class BabblerBaseApp<TMedia = {}> extends BaseApp {
      * Called if we're running in daemon mode and the media
      * has been paused, or the player stopped
      */
+    protected async onFetchQueue(
+        mode: "before" | "after",
+        itemContentId: string,
+    ) {
+        return [];
+    }
+
+    /**
+     * Called if we're running in daemon mode and the media
+     * has been paused, or the player stopped
+     */
     protected async onPlayerPaused(currentTimeSeconds: number, media: TMedia | undefined) {
         // nop
+    }
+
+    protected async loadInfoFor(
+        contentId: string,
+    ): Promise<IPlayableInfo> {
+        throw new Error("loadInfoFor not implemented");
     }
 
     protected async performLicenseRequest(
@@ -226,17 +272,67 @@ export class BabblerBaseApp<TMedia = {}> extends BaseApp {
         throw new Error("performLicenseRequest not implemented");
     }
 
+    protected async loadQueueBefore(
+        contentId: string,
+        media?: TMedia,
+    ): Promise<Array<IQueueItem<TMedia>>> {
+        throw new Error("loadQueueBefore not implemented");
+    }
+
+    protected async loadQueueAfter(
+        contentId: string,
+        media?: TMedia,
+    ): Promise<Array<IQueueItem<TMedia>>> {
+        throw new Error("loadQueueAfter not implemented");
+    }
+
+    private async handleInfoRequest(s: ICastSession, message: any) {
+        const { contentId, requestId } = message;
+
+        debug("incoming info request #", requestId);
+        const response = await this.loadInfoFor(contentId);
+
+        s.send({
+            response,
+            responseTo: requestId,
+            type: "INFO_RESPONSE",
+        });
+    }
+
     private async handleLicenseRequest(s: ICastSession, message: any) {
         const { base64, url, requestId } = message;
         const buffer = Buffer.from(base64, "base64");
 
-        debug("incoming perform license request");
+        debug("incoming perform license request #", requestId);
         const response = await this.performLicenseRequest(buffer, url);
 
         s.send({
             response: response.toString("base64"),
             responseTo: requestId,
             type: "LICENSE_RESPONSE",
+        });
+    }
+
+    private async handleQueueRequest(
+        s: ICastSession,
+        message: any,
+    ) {
+        const { contentId, mode, requestId } = message;
+
+        debug("incoming queue request");
+        const items = mode === "before"
+            ? await this.loadQueueBefore(contentId, this.currentMedia)
+            : await this.loadQueueAfter(contentId, this.currentMedia);
+
+        s.send({
+            response: items.map(item => ({
+                contentId: item.id,
+                currentTime: item.currentTime,
+                customData: this.createCustomData(item),
+                metadata: formatMetadata(item.metadata),
+            })),
+            responseTo: requestId,
+            type: "QUEUE_RESPONSE",
         });
     }
 
@@ -286,4 +382,15 @@ export class BabblerBaseApp<TMedia = {}> extends BaseApp {
             break;
         }
     }
+
+    private createCustomData(queueItem: IQueueItem<any>): any {
+        return {
+            capabilities: this.babblerOpts.capabilities,
+            license: {
+                ipc: this.babblerOpts.useLicenseIpc,
+                url: queueItem.licenseUrl,
+            },
+        };
+    }
+
 }

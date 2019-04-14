@@ -51,7 +51,7 @@ export class ChromecastDevice {
 
         return new Promise((resolve, reject) => {
             let options;
-            if (debug.enabled) {
+            if (_debug.enabled("chromecast")) {
                 options = {
                     logger: console,
                 };
