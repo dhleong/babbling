@@ -134,7 +134,8 @@ export class PrimeApp extends BabblerBaseApp {
 
             // tslint:disable no-bitwise
             capabilities: SenderCapabilities.DeferredInfo
-                | SenderCapabilities.QueueNext,
+                | SenderCapabilities.QueueNext
+                | SenderCapabilities.QueuePrev,
             // tslint:enable no-bitwise
 
             daemonOptions: opts,
@@ -243,6 +244,41 @@ export class PrimeApp extends BabblerBaseApp {
         contentId: string,
         media?: IBaseObj,
     ): Promise<Array<IQueueItem<IBaseObj>>> {
+        return this.loadQueueRelative(
+            "after",
+            contentId,
+            media,
+            (episodes, index) => episodes.slice(
+                index + 1,
+                Math.min(index + 1 + QUEUE_SIZE, episodes.length - 1),
+            ),
+        );
+    }
+
+    protected async loadQueueBefore(
+        contentId: string,
+        media?: IBaseObj,
+    ): Promise<Array<IQueueItem<IBaseObj>>> {
+        return this.loadQueueRelative(
+            "before",
+            contentId,
+            media,
+            (episodes, index) => episodes.slice(
+                Math.max(0, index - 1 - QUEUE_SIZE),
+                Math.max(0, index - 1),
+            ),
+        );
+    }
+
+    protected async loadQueueRelative(
+        mode: string,
+        contentId: string,
+        media: IBaseObj | undefined,
+        sliceEpisodes: (
+            episodes: IEpisode[],
+            currentIndex: number,
+        ) => IEpisode[],
+    ): Promise<Array<IQueueItem<IBaseObj>>> {
         // TODO we could fetch it, since we have the contentId
         if (!media) return [];
 
@@ -258,7 +294,7 @@ export class PrimeApp extends BabblerBaseApp {
             return [];
         }
 
-        debug("queue after", contentId, media);
+        debug(`queue ${mode} for`, contentId, media);
 
         const episodes = await this.api.getEpisodes(episode.series.id);
         const index = episodes.findIndex(ep => ep.id === contentId);
@@ -267,12 +303,8 @@ export class PrimeApp extends BabblerBaseApp {
             return [];
         }
 
-        const upNext = episodes.slice(
-            index + 1,
-            Math.min(index + 1 + QUEUE_SIZE, episodes.length - 1),
-        );
-
-        return upNext.map(toQueueItem);
+        const queue = sliceEpisodes(episodes, index);
+        return queue.map(toQueueItem);
     }
 
     protected async onPlayerPaused(
