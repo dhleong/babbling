@@ -56,9 +56,24 @@ function formatMetadata(metadata: IMediaMetadata) {
     return formatted;
 }
 
-export interface IQueueItem {
-    url: string;
+export interface IQueueItem<TMedia> {
+    id: string;
+    licenseUrl?: string;
+    media?: TMedia;
     metadata: IMediaMetadata;
+    currentTime?: number;
+}
+
+export interface IPlayableInfo {
+    contentId: string;
+    contentUrl: string;
+    customData?: {
+        license?: {
+            ipc?: boolean;
+            url?: string;
+        };
+    };
+    metadata?: IMediaMetadata;
 }
 
 /**
@@ -141,11 +156,11 @@ export class BabblerBaseApp<TMedia = {}> extends BaseApp {
     public async rpc(call: RPC) {
         const [ m, args ] = call;
         switch (m) {
-        case "loadUrl":
-            if (args.length < 1) throw new Error("Invalid args to loadUrl");
+        case "loadMedia":
+            if (args.length < 1) throw new Error("Invalid args to loadMedia");
 
-            const [ url, ...options ] = args;
-            await this.loadUrl(url, ...options);
+            const [ options ] = args;
+            await this.loadMedia(options);
         }
     }
 
@@ -155,6 +170,10 @@ export class BabblerBaseApp<TMedia = {}> extends BaseApp {
         const s = await this.joinOrRunNamespace(BABBLER_SESSION_NS);
         s.on("message", m => {
             switch (m.type) {
+            case "INFO":
+                handleErrors(this.handleInfoRequest(s, m));
+                break;
+
             case "LICENSE":
                 if (this.babblerOpts.useLicenseIpc) {
                     handleErrors(this.handleLicenseRequest(s, m));
@@ -168,15 +187,7 @@ export class BabblerBaseApp<TMedia = {}> extends BaseApp {
         });
     }
 
-    protected async loadUrl(
-        url: string,
-        opts: {
-            licenseUrl?: string,
-            metadata?: IMediaMetadata,
-            media?: TMedia,
-            startTime?: number,
-        } = {},
-    ) {
+    protected async loadMedia(item: IQueueItem<TMedia>) {
         if (!this.isDaemon && this.babblerOpts.daemonOptions) {
             debug("spawning daemon");
             return BabblerDaemon.spawn({
@@ -185,33 +196,27 @@ export class BabblerBaseApp<TMedia = {}> extends BaseApp {
                 deviceName: this.device.friendlyName,
 
                 rpc: [
-                    "loadUrl",
-                    [url, opts],
+                    "loadMedia",
+                    [item],
                 ],
             });
         }
 
         const s = await this.ensureCastSession();
 
-        this.currentMedia = opts.media;
+        this.currentMedia = item.media;
 
         let metadata: any;
-        if (opts.metadata) {
-            metadata = formatMetadata(opts.metadata);
+        if (item.metadata) {
+            metadata = formatMetadata(item.metadata);
         }
 
         s.send({
             autoplay: true,
-            currentTime: opts.startTime,
-            customData: {
-                capabilities: this.babblerOpts.capabilities,
-                license: {
-                    ipc: this.babblerOpts.useLicenseIpc,
-                    url: opts.licenseUrl,
-                },
-            },
+            currentTime: item.currentTime,
+            customData: this.createCustomData(item),
             media: {
-                contentId: url,
+                contentId: item.id,
                 contentType: "video/mp4",
                 metadata,
                 streamType: "BUFFERED",
@@ -254,6 +259,12 @@ export class BabblerBaseApp<TMedia = {}> extends BaseApp {
         // nop
     }
 
+    protected async loadInfoFor(
+        contentId: string,
+    ): Promise<IPlayableInfo> {
+        throw new Error("loadInfoFor not implemented");
+    }
+
     protected async performLicenseRequest(
         buffer: Buffer,
         url: string | undefined,
@@ -261,18 +272,38 @@ export class BabblerBaseApp<TMedia = {}> extends BaseApp {
         throw new Error("performLicenseRequest not implemented");
     }
 
-    protected async performQueueRequest(
-        mode: string,
+    protected async loadQueueBefore(
         contentId: string,
-    ): Promise<IQueueItem[]> {
-        throw new Error("performQueueRequest not implemented");
+        media?: TMedia,
+    ): Promise<Array<IQueueItem<TMedia>>> {
+        throw new Error("loadQueueBefore not implemented");
+    }
+
+    protected async loadQueueAfter(
+        contentId: string,
+        media?: TMedia,
+    ): Promise<Array<IQueueItem<TMedia>>> {
+        throw new Error("loadQueueAfter not implemented");
+    }
+
+    private async handleInfoRequest(s: ICastSession, message: any) {
+        const { contentId, requestId } = message;
+
+        debug("incoming info request #", requestId);
+        const response = await this.loadInfoFor(contentId);
+
+        s.send({
+            response,
+            responseTo: requestId,
+            type: "INFO_RESPONSE",
+        });
     }
 
     private async handleLicenseRequest(s: ICastSession, message: any) {
         const { base64, url, requestId } = message;
         const buffer = Buffer.from(base64, "base64");
 
-        debug("incoming perform license request");
+        debug("incoming perform license request #", requestId);
         const response = await this.performLicenseRequest(buffer, url);
 
         s.send({
@@ -289,11 +320,15 @@ export class BabblerBaseApp<TMedia = {}> extends BaseApp {
         const { contentId, mode, requestId } = message;
 
         debug("incoming queue request");
-        const items = await this.performQueueRequest(mode, contentId);
+        const items = mode === "before"
+            ? await this.loadQueueBefore(contentId, this.currentMedia)
+            : await this.loadQueueAfter(contentId, this.currentMedia);
 
         s.send({
             response: items.map(item => ({
-                contentId: item.url,
+                contentId: item.id,
+                currentTime: item.currentTime,
+                customData: this.createCustomData(item),
                 metadata: formatMetadata(item.metadata),
             })),
             responseTo: requestId,
@@ -347,4 +382,15 @@ export class BabblerBaseApp<TMedia = {}> extends BaseApp {
             break;
         }
     }
+
+    private createCustomData(queueItem: IQueueItem<any>): any {
+        return {
+            capabilities: this.babblerOpts.capabilities,
+            license: {
+                ipc: this.babblerOpts.useLicenseIpc,
+                url: queueItem.licenseUrl,
+            },
+        };
+    }
+
 }
