@@ -25,8 +25,9 @@ function shuffle(a: any[]) {
 }
 
 function toQueueItem(item: IBaseObj): IQueueItem<IBaseObj> {
-    let title = item.title;
+    const title = item.title;
     let images: string[] | undefined;
+    let seriesTitle: string | undefined;
 
     if (item.cover) {
         images = [item.cover];
@@ -34,7 +35,7 @@ function toQueueItem(item: IBaseObj): IQueueItem<IBaseObj> {
 
     const episode = item as IEpisode;
     if (episode.series) {
-        title = `${episode.series.title} - ${title}`;
+        seriesTitle = episode.series.title;
 
         if (!images && episode.series.cover) {
             images = [episode.series.cover];
@@ -46,6 +47,7 @@ function toQueueItem(item: IBaseObj): IQueueItem<IBaseObj> {
         media: item,
         metadata: {
             images,
+            seriesTitle,
             title,
         },
     };

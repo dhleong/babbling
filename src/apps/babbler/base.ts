@@ -5,7 +5,11 @@ import { ICastSession, IDevice, IMediaStatus, IMediaStatusMessage } from "nodeca
 import { BaseApp, MEDIA_NS } from "../base";
 import { awaitMessageOfType } from "../util";
 import { BabblerDaemon, RPC } from "./daemon";
-import { SenderCapabilities } from "./model";
+import {
+    IChromecastMetadata, IMediaMetadata, ITvShowChromecastMetadata,
+    MetadataType,
+    SenderCapabilities,
+} from "./model";
 
 const BABBLER_SESSION_NS = "urn:x-cast:com.github.dhleong.babbler";
 
@@ -28,11 +32,6 @@ export interface IBabblerOpts {
     daemonOptions?: any;
 }
 
-export interface IMediaMetadata {
-    title: string;
-    images?: string[];
-}
-
 function handleErrors<T>(promise: Promise<T>) {
     return promise.catch(e => {
         throw e;
@@ -40,17 +39,20 @@ function handleErrors<T>(promise: Promise<T>) {
 }
 
 function formatMetadata(metadata: IMediaMetadata) {
-    const formatted: any = Object.assign({
-        metadataType: 0,
+    const formatted: IChromecastMetadata = {
+        metadataType: MetadataType.Generic,
         title: metadata.title,
-        type: 0,
-    });
+    };
 
     if (metadata.images && metadata.images.length) {
-
         formatted.images = metadata.images.map(imageUrl => ({
             url: imageUrl,
         }));
+    }
+
+    if (metadata.seriesTitle) {
+        formatted.metadataType = MetadataType.TvShow;
+        (formatted as ITvShowChromecastMetadata).seriesTitle = metadata.seriesTitle;
     }
 
     return formatted;
