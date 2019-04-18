@@ -30,19 +30,30 @@ class ChromagnonSource implements IConfigSource {
 }
 
 export class ConfigExtractor {
-    public async extract() {
+    public async extract(
+        ignoreErrors?: boolean,
+    ) {
         const source = await ChromagnonSource.create();
 
         const config: any = {};
 
         try {
             for await (const app of getAppConstructors()) {
-                if (isConfigurable(app)) {
-                    debug("Configuring", app.name);
-                    const extracted = await app.configurable.extractConfig(source);
-                    config[app.name] = extracted;
-                } else {
-                    debug("Unable to auto-configure", app.name);
+                try {
+                    if (isConfigurable(app)) {
+                        debug("Configuring", app.name);
+                        const extracted = await app.configurable.extractConfig(source);
+                        config[app.name] = extracted;
+                    } else {
+                        debug("Unable to auto-configure", app.name);
+                    }
+                } catch (e) {
+                    if (ignoreErrors !== true) {
+                        throw e;
+                    } else {
+                        console.warn("Unable to auto-configure:", app.name);
+                        console.error(e);
+                    }
                 }
             }
         } finally {
@@ -55,6 +66,7 @@ export class ConfigExtractor {
 
 export interface IAuthOpts {
     config: string;
+    ignoreErrors: boolean;
 }
 
 export async function authenticate(opts: IAuthOpts) {
@@ -71,7 +83,9 @@ cookies for some apps.
 
     const extractor = new ConfigExtractor();
     try {
-        const config = await extractor.extract();
+        const config = await extractor.extract(
+            opts.ignoreErrors,
+        );
 
         consoleWrite(`Extracted auth:`);
         console.log(config);

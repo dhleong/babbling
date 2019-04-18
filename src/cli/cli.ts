@@ -10,6 +10,7 @@ import searchByTitle from "./commands/search";
 
 // type-safe conditional import via reference elision
 import * as AuthCommand from "./commands/auth";
+import { IAuthOpts } from "./commands/auth";
 let authCommandModule: typeof AuthCommand;
 
 let canAutoConfigure = false;
@@ -71,12 +72,19 @@ parser.command(
 if (canAutoConfigure) {
     parser.command(
         "auto-auth", `Automatically authenticate available apps`, args => {
-            return withConfig(args);
+            return withConfig(args).option("ignore-errors", {
+                default: false,
+                describe: `Don't modify app auths that fail`,
+                type: "boolean",
+            });
         }, async argv => {
             // chromagnon is a huge dependency, and installs don't need
             // to require it since it's just for config, so we lazily
             // import the dependency in case it's not available
-            await authCommandModule.authenticate(argv);
+            // NOTE: yargs converts the ignore-errors flag to
+            // camelCase, but typescript doesn't know that
+            const opts = argv as unknown as IAuthOpts;
+            await authCommandModule.authenticate(opts);
         },
     );
 }
