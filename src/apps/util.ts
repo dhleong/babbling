@@ -1,4 +1,4 @@
-import { ICastSession } from "nodecastor";
+import { ICastSession } from "../cast";
 
 export const awaitMessageOfType = (
     session: ICastSession, type: string,

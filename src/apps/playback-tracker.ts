@@ -1,8 +1,7 @@
 import debug_ from "debug";
 const debug = debug_("babbling:tracker");
 
-import { ICastSession, IDevice, IMediaStatus, IMediaStatusMessage, IReceiverStatusMessage } from "nodecastor";
-
+import { ICastSession, IDevice, IMediaStatus, IMediaStatusMessage, IReceiverStatusMessage } from "../cast";
 import { BaseApp, MEDIA_NS } from "./base";
 
 /**

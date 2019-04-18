@@ -2,9 +2,9 @@ import debug_ from "debug";
 const debug = debug_("babbling:prime");
 
 import { ChakramApi, ContentType, IBaseObj, IEpisode, ISeason } from "chakram-ts";
-import { IDevice } from "nodecastor";
 
 import { IPlayableOptions, IQueryResult } from "../app";
+import { IDevice } from "../cast";
 import { CookiesConfigurable } from "../cli/configurables";
 import { BabblerBaseApp, IPlayableInfo, IQueueItem } from "./babbler/base";
 import { SenderCapabilities } from "./babbler/model";

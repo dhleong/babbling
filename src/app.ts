@@ -1,4 +1,4 @@
-import { IDevice } from "nodecastor";
+import { IDevice } from "./cast";
 
 export interface IApp {
     start(): Promise<any>;

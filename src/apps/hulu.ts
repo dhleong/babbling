@@ -4,7 +4,7 @@ import request from "request-promise-native";
 import _debug from "debug";
 const debug = _debug("babbling:hulu");
 
-import { IDevice } from "nodecastor";
+import { IDevice } from "../cast";
 import { CookiesConfigurable } from "../cli/configurables";
 import { BaseApp } from "./base";
 import { awaitMessageOfType } from "./util";

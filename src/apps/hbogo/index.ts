@@ -1,7 +1,7 @@
 import _debug from "debug";
 const debug = _debug("babbling:hbogo");
 
-import { IDevice } from "nodecastor";
+import { IDevice } from "../../cast";
 import { BaseApp, MEDIA_NS } from "../base";
 import { awaitMessageOfType } from "../util";
 

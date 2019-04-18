@@ -3,8 +3,8 @@ import * as util from "util";
 import _debug from "debug";
 const debug = _debug("babbling:base");
 
-import { ICastApp, ICastSession, IDevice } from "nodecastor";
 import { IApp } from "../app";
+import { ICastApp, ICastSession, IDevice } from "../cast";
 
 export const MEDIA_NS = "urn:x-cast:com.google.cast.media";
 

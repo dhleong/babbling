@@ -8,10 +8,10 @@ import URL from "url";
 import _debug from "debug";
 const debug = _debug("babbling:youtube");
 
-import { ICastSession, IDevice } from "nodecastor";
 import { ICreds, WatchHistory, YoutubePlaylist } from "youtubish";
 
 import { IPlayableOptions } from "../../app";
+import { ICastSession, IDevice } from "../../cast";
 import { BaseApp } from "../base";
 import { awaitMessageOfType } from "../util";
 import { IPlaylistCache, IYoutubeOpts, YoutubeConfigurable } from "./config";
