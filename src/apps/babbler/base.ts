@@ -1,8 +1,9 @@
 import debug_ from "debug";
 const debug = debug_("babbling:babbler");
 
-import { ICastSession, IDevice, IMediaStatus, IMediaStatusMessage } from "nodecastor";
+import { ICastSession, IDevice, IMediaStatusMessage } from "nodecastor";
 import { BaseApp, MEDIA_NS } from "../base";
+import { PlaybackTracker } from "../playback-tracker";
 import { awaitMessageOfType } from "../util";
 import { BabblerDaemon, RPC } from "./daemon";
 import {
@@ -12,12 +13,6 @@ import {
 } from "./model";
 
 const BABBLER_SESSION_NS = "urn:x-cast:com.github.dhleong.babbler";
-
-/**
- * value of attachedMediaSessionId when we haven't yet been attached to
- * a session
- */
-const NOT_ATTACHED = -1;
 
 export interface IBabblerOpts {
     appId: string;
@@ -83,23 +78,12 @@ export interface IPlayableInfo {
  */
 export class BabblerBaseApp<TMedia = {}> extends BaseApp {
 
+    protected tracker: PlaybackTracker<TMedia> | undefined;
+
     /** @internal */
     private isDaemon: boolean = false;
 
-    /**
-     * @internal
-     * a timestamp from Date.now() if playing, else a negative number
-     */
-    private playbackStartedAt: number = -1;
-
-    /**
-     * @internal
-     * the time in SECONDS at which we started playback
-     */
-    private playbackLastCurrentTime: number = -1;
-
     private currentMedia: TMedia | undefined;
-    private attachedMediaSessionId = NOT_ATTACHED;
 
     constructor(
         device: IDevice,
@@ -118,40 +102,14 @@ export class BabblerBaseApp<TMedia = {}> extends BaseApp {
     public async runDaemon() {
         this.isDaemon = true;
 
-        this.device.on("status", async status => {
-            if (!status.applications) {
-                // no app info; ignore
-                return;
-            }
+        const tracker = new PlaybackTracker<TMedia>(this, {
+            getCurrentMedia: () => this.currentMedia,
+            setCurrentMedia: media => { this.currentMedia = media; },
 
-            for (const appInfo of status.applications) {
-                if (appInfo.appId === this.appId) {
-                    // we're still running
-                    return;
-                }
-            }
-
-            // if we get here, our app has been stopped; disconnect
-            await this.handleClose();
-            this.device.stop();
-            debug("App no longer running; shutting down daemon");
+            onPlayerPaused: this.onPlayerPaused.bind(this),
         });
-
-        const s = await this.ensureCastSession();
-        s.on("message", async m => {
-            switch (m.type) {
-            case "CLOSE":
-                await this.handleClose();
-                break;
-
-            case "MEDIA_STATUS":
-                const statusMessage = m as IMediaStatusMessage;
-                if (!statusMessage.status.length) return;
-
-                this.handleMediaStatus(statusMessage.status[0]);
-                break;
-            }
-        });
+        this.tracker = tracker;
+        await tracker.start();
     }
 
     /** @internal */
@@ -232,14 +190,6 @@ export class BabblerBaseApp<TMedia = {}> extends BaseApp {
             ms = await awaitMessageOfType(s, "MEDIA_STATUS");
             debug(ms);
         } while (!ms.status.length);
-
-        if (
-            ms.status.length
-            && this.attachedMediaSessionId === NOT_ATTACHED
-        ) {
-            this.attachedMediaSessionId = ms.status[0].mediaSessionId;
-            debug("attached to media session", this.attachedMediaSessionId);
-        }
     }
 
     /**
@@ -336,53 +286,6 @@ export class BabblerBaseApp<TMedia = {}> extends BaseApp {
             responseTo: requestId,
             type: "QUEUE_RESPONSE",
         });
-    }
-
-    private async handleClose() {
-        if (this.playbackStartedAt <= 0) return;
-
-        // NOTE: Date.now() is in millis; onPlayerPaused is in seconds
-        const delta = (Date.now() - this.playbackStartedAt) / 1000;
-        const currentTime = this.playbackLastCurrentTime + delta;
-        const media = this.currentMedia;
-
-        // reset state to avoid dups
-        this.playbackStartedAt = -1;
-        this.playbackLastCurrentTime = -1;
-        this.currentMedia = undefined;
-
-        debug(`triggering onPaused(${currentTime}) from close event`);
-
-        // trigger "paused"
-        await this.onPlayerPaused(currentTime, media);
-    }
-
-    private async handleMediaStatus(status: IMediaStatus) {
-        switch (status.playerState) {
-        case "PAUSED":
-            this.playbackStartedAt = -1;
-            this.playbackLastCurrentTime = -1;
-            await this.onPlayerPaused(status.currentTime, this.currentMedia);
-            break;
-
-        case "PLAYING":
-            this.playbackStartedAt = Date.now();
-            this.playbackLastCurrentTime = status.currentTime;
-            break;
-
-        case "IDLE":
-            if (this.attachedMediaSessionId === NOT_ATTACHED) {
-                this.attachedMediaSessionId = status.mediaSessionId;
-                debug(`attached to mediaSession #${status.mediaSessionId}`);
-            } else if (status.mediaSessionId !== this.attachedMediaSessionId) {
-                // if a new mediaSession starts, we can go (and should)
-                // go ahead and hang up
-                debug(`new mediaSession (${status.mediaSessionId} != ${this.attachedMediaSessionId})`);
-                await this.handleClose();
-                this.device.stop();
-            }
-            break;
-        }
     }
 
     private createCustomData(queueItem: IQueueItem<any>): any {

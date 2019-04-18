@@ -65,6 +65,7 @@ declare module "nodecastor" {
         stop(): void;
         on(event: "connect", handler: () => any): IDevice;
         on(event: "status", handler: (status: IReceiverStatusMessage) => any): IDevice;
+        removeListener(event: string, handler: (... args: any[]) => any): IDevice;
     }
 
     export interface IScanner {
