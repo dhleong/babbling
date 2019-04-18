@@ -101,7 +101,7 @@ verify(versionTag.exists())\
 #
 
 # TODO write tests... probably
-# verify(Execute("npm test")).succeeds(silent=False).orElse(die())
+verify(Execute("npm run check")).succeeds(silent=False).orElse(die())
 
 #
 # Build the release notes
