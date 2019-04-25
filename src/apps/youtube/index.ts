@@ -10,6 +10,7 @@ const debug = _debug("babbling:youtube");
 
 import { ICreds, WatchHistory, YoutubePlaylist } from "youtubish";
 
+import { IVideo } from "youtubish/dist/model";
 import { IPlayableOptions } from "../../app";
 import { ICastSession, IDevice } from "../../cast";
 import { BaseApp } from "../base";
@@ -65,6 +66,24 @@ async function getMdxScreenId(session: ICastSession) {
     return status.data.screenId;
 }
 
+export function filterFromSkippedIds(
+    ids: string | string[] | undefined,
+) {
+    if (!ids || !ids.length) return;
+
+    if (typeof ids === "string") {
+        return (video: IVideo) => video.id !== ids;
+    }
+
+    return (video: IVideo) => {
+        for (const id of ids) {
+            if (id === video.id) return false;
+        }
+
+        return true;
+    };
+}
+
 export class YoutubeApp extends BaseApp {
 
     public static configurable = new YoutubeConfigurable();
@@ -73,6 +92,11 @@ export class YoutubeApp extends BaseApp {
         return url.includes("youtube.com") || url.includes("youtu.be");
     }
 
+    /**
+     * Extra query params supported:
+     * - `skip`: ID of a video to "skip" when attempting to resume
+     *   a playlist. May be passed multiple times
+     */
     public static async createPlayable(url: string, options?: IYoutubeOpts) {
         let videoId = "";
         let listId = "";
@@ -114,7 +138,9 @@ export class YoutubeApp extends BaseApp {
                 && listId !== ""
                 && videoId === ""
             ) {
-                return app.resumePlaylist(listId);
+                return app.resumePlaylist(listId, {
+                    filter: filterFromSkippedIds(parsed.query.skip),
+                });
             }
 
             return app.play(videoId, {
@@ -216,22 +242,36 @@ export class YoutubeApp extends BaseApp {
 
     /**
      * Requires Youtubish credentials
+     *
+     * @param filter If provided, a predicate function that
+     * must return True for a video in the playlist to be
+     * considered for playback
      */
-    public async resumePlaylist(id: string) {
+    public async resumePlaylist(
+        id: string,
+        options: {
+            filter?: (v: IVideo) => boolean,
+        } = {},
+    ) {
         if (!this.youtubish) {
             throw new Error("Cannot resume playlist without youtubish credentials");
         }
 
         debug("attempting to resume playlist", id);
-        const playlist = this.playlistById(id);
+        let playlist = this.playlistById(id);
+
+        if (options.filter) {
+            playlist = playlist.filter(options.filter);
+        }
+
         const video = await playlist.findMostRecentlyPlayed(
             new WatchHistory(this.youtubish),
         );
 
         debug("Resuming playlist", id, "at", video);
-        return this.play(video.id, {
-            listId: id,
-        });
+        // return this.play(video.id, {
+        //     listId: id,
+        // });
     }
 
     /**

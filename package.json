@@ -12,11 +12,11 @@
   },
   "scripts": {
     "build": "tsc -p .",
-    "check": "npm run lint && npm run build",
+    "check": "npm run lint && npm run build && npm run test",
     "lint": "tslint -p .",
     "prepare": "npm run build",
     "prepublishOnly": "npm run check",
-    "test": "mocha -r ts-node/register test/**/*-test.ts"
+    "test": "mocha -r ts-node/register 'test/**/*-test.ts'"
   },
   "repository": {
     "type": "git",
@@ -43,7 +43,7 @@
     "request": "^2.88.0",
     "request-promise-native": "^1.0.7",
     "yargs": "^13.2.2",
-    "youtubish": "^1.0.3"
+    "youtubish": "^1.1.0"
   },
   "devDependencies": {
     "@types/chai": "^4.1.7",
@@ -51,12 +51,13 @@
     "@types/fs-extra": "^5.0.5",
     "@types/jsonwebtoken": "^8.3.2",
     "@types/mocha": "^5.2.6",
-    "@types/node": "^11.13.5",
-    "@types/request-promise-native": "^1.0.15",
+    "@types/node": "^11.13.7",
+    "@types/request-promise-native": "^1.0.16",
     "@types/yargs": "^13.0.0",
     "chai": "^4.2.0",
     "mocha": "^6.1.4",
-    "typescript": "^3.4.4"
+    "ts-mockito": "^2.3.1",
+    "typescript": "^3.4.5"
   },
   "optionalDependencies": {
     "chromagnon": "^1.0.2"
