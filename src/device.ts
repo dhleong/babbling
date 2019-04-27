@@ -1,10 +1,10 @@
-import nodecastor from "nodecastor";
 import { IDevice } from "nodecastor";
 
 import _debug from "debug";
 const debug = _debug("babbling:device");
 
 import { AppFor, IApp, IAppConstructor, OptionsFor, Opts } from "./app";
+import { findFirst } from "./scan";
 
 export class ChromecastDevice {
 
@@ -49,50 +49,11 @@ export class ChromecastDevice {
         const existing = this.castorDevice;
         if (existing) return existing;
 
-        return new Promise((resolve, reject) => {
-            let options;
-            if (_debug.enabled("chromecast")) {
-                options = {
-                    logger: console,
-                };
-            }
-
-            const scanner = nodecastor.scan(options);
-
-            const timeoutId = setTimeout(() => {
-                scanner.end();
-                reject(new Error("Could not find device"));
-            }, this.timeout);
-
-            scanner.on("online", device => {
-                if (!(
-                    !this.friendlyName
-                    || device.friendlyName === this.friendlyName
-                )) {
-                    // not interested in this device
-                    device.stop();
-                    return;
-                }
-
-                // found! clear timeout
-                clearTimeout(timeoutId);
-
-                // HACKS:
-                try {
-                    scanner.end();
-                } catch (e) {
-                    scanner.browser.stop();
-                }
-
-                debug("connecting to ", device.friendlyName);
-                device.on("connect", () => {
-                    debug("connected to ", device.friendlyName);
-                    this.castorDevice = device;
-                    resolve(device);
-                });
-            });
-
-            scanner.start();
-        });
+        return findFirst(device => {
+            return (
+                !this.friendlyName // first-found
+                || device.friendlyName === this.friendlyName
+            );
+        }, this.timeout);
     }
 }

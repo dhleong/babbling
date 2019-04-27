@@ -6,6 +6,7 @@ import { withConfig, withDevice, withKey, withValue } from "./args";
 import cast from "./commands/cast";
 import { config, unconfig } from "./commands/config";
 import findByTitle from "./commands/find";
+import scanForDevices from "./commands/scan";
 import searchByTitle from "./commands/search";
 
 // type-safe conditional import via reference elision
@@ -43,6 +44,16 @@ parser.command(
             type: "string",
         }).demand("title");
     }, findByTitle,
+);
+
+parser.command(
+    "scan", `Scan for available devices`, args => {
+        return withConfig(args).option("timeout", {
+            alias: "t",
+            default: 15000,
+            type: "number",
+        });
+    }, scanForDevices,
 );
 
 parser.command(
