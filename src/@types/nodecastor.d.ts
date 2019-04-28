@@ -21,6 +21,10 @@ declare module "nodecastor" {
         send(message: any): void;
     }
 
+    export interface ICastChannel {
+        send(message: any): void;
+    }
+
     export interface IAppStatus {
         appId: string;
         displayName: string;
@@ -60,6 +64,8 @@ declare module "nodecastor" {
 
     export interface IDevice {
         friendlyName: string;
+
+        channel: ICastChannel;
 
         application(id: string, callback: Callback<ICastApp>): void;
         stop(): void;

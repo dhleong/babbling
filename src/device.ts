@@ -4,6 +4,7 @@ import _debug from "debug";
 const debug = _debug("babbling:device");
 
 import { AppFor, IApp, IAppConstructor, OptionsFor, Opts } from "./app";
+import { MediaControls } from "./controls";
 import { findFirst } from "./scan";
 
 export class ChromecastDevice {
@@ -34,6 +35,11 @@ export class ChromecastDevice {
         debug("Starting", appConstructor.name);
         await app.start();
         return app;
+    }
+
+    public async openControls() {
+        const device = await this.getCastorDevice();
+        return new MediaControls(device);
     }
 
     /**
