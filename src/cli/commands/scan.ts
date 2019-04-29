@@ -12,6 +12,7 @@ export default function scanForDevices(opts: IScanOpts) {
         scan({
             timeout,
 
+            onConnect: device => { throw new Error("Illegal state"); },
             onDevice: device => {
                 console.log(" -", device.friendlyName);
                 return ScanAction.CloseDevice;
