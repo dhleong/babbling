@@ -39,7 +39,7 @@ export class ChromecastDevice {
 
     public async openControls() {
         const device = await this.getCastorDevice();
-        return new MediaControls(device);
+        return MediaControls.open(device);
     }
 
     /**

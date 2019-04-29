@@ -68,6 +68,7 @@ declare module "nodecastor" {
         channel: ICastChannel;
 
         application(id: string, callback: Callback<ICastApp>): void;
+        status(callback: Callback<IReceiverStatusMessage>): void;
         stop(): void;
         on(event: "connect", handler: () => any): IDevice;
         on(event: "status", handler: (status: IReceiverStatusMessage) => any): IDevice;

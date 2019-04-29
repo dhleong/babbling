@@ -1,10 +1,9 @@
-import * as util from "util";
-
 import _debug from "debug";
 const debug = _debug("babbling:base");
 
 import { IApp } from "../app";
 import { ICastApp, ICastSession, IDevice } from "../cast";
+import { getApp, promise } from "./util";
 
 export const MEDIA_NS = "urn:x-cast:com.google.cast.media";
 
@@ -17,7 +16,6 @@ export abstract class BaseApp implements IApp, IBaseAppProps {
     public appId: string;
     public sessionNs: string;
 
-    private getApp: (id: string) => Promise<ICastApp>;
     private app: ICastApp | undefined;
     private session: ICastSession | undefined;
 
@@ -27,8 +25,6 @@ export abstract class BaseApp implements IApp, IBaseAppProps {
     ) {
         this.appId = props.appId;
         this.sessionNs = props.sessionNs;
-
-        this.getApp = util.promisify(device.application.bind(device));
     }
 
     public async start() {
@@ -57,13 +53,12 @@ export abstract class BaseApp implements IApp, IBaseAppProps {
     }
 
     protected async requestStatus() {
-        const loadStatus = util.promisify((this.device as any).status.bind(this.device));
-        return loadStatus();
+        return promise(this.device, this.device.status);
     }
 
     private async ensureApp() {
         if (!this.app) {
-            this.app = await this.getApp(this.appId);
+            this.app = await getApp(this.device, this.appId);
         }
 
         if (!this.app) {
@@ -80,12 +75,10 @@ export abstract class BaseApp implements IApp, IBaseAppProps {
 
         let s: ICastSession;
         try {
-            const appJoin = util.promisify(app.join.bind(app));
-            s = await appJoin(ns);
+            s = await promise(app, app.join, ns);
         } catch (e) {
             debug("App not running; starting it up");
-            const appRun = util.promisify(app.run.bind(app));
-            s = await appRun(ns);
+            s = await promise(app, app.run, ns);
         }
 
         debug("Got session", s.id);
