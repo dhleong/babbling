@@ -1,9 +1,7 @@
 import _debug from "debug";
 const debug = _debug("babbling:scan");
 
-import nodecastor from "nodecastor";
-
-import { IDevice } from "./cast";
+import nodecastor, { IDevice } from "nodecastor";
 
 export enum ScanAction {
     StopScanning,

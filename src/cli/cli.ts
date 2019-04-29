@@ -5,6 +5,7 @@ import yargs from "yargs";
 import { withConfig, withDevice, withKey, withValue } from "./args";
 import cast from "./commands/cast";
 import { config, unconfig } from "./commands/config";
+import mediaControlCommand from "./commands/do";
 import findByTitle from "./commands/find";
 import scanForDevices from "./commands/scan";
 import searchByTitle from "./commands/search";
@@ -35,6 +36,31 @@ parser.command(
             type: "string",
         }).demand("url");
     }, cast,
+);
+
+parser.command(
+    "do <cmd> [arg]", `Send a media control command`, args => {
+        return withDevice(withConfig(args)).positional("cmd", {
+            choices: [
+                "next", "prev",
+
+                "pause", "play", "play-again",
+                "skip-ad",
+                "stop",
+
+                "ff", "rew",
+
+                "mute", "unmute", "volume",
+            ],
+            describe: "The command to send",
+            type: "string",
+        })
+        .positional("arg", {
+            describe: "The numeric argument to the command (if any)",
+            type: "number",
+        })
+        .demand("cmd");
+    }, mediaControlCommand,
 );
 
 parser.command(
