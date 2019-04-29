@@ -15,6 +15,8 @@ export enum ScanAction {
 export function scan(scanOpts: {
     timeout: number,
     onDevice: (device: IDevice) => ScanAction,
+
+    onConnect: (device: IDevice) => void,
     onTimeout: () => void,
 }) {
     let options;
@@ -27,6 +29,8 @@ export function scan(scanOpts: {
     const scanner = nodecastor.scan(options);
 
     const stopScanner = () => {
+        debug("stop scanning");
+
         // HACKS:
         try {
             scanner.end();
@@ -65,7 +69,7 @@ export function scan(scanOpts: {
         debug("connecting to ", device.friendlyName);
         device.on("connect", () => {
             debug("connected to ", device.friendlyName);
-            scanOpts.onDevice(device);
+            scanOpts.onConnect(device);
         });
     });
 
@@ -85,9 +89,10 @@ export function findFirst(
                     return ScanAction.CloseDevice;
                 }
 
-                resolve(device);
                 return ScanAction.ConnectAndStopScanning;
             },
+
+            onConnect: device => resolve(device),
             onTimeout: () => {
                 reject(new Error("Could not find device"));
             },
