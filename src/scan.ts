@@ -49,11 +49,13 @@ export function scan(scanOpts: {
         switch (action) {
         case ScanAction.CloseDevice:
             // not interested in this device
+            debug("not interested in ", device.friendlyName);
             device.stop();
             return;
 
         case ScanAction.StopScanning:
             // stop early
+            debug("StopScanning");
             clearTimeout(timeoutId);
             stopScanner();
             return;

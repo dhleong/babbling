@@ -49,11 +49,11 @@ export class ChromecastDevice {
         const existing = this.castorDevice;
         if (existing) return existing;
 
-        return findFirst(device => {
-            return (
-                !this.friendlyName // first-found
-                || device.friendlyName === this.friendlyName
-            );
-        }, this.timeout);
+        const found = await findFirst(device => (
+            !this.friendlyName // first-found
+            || device.friendlyName === this.friendlyName
+        ), this.timeout);
+        this.castorDevice = found;
+        return found;
     }
 }
