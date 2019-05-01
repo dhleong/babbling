@@ -16,11 +16,28 @@ export async function writeConfig(path: string, obj: any) {
     return fs.writeFile(path, JSON.stringify(obj, null, "  "));
 }
 
+export function updateConfig(obj: any, path: string[], newValue: string) {
+    if (path.length === 0) throw new Error("Invalid path");
+
+    let o = obj;
+    for (let i = 0; i < path.length - 1; ++i) {
+        o = obj[path[i]];
+        if (o === undefined) {
+            o = {};
+            obj[path[i]] = o;
+        }
+    }
+
+    o[path[path.length - 1]] = newValue;
+
+    return obj;
+}
+
 export async function config(configPath: string, key: string, value?: string) {
     const json = await readConfig(configPath);
     if (value) {
         json[key] = value;
-        await fs.writeFile(configPath, JSON.stringify(json, null, "  "));
+        await writeConfig(configPath, json);
         return;
     }
 

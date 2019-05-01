@@ -2,6 +2,7 @@ import jwt from "jsonwebtoken";
 import request, {OptionsWithUrl} from "request-promise-native";
 
 import _debug from "debug";
+import { read, Token, write } from "../../token";
 const debug = _debug("babbling:hbogo:api");
 
 const CONTENT_URL = "https://comet.api.hbo.com/content";
@@ -49,7 +50,7 @@ export class HboGoApi {
     private refreshTokenExpires = 0;
 
     constructor(
-        private token: string,
+        private token: Token,
     ) {}
 
     public async stopConcurrentStreams() {
@@ -169,8 +170,10 @@ export class HboGoApi {
      * Util methods
      */
 
-    public extractTokenInfo() {
-        const tokenData = jwt.decode(this.token) as any;
+    public async extractTokenInfo() {
+        const token = read(this.token).trim();
+
+        const tokenData = jwt.decode(token) as any;
         if (!tokenData || !tokenData.payload || !tokenData.payload.tokenPropertyData) {
             debug("Invalid token:", tokenData);
             debug("From:", this.token);
@@ -226,7 +229,7 @@ export class HboGoApi {
         const {
             clientId,
             deviceId,
-        } = this.extractTokenInfo();
+        } = await this.extractTokenInfo();
 
         // this step fetches some sort of session token that is *not*
         // logged in
@@ -266,9 +269,13 @@ export class HboGoApi {
         }
 
         // cache this until expired (see: expires_in)
-        // TODO store this?
         this.refreshTokenExpires = Date.now() + realTokens.expires_in;
         this.refreshToken = realTokens.refresh_token;
+
+        // update the token, if possible
+        if (this.refreshToken) {
+            await write(this.token, this.refreshToken);
+        }
 
         return realTokens.refresh_token;
     }

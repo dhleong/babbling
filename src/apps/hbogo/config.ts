@@ -1,11 +1,12 @@
 import { IConfigSource, IConfigurable } from "../../cli/model";
+import { Token } from "../../token";
 
 export interface IHboGoOpts {
     /**
      * The bearer token, as found in the Authorization header
      * for a request to `https://comet.api.hbo.com/content`
      */
-    token: string;
+    token: Token;
 }
 
 export class HboGoConfigurable implements IConfigurable<IHboGoOpts> {
