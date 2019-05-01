@@ -269,9 +269,9 @@ export class YoutubeApp extends BaseApp {
         );
 
         debug("Resuming playlist", id, "at", video);
-        // return this.play(video.id, {
-        //     listId: id,
-        // });
+        return this.play(video.id, {
+            listId: id,
+        });
     }
 
     /**
