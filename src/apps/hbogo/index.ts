@@ -25,7 +25,7 @@ export interface IHboGoPlayOptions {
 }
 
 export class HboGoApp extends BaseApp {
-
+    public static tokenConfigKeys = [ "token" ];
     public static configurable = new HboGoConfigurable();
 
     public static ownsUrl(url: string) {
@@ -60,7 +60,7 @@ export class HboGoApp extends BaseApp {
         title: string,
         opts: IHboGoOpts,
     ): AsyncIterable<IQueryResult> {
-        const api = new HboGoApi(opts.token.trim());
+        const api = new HboGoApi(opts.token);
         for await (const result of api.search(title)) {
             const url = "https://play.hbogo.com/" + result.urn;
             yield {
@@ -80,7 +80,7 @@ export class HboGoApp extends BaseApp {
             sessionNs: MEDIA_NS,
         });
 
-        this.api = new HboGoApi(options.token.trim());
+        this.api = new HboGoApi(options.token);
     }
 
     /**
@@ -94,7 +94,7 @@ export class HboGoApp extends BaseApp {
         const {
             deviceId,
             userTkey,
-        } = this.api.extractTokenInfo();
+        } = await this.api.extractTokenInfo();
 
         const [ refreshToken, s ] = await Promise.all([
             this.api.getRefreshToken(),

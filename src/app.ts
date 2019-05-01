@@ -6,8 +6,11 @@ export interface IApp {
 
 export type Opts = any[];
 
-export type IAppConstructor<TOptions extends Opts, TSelf extends IApp> =
-    new (device: IDevice, ...options: TOptions) => TSelf;
+export interface IAppConstructor<TOptions extends Opts, TSelf extends IApp> {
+    tokenConfigKeys?: string[];
+
+    new (device: IDevice, ...options: TOptions): TSelf;
+}
 
 export type OptionsFor<T> =
     T extends IAppConstructor<infer TOpt, infer TSelf> ? TOpt :

@@ -1,7 +1,14 @@
 import * as chai from "chai";
 import { capture, instance, mock } from "ts-mockito";
 
-import { filterFromSkippedIds, YoutubeApp } from "../../src/apps/youtube";
+import request from "request-promise-native";
+
+import {
+    fillJar,
+    filterFromSkippedIds,
+    pruneCookies,
+    YoutubeApp,
+} from "../../src/apps/youtube";
 
 chai.should();
 const { expect } = chai;
@@ -10,6 +17,29 @@ const videoOf = (id: string) => ({
     desc: "",
     id,
     title: "stub",
+});
+
+describe("pruneCookies", () => {
+    it("works when cookie is at the beginning", () => {
+        expect(pruneCookies("S=youtube_lounge_remote=1234; LOGIN_INFO=login"))
+            .to.equal("LOGIN_INFO=login");
+    });
+
+    it("works when cookie is at the end", () => {
+        expect(pruneCookies("LOGIN_INFO=login; S=youtube_lounge_remote=1234"))
+            .to.equal("LOGIN_INFO=login");
+    });
+});
+
+describe("fillJar", () => {
+    const URL = "https://www.firefly.com";
+    it("parses all cookies in a Cookie header string", () => {
+        const str = "captain=mreynolds; cargo=geisha-dolls";
+        const jar = request.jar();
+        fillJar(URL, jar, str);
+
+        jar.getCookieString(URL).should.equal(str);
+    });
 });
 
 describe("filterFromSkippedIds", () => {

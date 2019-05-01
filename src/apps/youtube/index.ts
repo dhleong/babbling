@@ -2,7 +2,9 @@
  * Based on https://github.com/ur1katz/casttube
  */
 
+import { CookieJar } from "request";
 import request from "request-promise-native";
+import tough from "tough-cookie";
 import URL from "url";
 
 import _debug from "debug";
@@ -13,6 +15,7 @@ import { ICreds, WatchHistory, YoutubePlaylist } from "youtubish";
 import { IVideo } from "youtubish/dist/model";
 import { IPlayableOptions } from "../../app";
 import { ICastSession, IDevice } from "../../cast";
+import { read, Token, write } from "../../token";
 import { BaseApp } from "../base";
 import { awaitMessageOfType } from "../util";
 import { IPlaylistCache, IYoutubeOpts, YoutubeConfigurable } from "./config";
@@ -22,6 +25,7 @@ export { IYoutubeOpts } from "./config";
 const APP_ID = "233637DE";
 const MDX_NS = "urn:x-cast:com.google.youtube.mdx";
 
+const COOKIES_DOMAIN = "https://youtube.com/";
 const YOUTUBE_BASE_URL = "https://www.youtube.com/";
 const URLS = {
     bind: YOUTUBE_BASE_URL + "api/lounge/bc/bind",
@@ -84,9 +88,42 @@ export function filterFromSkippedIds(
     };
 }
 
+export function fillJar(
+    url: string,
+    jar: CookieJar,
+    cookieString: string,
+) {
+    for (const part of cookieString.split(";")) {
+        const cookie = tough.Cookie.parse(part);
+        if (!cookie) throw new Error();
+
+        cookie.expires = "Infinity";
+        jar.setCookie(cookie, url);
+    }
+}
+
+export function pruneCookies(
+    cookiesString: string,
+) {
+    if (!cookiesString.includes("LOGIN_INFO=")) return;
+
+    // NOTE: it seems we don't want to persist this...?
+    return cookiesString.replace(/S=youtube_lounge_remote=[^;]+(;|$)/, "").trim()
+        .replace(/;$/, "");
+}
+
+export function extractCookies(
+    jar: CookieJar,
+) {
+    const newCookies = jar.getCookieString(COOKIES_DOMAIN);
+    if (!newCookies || !newCookies.length) return;
+    return pruneCookies(newCookies);
+}
+
 export class YoutubeApp extends BaseApp {
 
-    public static configurable = new YoutubeConfigurable();
+    public static tokenConfigKeys = [ "cookies" ];
+    public static configurable = YoutubeConfigurable;
 
     public static ownsUrl(url: string) {
         return url.includes("youtube.com") || url.includes("youtu.be");
@@ -150,8 +187,9 @@ export class YoutubeApp extends BaseApp {
         };
     }
 
-    private cookies: string;
+    private cookies: Token;
     private readonly bindData: typeof BIND_DATA;
+    private readonly jar: CookieJar;
 
     // youtube session state:
     private rid = 0;
@@ -171,14 +209,20 @@ export class YoutubeApp extends BaseApp {
             sessionNs: MDX_NS,
         });
 
+        this.jar = request.jar();
+
         this.cookies = "";
         if (options && options.cookies) {
-            const { cookies } = options;
+            const cookies = read(options.cookies);
             if (typeof cookies !== "string") {
                 throw new Error("Invalid cookies format");
             }
 
-            this.cookies = cookies;
+            this.cookies = options.cookies;
+
+            this.youtubish = { cookies };
+        } else if (options.youtubish) {
+            this.youtubish = options.youtubish;
         }
 
         this.bindData = Object.assign({}, BIND_DATA);
@@ -186,8 +230,7 @@ export class YoutubeApp extends BaseApp {
             this.bindData.name = options.deviceName;
         }
 
-        if (options && options.youtubish) {
-            this.youtubish = options.youtubish;
+        if (this.youtubish && options) {
             this.playlistsCache = options.playlistsCache;
         }
     }
@@ -408,17 +451,48 @@ export class YoutubeApp extends BaseApp {
         }
 
         try {
-            return await request.post({
+            const cookies = await this.getCookies();
+
+            // attempt to load cookies if we haven't already
+            if (
+                cookies
+                && !this.jar.getCookies(COOKIES_DOMAIN).length
+            ) {
+                fillJar(COOKIES_DOMAIN, this.jar, cookies);
+                debug("filled jar with", this.jar.getCookies(COOKIES_DOMAIN).length);
+            }
+
+            const response = await request.post({
                 form: data,
                 headers: {
                     "X-YouTube-LoungeId-Token": this.loungeId,
-                    "cookie": await this.getCookies(),
+                    "cookie": cookies,
                     "origin": YOUTUBE_BASE_URL,
                 },
+                jar: this.jar,
                 json: !isBind,
                 qs,
                 url,
+
+                resolveWithFullResponse: true,
             });
+
+            debug(response.body, response.headers);
+            const result = response.body;
+
+            // on a successful request, update cookies
+            if (typeof this.cookies !== "string") {
+                const newCookies = extractCookies(this.jar);
+                if (
+                    newCookies
+                    && newCookies !== read(this.cookies)
+                ) {
+                    debug("updated cookies <- ", newCookies);
+                    await write(this.cookies, newCookies);
+                }
+            }
+
+            return result;
         } catch (e) {
             debug(e);
 
@@ -442,7 +516,8 @@ export class YoutubeApp extends BaseApp {
     }
 
     private async getCookies() {
-        if (this.cookies) return this.cookies;
+        const readCookies = read(this.cookies);
+        if (readCookies) return readCookies;
         if (!this.youtubish) return undefined;
 
         if (this.youtubish instanceof Promise) {
@@ -450,6 +525,8 @@ export class YoutubeApp extends BaseApp {
             this.cookies = filled.cookies;
             return filled.cookies;
         }
+
+        return this.youtubish.cookies;
     }
 
     private playlistById(id: string) {

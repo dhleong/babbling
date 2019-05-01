@@ -1,9 +1,13 @@
+import _debug from "debug";
+const debug = _debug("babbling:config");
+
 import os from "os";
 import pathlib from "path";
 
 import { IApp, IAppConstructor, IPlayerEnabledConstructor, Opts } from "../app";
 import { BabblerBaseApp } from "../apps/babbler/base";
-import { readConfig } from "./commands/config";
+import { IWritableToken } from "../token";
+import { readConfig, updateConfig, writeConfig } from "./commands/config";
 
 export const DEFAULT_CONFIG_PATH = pathlib.join(
     os.homedir(),
@@ -20,14 +24,18 @@ export async function *getAppConstructors(): AsyncIterable<IAppConstructor<any, 
 }
 
 export async function *importConfig(configPath?: string) {
-    const config = await readConfig(configPath || DEFAULT_CONFIG_PATH);
+    const actualPath = configPath || DEFAULT_CONFIG_PATH;
+    const config = await readConfig(actualPath);
 
-    yield *importConfigFromJson(config);
+    yield *importConfigFromJson(actualPath, config);
 }
 
 type ConfigPair<TOpts extends Opts> = [IPlayerEnabledConstructor<TOpts, IApp>, Opts];
 
-export async function *importConfigFromJson(config: any) {
+export async function *importConfigFromJson(
+    configPath: string,
+    config: any,
+) {
 
     for await (const app of getAppConstructors()) {
         if (config[app.name]) {
@@ -40,7 +48,51 @@ export async function *importConfigFromJson(config: any) {
                 appConfig.appId = config.babbler;
             }
 
+            if (app.tokenConfigKeys) {
+                for (const k of app.tokenConfigKeys) {
+                    appConfig[k] = new AppConfigToken(
+                        configPath,
+                        [app.name, k],
+                        appConfig[k],
+                    );
+                }
+            }
+
             yield [app, appConfig] as ConfigPair<any>;
         }
+    }
+}
+
+class AppConfigToken implements IWritableToken {
+    constructor(
+        private configPath: string,
+        private tokenPath: string[],
+        private value: string,
+    ) {}
+
+    public read(): string {
+        return this.value;
+    }
+
+    public async write(newValue: string): Promise<void> {
+        if (newValue === this.value) {
+            debug("unchanged", this.tokenPath, " <- ", newValue);
+            return;
+        }
+
+        debug("update", this.tokenPath, " <- ", newValue);
+
+        this.value = newValue;
+        const config = await readConfig(this.configPath);
+        const updated = updateConfig(config, this.tokenPath, newValue);
+        await writeConfig(this.configPath, updated);
+    }
+
+    public toJSON(): string {
+        return this.value;
+    }
+
+    public toString(): string {
+        return this.value;
     }
 }
