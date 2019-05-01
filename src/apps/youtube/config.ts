@@ -1,7 +1,7 @@
 import { ICreds } from "youtubish";
 
 import { CookiesConfigurable } from "../../cli/configurables";
-import { IConfigSource, IConfigurable } from "../../cli/model";
+import { Token } from "../../token";
 
 export interface IPlaylistCache {
     [id: string]: any;
@@ -11,12 +11,20 @@ export interface IYoutubeOpts {
     /**
      * A string of cookies as might be retrieved from the "copy as
      * cURL" from any request on youtube.com in Chrome's network
-     * inspector
+     * inspector. This will be provided for you if you use the
+     * `auto-auth` CLI tool and `PlayerBuilder.autoInflate`.
+     *
+     * It is not necessary to provide both this *and* `youtubish`
      */
-    cookies?: string;
+    cookies?: Token;
 
     /**
-     * Credentials from Youtubish
+     * Credentials from Youtubish, as an alternative to `cookies`.
+     * If you use the `auto-auth` CLI tool and `PlayerBuilder.autoInflate`
+     * there is no need to use this; it is provided for convenience
+     * with low-level, by-hand app init only.
+     *
+     * It is not necessary to provide both this *and* `cookies`.
      */
     youtubish?: ICreds;
 
@@ -39,18 +47,4 @@ export interface IYoutubeOpts {
     deviceName?: string;
 }
 
-const baseConfigurable = new CookiesConfigurable("https://www.youtube.com");
-
-export class YoutubeConfigurable implements IConfigurable<IYoutubeOpts> {
-    public async extractConfig(
-        source: IConfigSource,
-    ) {
-        const base = await baseConfigurable.extractConfig(source);
-        if (!base || !base.cookies) return;
-
-        return {
-            cookies: base.cookies,
-            youtubish: base as { cookies: string },
-        };
-    }
-}
+export const YoutubeConfigurable = new CookiesConfigurable("https://www.youtube.com");
