@@ -7,7 +7,7 @@ Babbling [![npm](https://img.shields.io/npm/v/babbling.svg)](https://www.npmjs.c
 
 *Babbling*, as in *babbling brook*, refers to the streaming services it
 helps bridge to your Chromecast. It's also a bit of a play on the Tower
-of Babel, because that it "speaks" to many *different* services.
+of Babel, because it "speaks" to many *different* services.
 
 ## No, but seriously, what?
 
