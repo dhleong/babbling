@@ -75,10 +75,34 @@ class Player {
         );
     }
 
-    public async *queryByTitle(title: string): AsyncIterable<IQueryResult> {
-        const iterables = this.apps.filter(it => it.appConstructor.queryByTitle !== undefined)
-            .map(it => it.appConstructor!.queryByTitle!(title, ...it.options));
-        yield *mergeAsyncIterables(iterables);
+    /**
+     * Get an AsyncIterable representing playables from across all
+     * configured apps. Each result can be passed directly to `play`.
+     *
+     * @param title The title to search for
+     * @param onError Handler for when an app encounters an error. By
+     *                default, the error will just be thrown eagerly,
+     *                but you may prefer to simply log the error and
+     *                allow the other apps to provide their results
+     */
+    public queryByTitle(
+        title: string,
+        onError: (app: string, e: Error) => void = (app, e) => { throw e; },
+    ): AsyncIterable<IQueryResult> {
+        const iterables = this.apps.map(async function*(app) {
+            if (!app.appConstructor.queryByTitle) return;
+
+            try {
+                yield *app.appConstructor.queryByTitle(
+                    title,
+                    ...app.options,
+                );
+            } catch (e) {
+                onError(app.appConstructor.name, e);
+            }
+        });
+
+        return mergeAsyncIterables(iterables);
     }
 
     private async playOnEachDevice(
