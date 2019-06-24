@@ -100,7 +100,6 @@ verify(versionTag.exists())\
 # Make sure all the tests pass
 #
 
-# TODO write tests... probably
 verify(Execute("npm run check")).succeeds(silent=False).orElse(die())
 
 #
