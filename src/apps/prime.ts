@@ -56,6 +56,11 @@ function toQueueItem(item: IBaseObj): IQueueItem<IBaseObj> {
 /** Number of items to return for QUEUE requests */
 const QUEUE_SIZE = 5;
 
+function cleanTitle(original: string) {
+    // including this suffix confuses title-matching
+    return original.replace("(4K UHD)", "").trim();
+}
+
 /**
  * Amazon Prime Video
  */
@@ -93,7 +98,7 @@ export class PrimeApp extends BabblerBaseApp {
             yield {
                 appName: "PrimeApp",
                 playable: PrimeApp.playableFromObj(result),
-                title: result.title,
+                title: cleanTitle(result.title),
                 url: "https://www.amazon.com/video/detail/" + result.id,
             };
         }
