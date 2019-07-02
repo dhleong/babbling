@@ -42,7 +42,7 @@
     "nodecastor": "github:dhleong/nodecastor#e18189c",
     "request": "^2.88.0",
     "request-promise-native": "^1.0.7",
-    "yargs": "^13.2.2",
+    "yargs": "^13.3.0",
     "youtubish": "^1.1.0"
   },
   "devDependencies": {
@@ -50,14 +50,14 @@
     "@types/debug": "^4.1.4",
     "@types/fs-extra": "^5.0.5",
     "@types/jsonwebtoken": "^8.3.2",
-    "@types/mocha": "^5.2.6",
-    "@types/node": "^11.13.7",
+    "@types/mocha": "^5.2.7",
+    "@types/node": "^12.0.10",
     "@types/request-promise-native": "^1.0.16",
     "@types/yargs": "^13.0.0",
     "chai": "^4.2.0",
     "mocha": "^6.1.4",
     "ts-mockito": "^2.3.1",
-    "typescript": "^3.4.5"
+    "typescript": "^3.5.2"
   },
   "optionalDependencies": {
     "chromagnon": "^1.0.2"
