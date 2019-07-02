@@ -70,6 +70,8 @@ async function getMdxScreenId(session: ICastSession) {
     return status.data.screenId;
 }
 
+export type VideoFilter = (v: IVideo) => boolean;
+
 export function filterFromSkippedIds(
     ids: string | string[] | undefined,
 ) {
@@ -137,6 +139,7 @@ export class YoutubeApp extends BaseApp {
     public static async createPlayable(url: string, options?: IYoutubeOpts) {
         let videoId = "";
         let listId = "";
+        let listIndex = -1;
         let startTime = -1;
 
         const parsed = URL.parse(url, true);
@@ -157,6 +160,10 @@ export class YoutubeApp extends BaseApp {
             if (listId === "WL" && !(options && options.cookies)) {
                 throw new Error("Cannot use watch later playlist without cookies");
             }
+
+            if (parsed.query.index) {
+                listIndex = parseInt(parsed.query.index.toString(), 10);
+            }
         }
 
         if (parsed.query.t) {
@@ -175,8 +182,16 @@ export class YoutubeApp extends BaseApp {
                 && listId !== ""
                 && videoId === ""
             ) {
+                const filter = filterFromSkippedIds(parsed.query.skip);
+                if (listIndex >= 0) {
+                    return app.playPlaylist(listId, {
+                        filter,
+                        index: listIndex,
+                    });
+                }
+
                 return app.resumePlaylist(listId, {
-                    filter: filterFromSkippedIds(parsed.query.skip),
+                    filter,
                 });
             }
 
@@ -284,37 +299,53 @@ export class YoutubeApp extends BaseApp {
     }
 
     /**
+     * Play the given playlist. By default, we start with the first
+     * video in the playlist, but you can provide an index into the
+     * playlist via the options map
+     *
+     * @param filter If provided, a predicate function that must return True
+     * for a video in the playlist to be considered for playback
+     */
+    public async playPlaylist(
+        id: string,
+        options: {
+            filter?: VideoFilter,
+            index?: number;
+        } = {},
+    ) {
+        debug(`attempting to play playlist ${id} at (index: ${options.index})`);
+        return this.playItemInPlaylist(
+            id,
+            options.filter,
+            playlist => playlist.get(options.index || 0),
+        );
+    }
+
+    /**
      * Requires Youtubish credentials
      *
-     * @param filter If provided, a predicate function that
-     * must return True for a video in the playlist to be
-     * considered for playback
+     * @param filter If provided, a predicate function that must return True
+     * for a video in the playlist to be considered for playback
      */
     public async resumePlaylist(
         id: string,
         options: {
-            filter?: (v: IVideo) => boolean,
+            filter?: VideoFilter,
         } = {},
     ) {
-        if (!this.youtubish) {
+        const creds = this.youtubish;
+        if (!creds) {
             throw new Error("Cannot resume playlist without youtubish credentials");
         }
 
         debug("attempting to resume playlist", id);
-        let playlist = this.playlistById(id);
-
-        if (options.filter) {
-            playlist = playlist.filter(options.filter);
-        }
-
-        const video = await playlist.findMostRecentlyPlayed(
-            new WatchHistory(this.youtubish),
+        return this.playItemInPlaylist(
+            id,
+            options.filter,
+            playlist => playlist.findMostRecentlyPlayed(
+                new WatchHistory(creds),
+            ),
         );
-
-        debug("Resuming playlist", id, "at", video);
-        return this.play(video.id, {
-            listId: id,
-        });
     }
 
     /**
@@ -334,6 +365,25 @@ export class YoutubeApp extends BaseApp {
 
     public async clearPlaylist() {
         await this.queueAction("", "clear");
+    }
+
+    private async playItemInPlaylist(
+        playlistId: string,
+        filter: VideoFilter | undefined,
+        selector: (playlist: YoutubePlaylist) => Promise<IVideo>,
+    ) {
+        let playlist = this.playlistById(playlistId);
+
+        if (filter) {
+            playlist = playlist.filter(filter);
+        }
+
+        const video = await selector(playlist);
+
+        debug("playing playlist", playlistId, "at", video);
+        return this.play(video.id, {
+            listId: playlistId,
+        });
     }
 
     private get inSession() {
