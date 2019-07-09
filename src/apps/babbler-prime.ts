@@ -9,7 +9,7 @@ import { CookiesConfigurable } from "../cli/configurables";
 import { BabblerBaseApp, IPlayableInfo, IQueueItem } from "./babbler/base";
 import { SenderCapabilities } from "./babbler/model";
 
-export interface IPrimeOpts {
+export interface IBabblerPrimeOpts {
     appId: string;
     cookies: string;
 }
@@ -64,9 +64,9 @@ function cleanTitle(original: string) {
 /**
  * Amazon Prime Video
  */
-export class PrimeApp extends BabblerBaseApp {
+export class BabblerPrimeApp extends BabblerBaseApp {
 
-    public static configurable = new CookiesConfigurable<IPrimeOpts>("https://www.amazon.com");
+    public static configurable = new CookiesConfigurable<IBabblerPrimeOpts>("https://www.amazon.com");
 
     public static ownsUrl(url: string) {
         // TODO other domains
@@ -75,7 +75,7 @@ export class PrimeApp extends BabblerBaseApp {
 
     public static async createPlayable(
         url: string,
-        options: IPrimeOpts,
+        options: IBabblerPrimeOpts,
     ) {
         const m = url.match(/video\/detail\/([^\/]+)/);
         if (!m) {
@@ -86,18 +86,18 @@ export class PrimeApp extends BabblerBaseApp {
         const titleId = m[1];
         const info = await api.getTitleInfo(titleId);
 
-        return PrimeApp.playableFromObj(info);
+        return BabblerPrimeApp.playableFromObj(info);
     }
 
     public static async *queryByTitle(
         title: string,
-        opts: IPrimeOpts,
+        opts: IBabblerPrimeOpts,
     ): AsyncIterable<IQueryResult> {
         const api = new ChakramApi(opts.cookies);
         for (const result of await api.search(title)) {
             yield {
                 appName: "PrimeApp",
-                playable: PrimeApp.playableFromObj(result),
+                playable: BabblerPrimeApp.playableFromObj(result),
                 title: cleanTitle(result.title),
                 url: "https://www.amazon.com/video/detail/" + result.id,
             };
@@ -107,21 +107,21 @@ export class PrimeApp extends BabblerBaseApp {
     private static playableFromObj(info: IBaseObj) {
         if (info.type === ContentType.SERIES) {
             debug("playable for series", info.id);
-            return async (app: PrimeApp) => app.resumeSeries(info.id);
+            return async (app: BabblerPrimeApp) => app.resumeSeries(info.id);
         } else if (info.type === ContentType.SEASON) {
             // probably they want to resume the series
             const season = info as ISeason;
             if (season.series) {
                 const seriesId = season.series.id;
                 debug("playable for series given season", seriesId);
-                return async (app: PrimeApp) => app.resumeSeries(
+                return async (app: BabblerPrimeApp) => app.resumeSeries(
                     seriesId,
                 );
             }
         }
 
         debug("playable for title", info.id);
-        return async (app: PrimeApp, opts: IPlayableOptions) => {
+        return async (app: BabblerPrimeApp, opts: IPlayableOptions) => {
             if (opts.resume === false) {
                 await app.playTitle(info.id, { startTime: 0 });
             } else {
@@ -134,7 +134,7 @@ export class PrimeApp extends BabblerBaseApp {
 
     constructor(
         device: IDevice,
-        opts: IPrimeOpts,
+        opts: IBabblerPrimeOpts,
     ) {
         super(device, {
             appId: opts.appId,
