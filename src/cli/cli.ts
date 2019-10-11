@@ -10,6 +10,8 @@ import findByTitle from "./commands/find";
 import scanForDevices from "./commands/scan";
 import searchByTitle from "./commands/search";
 
+import authorizePrime from "./commands/auth/prime";
+
 // type-safe conditional import via reference elision
 import * as AuthCommand from "./commands/auth";
 import { IAuthOpts } from "./commands/auth";
@@ -125,6 +127,17 @@ if (canAutoConfigure) {
         },
     );
 }
+
+parser.command(
+    "auth:prime <code>", `Auth with prime`, args => {
+        return withConfig(args).positional("code", {
+            describe: `Auth code`,
+            type: "string",
+        }).demand("code");
+    }, async argv => {
+        await authorizePrime(argv.code);
+    },
+);
 
 parser.help()
     .demandCommand(1);

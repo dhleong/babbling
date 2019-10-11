@@ -2,13 +2,14 @@ import { Callback, ICastSession, IDevice } from "../cast";
 
 export const awaitMessageOfType = (
     session: ICastSession, type: string,
+    timeoutMs: number = 5000,
 ): Promise<any> => new Promise((resolve, reject) => {
     let onMessage: (m: any) => any;
 
     const timeoutId = setTimeout(() => {
         session.removeListener("message", onMessage);
         reject(new Error("Timeout waiting for " + type));
-    }, 5000);
+    }, timeoutMs);
 
     onMessage = message => {
         if (message.type === type) {
