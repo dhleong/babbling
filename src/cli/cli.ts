@@ -10,9 +10,11 @@ import findByTitle from "./commands/find";
 import scanForDevices from "./commands/scan";
 import searchByTitle from "./commands/search";
 
+import { login as primeLogin } from "./commands/auth/prime";
+
 // type-safe conditional import via reference elision
 import * as AuthCommand from "./commands/auth";
-import { IAuthOpts } from "./commands/auth";
+import { IAuthOpts } from "./commands/auth/config";
 let authCommandModule: typeof AuthCommand;
 
 let canAutoConfigure = false;
@@ -125,6 +127,18 @@ if (canAutoConfigure) {
         },
     );
 }
+
+parser.command(
+    "auth:prime <email>", `Auth with prime`, args => {
+        return withConfig(args)
+            .positional("email", {
+                describe: `Email address`,
+                type: "string",
+            }).demand("email");
+    }, async argv => {
+        await primeLogin(argv, argv.email);
+    },
+);
 
 parser.help()
     .demandCommand(1);
