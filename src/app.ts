@@ -66,8 +66,11 @@ export interface IQueryResult {
     playable: IPlayable<any>;
 }
 
-export interface IPlayerEnabledConstructor<TOptions extends Opts, TSelf extends IApp>
-extends IAppConstructor<TOptions, TSelf> {
+/**
+ * The IPlayerChannel interface is a high-level, unified means of
+ * interacting with a particular app and its service.
+ */
+export interface IPlayerChannel<TSelf extends IApp> {
 
     /**
      * Return true if your app "owns" the given URL. The first
@@ -87,5 +90,16 @@ extends IAppConstructor<TOptions, TSelf> {
      *
      */
     queryByTitle?(title: string, ...options: OptionsFor<TSelf>): AsyncIterable<IQueryResult>;
+
+}
+
+export interface IPlayerEnabledConstructor<TOptions extends Opts, TSelf extends IApp>
+extends IAppConstructor<TOptions, TSelf> {
+
+    /**
+     * Create a Channel that can be used to interact with this App
+     * and its associated service
+     */
+    createPlayerChannel(): IPlayerChannel<TSelf>;
 
 }
