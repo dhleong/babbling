@@ -26,6 +26,7 @@ export interface IPrimeOpts {
     // TODO
     cookies: string;
     deviceId?: string;
+    deviceType?: string;
     marketplaceId?: string;
     refreshToken?: string;
     apiDomain?: string;
@@ -34,6 +35,7 @@ export interface IPrimeOpts {
 export class PrimeApp extends BaseApp {
 
     private readonly deviceId: string;
+    private readonly deviceType: string;
     private readonly opts: IPrimeOpts;
 
     private readonly language = "en-US";
@@ -49,6 +51,7 @@ export class PrimeApp extends BaseApp {
             APP_ID,
             os.hostname(),
         );
+        this.deviceType = options.deviceType || "android";
     }
 
     public async play(titleId: string) {
@@ -87,6 +90,7 @@ export class PrimeApp extends BaseApp {
         let ms;
         do {
             ms = await Promise.race([
+                awaitMessageOfType(s, "CLOSE"),
                 awaitMessageOfType(s, "LOAD_FAILED"),
                 awaitMessageOfType(s, "MEDIA_STATUS"),
             ]);
@@ -205,7 +209,7 @@ export class PrimeApp extends BaseApp {
                 app_version: APP_VERSION,
                 device_model: "pixel",
                 device_serial: this.deviceId,
-                device_type: "android",
+                device_type: this.deviceType,
                 os_version: "22",
             },
             scopes: ["aiv:full"],
@@ -275,7 +279,7 @@ async function castRequest(session: ICastSession, message: any) {
 
 async function checkedRequest(session: ICastSession, message: any) {
     const resp = await castRequest(session, message);
-    if (resp.error && resp.error.code) {
+    if (resp.error) {
         throw resp.error;
     }
     debug(" -> ", resp);
