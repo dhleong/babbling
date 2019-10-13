@@ -118,6 +118,7 @@ releaseNotes = notes.contents()
 # Deploy
 #
 
+verify(Execute('npm run clean')).succeeds(silent=False)
 verify(Execute('npm publish')).succeeds(silent=False)
 
 #
