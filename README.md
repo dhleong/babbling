@@ -20,7 +20,7 @@ Currently, Babbling supports casting videos from:
 - [Youtube][1]
 - [HBO Go][2]
 - [Hulu][3]
-- [Amazon Video][4]
+- [Amazon Video][5]
 
 ### Typescript/Javascript
 
