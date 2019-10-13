@@ -87,7 +87,11 @@ export class PrimeApi {
         }
 
         debug("login successful = ", success);
+        debug("cookies = ", success.tokens.website_cookies);
         return {
+            cookies: success.tokens.website_cookies.map((c: any) => {
+                return `${c.Name}=${c.Value}`;
+            }).join("; "),
             refreshToken: success.tokens.bearer.refresh_token,
         };
     }
