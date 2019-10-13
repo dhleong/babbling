@@ -20,6 +20,7 @@ Currently, Babbling supports casting videos from:
 - [Youtube][1]
 - [HBO Go][2]
 - [Hulu][3]
+- [Amazon Video][4]
 
 ### Typescript/Javascript
 
@@ -73,7 +74,24 @@ on only one app accessing it at a time) and run `babbling auto-auth`.
 That will enable the `autoInflate()` function mentioned above, and
 also allow you to use `babbling cast <url>`!
 
+#### Amazon Video
+
+Authentication for Amazon Video is a bit of a special case, requiring
+you to login with your email and password. We do not store your password,
+but we need to login in a specific way to be able to communicate with the
+Amazon Video Chromecast app.
+
+This can be performed easily with the Babbling command-line tool:
+
+```
+babbling auth:prime <your@amazon-login>
+```
+
+You will be prompted for your password, and, if everything goes well, you
+well then be able to use `babbling cast <url>`, etc., for Amazon videos!
+
 [1]: src/apps/youtube/index.ts
 [2]: src/apps/hbogo/index.ts
 [3]: src/apps/hulu.ts
 [4]: src/player.ts
+[5]: src/apps/prime/index.ts
