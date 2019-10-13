@@ -1,47 +1,23 @@
 import _debug from "debug";
 const debug = _debug("babbling:PrimeApp");
 
-import crypto from "crypto";
-import os from "os";
-import { gzip } from "zlib";
-
-import request from "request-promise-native";
-import generateRandomUUID from "uuid/v4";
-
-import { generateDeviceId } from "chakram-ts/dist/util";
-
 import { ICastSession, IDevice } from "../../cast";
 import { BaseApp, MEDIA_NS } from "../base";
 import { awaitMessageOfType } from "../util";
+import { PrimeApi } from "./api";
+import { IPrimeOpts } from "./config";
 
 const APP_ID = "17608BC8";
 const AUTH_NS = "urn:x-cast:com.amazon.primevideo.cast";
 
-const DEFAULT_API_DOMAIN = "api.amazon.com";
-
-const APP_NAME = "com.amazon.avod.thirdpartyclient";
-const APP_VERSION = "253188041";
-const DEVICE_MODEL = "android";
-const DEVICE_TYPE = "A43PXU4ZN2AL1";
-const OS_VERSION = "25";
-const SOFTWARE_VERSION = "2";
-
-export interface IPrimeOpts {
-    // TODO
-    cookies: string;
-    deviceId?: string;
-    deviceType?: string;
-    marketplaceId?: string;
-    refreshToken?: string;
-    apiDomain?: string;
-}
+// USA marketplace ID
+const DEFAULT_MARKETPLACE_ID = "ATVPDKIKX0DER";
 
 export class PrimeApp extends BaseApp {
 
-    private readonly deviceId: string;
-    private readonly opts: IPrimeOpts;
-
-    private readonly language = "en-US";
+    private readonly api: PrimeApi;
+    private readonly refreshToken: string;
+    private readonly marketplaceId: string;
 
     constructor(device: IDevice, options: IPrimeOpts) {
         super(device, {
@@ -49,11 +25,11 @@ export class PrimeApp extends BaseApp {
             sessionNs: MEDIA_NS,
         });
 
-        this.opts = options;
-        this.deviceId = options.deviceId || generateDeviceId(
-            APP_ID,
-            os.hostname(),
-        ).substring(0, 32);
+        this.refreshToken = options.refreshToken;
+        this.api = new PrimeApi(options);
+
+        // TODO derive this somehow?
+        this.marketplaceId = options.marketplaceId || DEFAULT_MARKETPLACE_ID;
     }
 
     public async play(titleId: string) {
@@ -72,7 +48,7 @@ export class PrimeApp extends BaseApp {
         s.send({
             autoplay: true,
             customData: {
-                deviceId: this.deviceId,
+                deviceId: this.api.deviceId,
                 initialTracks: {},
             },
             media: {
@@ -105,80 +81,22 @@ export class PrimeApp extends BaseApp {
         debug(ms.status[0].media);
     }
 
-    public async generateFrcCookies() {
-        const cookies = JSON.stringify({
-            ApplicationName: APP_NAME,
-            ApplicationVersion: APP_VERSION,
-            DeviceLanguage: this.language,
-            DeviceName: "ro.hardware/google/pixel",
-            DeviceOSVersion: "google/bullhead/bullhead:6.0.1/MTC20F/3031278:user/release-key",
-            ScreenHeightPixels: "1920",
-            ScreenWidthPixels: "1280",
-            TimeZone: "-04:00",
-        });
-
-        // gzip
-        const zipped: Buffer = await new Promise((resolve, reject) => {
-            gzip(cookies, {}, (e, result) => {
-                if (e) reject(e);
-                else resolve(result);
-            });
-        });
-
-        // Cipher instance = Cipher.getInstance("AES/CBC/PKCS5Padding");
-        // instance.init(1, b(str2, "AES/CBC/PKCS7Padding"));
-        const key = this.createSaltedKey("AES/CBC/PKCS7Padding");
-        const iv = crypto.randomBytes(16);
-        const cipher = crypto.createCipheriv("aes-128-cbc", key, iv);
-
-        // toByteArray = instance.doFinal(toByteArray);
-        // byte[] iv = instance.getIV();
-        cipher.update(zipped);
-        const ciphered = cipher.final();
-
-        // Mac instance2 = Mac.getInstance("HmacSHA256");
-        // instance2.init(b(str2, "HmacSHA256"));
-        // instance2.update(iv);
-        // instance2.update(toByteArray);
-        // byte[] doFinal = instance2.doFinal();
-        const hmac = crypto.createHmac("sha256", this.createSaltedKey("HmacSHA256"));
-        hmac.update(iv);
-        hmac.update(ciphered);
-        const hmacd = hmac.digest();
-
-        // byte[] bArr = new byte[(toByteArray.length + 25)];
-        // bArr[0] = (byte) 0;
-        // System.arraycopy(doFinal, 0, bArr, 1, 8);
-        // System.arraycopy(iv, 0, bArr, 9, 16);
-        // System.arraycopy(toByteArray, 0, bArr, 25, toByteArray.length);
-        const toBase64Encode = Buffer.concat([
-            Buffer.of(0),
-            hmacd.slice(0, 8),
-            iv,
-            ciphered,
-        ]);
-
-        // return Base64.encodeToString(bArr, 2);
-        return toBase64Encode.toString("base64");
-    }
-
     private message(type: string, extra: any = {}) {
         return Object.assign({
-            deviceId: this.deviceId,
+            deviceId: this.api.deviceId,
             messageProtocolVersion: 1,
             type,
         }, extra);
     }
 
     private async register(session: ICastSession) {
-        debug("register with id", this.deviceId);
+        debug("register with id", this.api.deviceId);
 
         const preAuthorizedLinkCode =
-            await this.generatePreAuthorizedLinkCode();
+            await this.api.generatePreAuthorizedLinkCode(this.refreshToken);
 
         await checkedRequest(session, this.message("Register", {
-            // TODO load this from chakram?
-            marketplaceId: this.opts.marketplaceId,
+            marketplaceId: this.marketplaceId,
 
             preAuthorizedLinkCode,
         }));
@@ -191,84 +109,9 @@ export class PrimeApp extends BaseApp {
         await checkedRequest(session, this.message("ApplySettings", {
             settings: {
                 autoplayNextEpisode: true,
-                locale: this.language,
+                locale: this.api.getLanguage(),
             },
         }));
-    }
-
-    private async generatePreAuthorizedLinkCode() {
-        debug(`generating pre-authorized link code...`);
-        const body: any = {
-            auth_data: {
-                access_token: this.opts.refreshToken,
-            },
-            code_data: {
-                domain: "Device",
-
-                app_name: APP_NAME,
-                app_version: APP_VERSION,
-                device_model: DEVICE_MODEL,
-                device_serial: this.deviceId,
-                device_type: DEVICE_TYPE,
-                os_version: OS_VERSION,
-                software_version: SOFTWARE_VERSION,
-            },
-        };
-
-        // this does not actually appear to be used for /create/code,
-        // but it *is* for /register
-        // const frc = await this.generateFrcCookies();
-        // if (frc !== null) {
-        //     body.user_context_map = {
-        //         frc,
-        //     };
-        // }
-
-        const response = await request.post({
-            body,
-            headers: {
-                "x-amzn-identity-auth-domain": this.apiDomain(),
-                "x-amzn-requestid": generateRandomUUID(),
-            },
-            json: true,
-            url: this.buildUrl("/auth/create/code"),
-        });
-
-        if (!response.code) {
-            throw new Error(JSON.stringify(response));
-        }
-
-        // TODO cache for response.expires_in seconds?
-        debug(`generated pre-authorized link code: ${response.code}`);
-        return response.code;
-    }
-
-    private buildUrl(path: string): string {
-        const domain = this.apiDomain();
-        return `https://${domain}/${path}`;
-    }
-
-    private apiDomain(): string {
-        return this.opts.apiDomain || DEFAULT_API_DOMAIN;
-    }
-
-    private createSaltedKey(salt: crypto.BinaryLike) {
-        // return new SecretKeySpec(
-        //      SecretKeyFactory.getInstance("PBKDF2WithHmacSHA1")
-        //          .generateSecret(
-        //              new PBEKeySpec(
-        //                  str.toCharArray(), str2.getBytes("UTF-8"), 1000, 128
-        //              )
-        //          ).getEncoded(),
-        //          "AES"
-        //      );
-        return crypto.pbkdf2Sync(
-            this.deviceId,
-            salt,
-            1000, // iterations
-            16, // key length (/ 8, apparently)
-            "SHA1", // hash
-        );
     }
 
 }

@@ -16,7 +16,7 @@ export async function writeConfig(path: string, obj: any) {
     return fs.writeFile(path, JSON.stringify(obj, null, "  "));
 }
 
-export function updateConfig(obj: any, path: string[], newValue: string) {
+export function setPath(obj: any, path: string[], newValue: string) {
     if (path.length === 0) throw new Error("Invalid path");
 
     let o = obj;
@@ -43,6 +43,16 @@ export async function config(configPath: string, key: string, value?: string) {
 
     // tslint:disable-next-line no-console
     console.log(`${key}: `, json[key]);
+}
+
+export async function configInPath(
+    configFilePath: string,
+    objPath: string[],
+    value: any,
+) {
+    const json = await readConfig(configFilePath);
+    setPath(json, objPath, value);
+    await writeConfig(configFilePath, json);
 }
 
 export async function unconfig(configPath: string, key: string) {

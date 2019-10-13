@@ -7,7 +7,7 @@ import pathlib from "path";
 import { IApp, IAppConstructor, IPlayerEnabledConstructor, Opts } from "../app";
 import { BabblerBaseApp } from "../apps/babbler/base";
 import { IWritableToken } from "../token";
-import { readConfig, updateConfig, writeConfig } from "./commands/config";
+import { configInPath, readConfig } from "./commands/config";
 
 export const DEFAULT_CONFIG_PATH = pathlib.join(
     os.homedir(),
@@ -83,9 +83,7 @@ class AppConfigToken implements IWritableToken {
         debug("update", this.tokenPath, " <- ", newValue);
 
         this.value = newValue;
-        const config = await readConfig(this.configPath);
-        const updated = updateConfig(config, this.tokenPath, newValue);
-        await writeConfig(this.configPath, updated);
+        await configInPath(this.configPath, this.tokenPath, newValue);
     }
 
     public toJSON(): string {

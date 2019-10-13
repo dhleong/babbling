@@ -9,6 +9,7 @@ import { consoleWrite, prompt } from "./util";
 
 import { getAppConstructors } from "../config";
 import { IConfigSource, ILocalStorageSource, isConfigurable } from "../model";
+import { IAuthOpts } from "./auth/config";
 import { readConfig, writeConfig } from "./config";
 
 class ChromagnonSource implements IConfigSource {
@@ -62,11 +63,6 @@ export class ConfigExtractor {
 
         return config;
     }
-}
-
-export interface IAuthOpts {
-    config: string;
-    ignoreErrors: boolean;
 }
 
 export async function authenticate(opts: IAuthOpts) {
