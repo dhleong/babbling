@@ -47,6 +47,12 @@ export interface IHuluOpts {
      * inspector
      */
     cookies: string;
+
+    /**
+     * If provided, captions will be enabled if captions in the given
+     * language areavailable. Example: `en` for english captions.
+     */
+    captionsLanguage?: string;
 }
 
 const UUID_LENGTH = 36;
@@ -137,6 +143,7 @@ export class HuluApp extends BaseApp {
     }
 
     private readonly cookies: string;
+    private readonly captionsLanguage: string | undefined;
 
     private userId: string;
     private profileId: string;
@@ -153,13 +160,16 @@ export class HuluApp extends BaseApp {
         });
 
         this.cookies = "";
-        if (options && options.cookies) {
-            const { cookies } = options;
-            if (typeof cookies !== "string") {
-                throw new Error("Invalid cookies format");
-            }
+        if (options) {
+            const { captionsLanguage, cookies } = options;
+            this.captionsLanguage = captionsLanguage;
+            if (cookies) {
+                if (typeof cookies !== "string") {
+                    throw new Error("Invalid cookies format");
+                }
 
-            this.cookies = cookies.trim();
+                this.cookies = cookies.trim();
+            }
         }
 
         this.userId = extractCookie(this.cookies, "_hulu_uid");
@@ -200,7 +210,9 @@ export class HuluApp extends BaseApp {
 
     private async playEntity(
         entityPromise: Promise<any>,
-        extraData: { offset_msec?: number },
+        extraData: {
+            offset_msec?: number,
+        },
     ) {
         const [ , s, entity ] = await Promise.all([
             this.ensureUserToken(),
@@ -220,7 +232,7 @@ export class HuluApp extends BaseApp {
                 text_color: 4294967295,
                 text_size: 0.7777777777777778,
             },
-            captions_language: "en",
+            captions_language: this.captionsLanguage || "off",
             eab_id: eabIdFromEntity(entity),
             entity,
             expiration_time: 43200000,
