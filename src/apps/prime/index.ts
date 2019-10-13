@@ -21,6 +21,10 @@ const DEFAULT_API_DOMAIN = "api.amazon.com";
 
 const APP_NAME = "com.amazon.avod.thirdpartyclient";
 const APP_VERSION = "253188041";
+const DEVICE_MODEL = "android";
+const DEVICE_TYPE = "A43PXU4ZN2AL1";
+const OS_VERSION = "25";
+const SOFTWARE_VERSION = "2";
 
 export interface IPrimeOpts {
     // TODO
@@ -35,7 +39,6 @@ export interface IPrimeOpts {
 export class PrimeApp extends BaseApp {
 
     private readonly deviceId: string;
-    private readonly deviceType: string;
     private readonly opts: IPrimeOpts;
 
     private readonly language = "en-US";
@@ -50,8 +53,7 @@ export class PrimeApp extends BaseApp {
         this.deviceId = options.deviceId || generateDeviceId(
             APP_ID,
             os.hostname(),
-        );
-        this.deviceType = options.deviceType || "android";
+        ).substring(0, 32);
     }
 
     public async play(titleId: string) {
@@ -64,7 +66,6 @@ export class PrimeApp extends BaseApp {
         }
 
         debug("registered! ensureCastSession... ");
-        return;
         const s = await this.ensureCastSession();
 
         debug("request playback:", titleId);
@@ -176,25 +177,24 @@ export class PrimeApp extends BaseApp {
             await this.generatePreAuthorizedLinkCode();
 
         await checkedRequest(session, this.message("Register", {
-            // TODO load this from chakram
+            // TODO load this from chakram?
             marketplaceId: this.opts.marketplaceId,
 
             preAuthorizedLinkCode,
         }));
 
-        // await checkedRequest(session, this.message("AmIRegistered"));
-
-        // await this.applySettings(session);
+        debug("applying settings");
+        await this.applySettings(session);
     }
 
-    // private async applySettings(session: ICastSession) {
-    //     await checkedRequest(session, this.message("ApplySettings", {
-    //         settings: {
-    //             autoplayNextEpisode: true,
-    //             locale: this.language,
-    //         },
-    //     }));
-    // }
+    private async applySettings(session: ICastSession) {
+        await checkedRequest(session, this.message("ApplySettings", {
+            settings: {
+                autoplayNextEpisode: true,
+                locale: this.language,
+            },
+        }));
+    }
 
     private async generatePreAuthorizedLinkCode() {
         debug(`generating pre-authorized link code...`);
@@ -207,20 +207,22 @@ export class PrimeApp extends BaseApp {
 
                 app_name: APP_NAME,
                 app_version: APP_VERSION,
-                device_model: "pixel",
+                device_model: DEVICE_MODEL,
                 device_serial: this.deviceId,
-                device_type: this.deviceType,
-                os_version: "22",
+                device_type: DEVICE_TYPE,
+                os_version: OS_VERSION,
+                software_version: SOFTWARE_VERSION,
             },
-            scopes: ["aiv:full"],
         };
 
-        const frc = await this.generateFrcCookies();
-        if (frc !== null) {
-            body.user_context_map = {
-                frc,
-            };
-        }
+        // this does not actually appear to be used for /create/code,
+        // but it *is* for /register
+        // const frc = await this.generateFrcCookies();
+        // if (frc !== null) {
+        //     body.user_context_map = {
+        //         frc,
+        //     };
+        // }
 
         const response = await request.post({
             body,
