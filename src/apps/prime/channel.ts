@@ -12,7 +12,8 @@ import { IPrimeOpts, PrimeApp } from ".";
 export class PrimePlayerChannel implements IPlayerChannel<PrimeApp> {
 
     public ownsUrl(url: string): boolean {
-        throw new Error("Method not implemented.");
+        // TODO other domains
+        return url.includes("amazon.com");
     }
 
     public async createPlayable(url: string, options: IPrimeOpts) {
