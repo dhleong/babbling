@@ -5,7 +5,6 @@
 import { CookieJar } from "request";
 import request from "request-promise-native";
 import tough from "tough-cookie";
-import URL from "url";
 
 import _debug from "debug";
 const debug = _debug("babbling:youtube");
@@ -13,11 +12,12 @@ const debug = _debug("babbling:youtube");
 import { ICreds, WatchHistory, YoutubePlaylist } from "youtubish";
 
 import { IVideo } from "youtubish/dist/model";
-import { IPlayableOptions } from "../../app";
 import { ICastSession, IDevice } from "../../cast";
 import { read, Token, write } from "../../token";
 import { BaseApp } from "../base";
 import { awaitMessageOfType } from "../util";
+
+import { YoutubePlayerChannel } from "./channel";
 import { IPlaylistCache, IYoutubeOpts, YoutubeConfigurable } from "./config";
 
 export { IYoutubeOpts } from "./config";
@@ -72,24 +72,6 @@ async function getMdxScreenId(session: ICastSession) {
 
 export type VideoFilter = (v: IVideo) => boolean;
 
-export function filterFromSkippedIds(
-    ids: string | string[] | undefined,
-) {
-    if (!ids || !ids.length) return;
-
-    if (typeof ids === "string") {
-        return (video: IVideo) => video.id !== ids;
-    }
-
-    return (video: IVideo) => {
-        for (const id of ids) {
-            if (id === video.id) return false;
-        }
-
-        return true;
-    };
-}
-
 export function fillJar(
     url: string,
     jar: CookieJar,
@@ -126,80 +108,8 @@ export class YoutubeApp extends BaseApp {
 
     public static tokenConfigKeys = [ "cookies" ];
     public static configurable = YoutubeConfigurable;
-
-    public static ownsUrl(url: string) {
-        return url.includes("youtube.com") || url.includes("youtu.be");
-    }
-
-    /**
-     * Extra query params supported:
-     * - `skip`: ID of a video to "skip" when attempting to resume
-     *   a playlist. May be passed multiple times
-     */
-    public static async createPlayable(url: string, options?: IYoutubeOpts) {
-        let videoId = "";
-        let listId = "";
-        let listIndex = -1;
-        let startTime = -1;
-
-        const parsed = URL.parse(url, true);
-
-        if (url.startsWith("youtu.be")) {
-            videoId = url.substring(url.lastIndexOf("/") + 1);
-            debug("got short URL video id", videoId);
-        } else if (parsed.query.v) {
-            videoId = parsed.query.v as string;
-            debug("got video id", videoId);
-        }
-
-        if (parsed.query.list) {
-            listId = parsed.query.list as string;
-            debug("extracted listId", listId);
-
-            // watch later requires auth
-            if (listId === "WL" && !(options && options.cookies)) {
-                throw new Error("Cannot use watch later playlist without cookies");
-            }
-
-            if (parsed.query.index) {
-                listIndex = parseInt(parsed.query.index.toString(), 10);
-            }
-        }
-
-        if (parsed.query.t) {
-            startTime = parseInt(parsed.query.t as string, 10);
-            debug("detected start time", startTime);
-        }
-
-        if (listId === "" && videoId === "") {
-            throw new Error(`Not sure how to play '${url}'`);
-        }
-
-        return async (app: YoutubeApp, opts: IPlayableOptions) => {
-            if (
-                opts.resume !== false
-                && app.youtubish
-                && listId !== ""
-                && videoId === ""
-            ) {
-                const filter = filterFromSkippedIds(parsed.query.skip);
-                if (listIndex >= 0) {
-                    return app.playPlaylist(listId, {
-                        filter,
-                        index: listIndex,
-                    });
-                }
-
-                return app.resumePlaylist(listId, {
-                    filter,
-                });
-            }
-
-            return app.play(videoId, {
-                listId,
-                startTime,
-            });
-        };
+    public static createPlayerChannel() {
+        return new YoutubePlayerChannel();
     }
 
     private cookies: Token;
@@ -365,6 +275,10 @@ export class YoutubeApp extends BaseApp {
 
     public async clearPlaylist() {
         await this.queueAction("", "clear");
+    }
+
+    public isAuthenticated(): boolean {
+        return !!this.youtubish;
     }
 
     private async playItemInPlaylist(

@@ -92,6 +92,6 @@ well then be able to use `babbling cast <url>`, etc., for Amazon videos!
 
 [1]: src/apps/youtube/index.ts
 [2]: src/apps/hbogo/index.ts
-[3]: src/apps/hulu.ts
+[3]: src/apps/hulu/index.ts
 [4]: src/player.ts
 [5]: src/apps/prime/index.ts

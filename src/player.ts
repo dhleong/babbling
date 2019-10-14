@@ -1,13 +1,27 @@
 import _debug from "debug";
 const debug = _debug("babbling:player");
 
-import { IApp, IPlayable, IPlayableOptions, IPlayerEnabledConstructor, IQueryResult, OptionsFor, Opts } from "./app";
+import {
+    IApp,
+    IPlayable,
+    IPlayableOptions,
+    IPlayerChannel,
+    IPlayerEnabledConstructor,
+    IQueryResult,
+    OptionsFor,
+    Opts,
+} from "./app";
 import { mergeAsyncIterables } from "./async";
 import { importConfig } from "./cli/config";
 import { ChromecastDevice } from "./device";
 
+type IAppOf<T> =
+    T extends IPlayerEnabledConstructor<infer TOpt, infer TApp> ? TApp :
+    never;
+
 interface IConfiguredApp<TConstructor extends IPlayerEnabledConstructor<Opts, IApp>> {
     appConstructor: TConstructor;
+    channel: IPlayerChannel<IAppOf<TConstructor>>;
     options: OptionsFor<TConstructor>;
     autoConfigure?: boolean;
 }
@@ -17,7 +31,7 @@ function pickAppForUrl(
     url: string,
 ) {
     for (const candidate of apps) {
-        if (candidate.appConstructor.ownsUrl(url)) {
+        if (candidate.channel.ownsUrl(url)) {
             return candidate;
         }
     }
@@ -58,7 +72,7 @@ class Player {
         const configured = pickAppForUrl(this.apps, url);
         debug("Chose", configured.appConstructor.name, "to play", url);
 
-        const playable = await configured.appConstructor.createPlayable(
+        const playable = await configured.channel.createPlayable(
             url,
             ... configured.options,
         );
@@ -90,10 +104,10 @@ class Player {
         onError: (app: string, e: Error) => void = (app, e) => { throw e; },
     ): AsyncIterable<IQueryResult> {
         const iterables = this.apps.map(async function*(app) {
-            if (!app.appConstructor.queryByTitle) return;
+            if (!app.channel.queryByTitle) return;
 
             try {
-                yield *app.appConstructor.queryByTitle(
+                yield *app.channel.queryByTitle(
                     title,
                     ...app.options,
                 );
@@ -168,6 +182,7 @@ export class PlayerBuilder {
         } else {
             this.apps.push({
                 appConstructor,
+                channel: appConstructor.createPlayerChannel(),
                 options,
             });
         }
