@@ -5,10 +5,11 @@ import request from "request-promise-native";
 
 import {
     fillJar,
-    filterFromSkippedIds,
     pruneCookies,
     YoutubeApp,
 } from "../../src/apps/youtube";
+
+import { filterFromSkippedIds } from "../../src/apps/youtube/util";
 
 chai.should();
 const { expect } = chai;
@@ -76,7 +77,7 @@ describe("YoutubeApp", () => {
         it("supports skip query param", async () => {
 
             const listId = "PL1tiwbzkOjQz7D0l_eLJGAISVtcL7oRu_";
-            const playable = await YoutubeApp.createPlayable(
+            const playable = await YoutubeApp.createPlayerChannel().createPlayable(
                 `https://www.youtube.com/playlist?list=${listId}&skip=skip-id`,
             );
 
@@ -103,7 +104,7 @@ describe("YoutubeApp", () => {
         it("supports multiple skip query params", async () => {
 
             const listId = "PL1tiwbzkOjQz7D0l_eLJGAISVtcL7oRu_";
-            const playable = await YoutubeApp.createPlayable(
+            const playable = await YoutubeApp.createPlayerChannel().createPlayable(
                 `https://www.youtube.com/playlist?list=${listId}` +
                     `&skip=skip-id1` +
                     `&skip=skip-id2`,

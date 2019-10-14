@@ -5,8 +5,8 @@ import { IDevice } from "../../cast";
 import { BaseApp, MEDIA_NS } from "../base";
 import { awaitMessageOfType } from "../util";
 
-import { IQueryResult } from "../../app";
 import { HboGoApi } from "./api";
+import { HboGoPlayerChannel } from "./channel";
 import { HboGoConfigurable, IHboGoOpts } from "./config";
 export { IHboGoOpts } from "./config";
 
@@ -27,49 +27,8 @@ export interface IHboGoPlayOptions {
 export class HboGoApp extends BaseApp {
     public static tokenConfigKeys = [ "token" ];
     public static configurable = new HboGoConfigurable();
-
-    public static ownsUrl(url: string) {
-        return url.includes("play.hbogo.com");
-    }
-
-    public static async createPlayable(url: string) {
-        const urn = url.substring(url.lastIndexOf("/") + 1);
-        try {
-            const [ , , entityType ] = urn.split(":");
-
-            switch (entityType) {
-            case "series":
-                return async (app: HboGoApp) => app.resumeSeries(urn);
-
-            case "episode":
-            case "extra":
-            case "feature":
-                // TODO: it may be possible to resume specific episodes or
-                // features (movies)...
-                return async (app: HboGoApp) => app.play(urn);
-            }
-
-        } catch (e) {
-            throw new Error(`'${urn}' doesn't look playable`);
-        }
-
-        throw new Error(`Not sure how to play '${urn}'`);
-    }
-
-    public static async *queryByTitle(
-        title: string,
-        opts: IHboGoOpts,
-    ): AsyncIterable<IQueryResult> {
-        const api = new HboGoApi(opts.token);
-        for await (const result of api.search(title)) {
-            const url = "https://play.hbogo.com/" + result.urn;
-            yield {
-                appName: "HboGoApp",
-                playable: await HboGoApp.createPlayable(url),
-                title: result.title,
-                url,
-            };
-        }
+    public static createPlayerChannel() {
+        return new HboGoPlayerChannel();
     }
 
     private readonly api: HboGoApi;
