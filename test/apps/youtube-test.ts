@@ -1,5 +1,5 @@
 import * as chai from "chai";
-import { capture, instance, mock } from "ts-mockito";
+import { capture, instance, mock, when } from "ts-mockito";
 
 import request from "request-promise-native";
 
@@ -82,9 +82,9 @@ describe("YoutubeApp", () => {
             );
 
             const App = mock(YoutubeApp);
-            const app = instance(App);
+            when(App.isAuthenticated()).thenReturn(true); // we have creds!
 
-            (app as any).youtubish = {}; // we have creds!
+            const app = instance(App);
 
             await playable(app as any as YoutubeApp, {});
 
@@ -111,9 +111,9 @@ describe("YoutubeApp", () => {
             );
 
             const App = mock(YoutubeApp);
-            const app = instance(App);
+            when(App.isAuthenticated()).thenReturn(true); // we have creds!
 
-            (app as any).youtubish = {}; // we have creds!
+            const app = instance(App);
 
             await playable(app as any as YoutubeApp, {});
 
