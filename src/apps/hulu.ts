@@ -1,9 +1,9 @@
-
-import request from "request-promise-native";
-
 import _debug from "debug";
 const debug = _debug("babbling:hulu");
 
+import request from "request-promise-native";
+
+import { IPlayerChannel } from "../app";
 import { IDevice } from "../cast";
 import { CookiesConfigurable } from "../cli/configurables";
 import { BaseApp } from "./base";
@@ -66,80 +66,8 @@ const supportedEntityTypes = new Set(["series", "movie", "episode"]);
 export class HuluApp extends BaseApp {
 
     public static configurable = new CookiesConfigurable<IHuluOpts>("https://www.hulu.com");
-
-    public static ownsUrl(url: string) {
-        return url.includes("hulu.com");
-    }
-
-    public static async createPlayable(url: string) {
-        if (url.length < UUID_LENGTH) {
-            throw new Error(`'${url}' doesn't seem playable`);
-        }
-
-        const id = url.substr(-UUID_LENGTH);
-        if (url.includes("/series/")) {
-            debug("detected series", id);
-
-            return async (app: HuluApp) => app.resumeSeries(id);
-        }
-
-        if (seemsLikeValidUUID(id)) {
-            debug("detected some specific entity", id);
-            return async (app: HuluApp) => app.play(id, {});
-        }
-
-        throw new Error(`Not sure how to play '${url}'`);
-    }
-
-    public static async *queryByTitle(
-        title: string,
-        opts: IHuluOpts,
-    ) {
-        const { groups } = await request({
-            headers: {
-                "Cookie": opts.cookies,
-                "Origin": "https://www.hulu.com",
-                "Referer": "https://www.hulu.com/",
-                "User-Agent": USER_AGENT,
-            },
-            json: true,
-            qs: {
-                search_query: title,
-            },
-            url: SEARCH_URL,
-        });
-
-        const { results } = groups.find((it: any) =>
-            it.category === "top results",
-        );
-        for (const item of results) {
-            if (item.actions.upsell) {
-                // if it's prompting to upsell, we probably can't cast it
-                continue;
-            }
-
-            const id = item.metrics_info.entity_id;
-            const type = item.metrics_info.entity_type;
-            if (!supportedEntityTypes.has(type)) {
-                // skip!
-                continue;
-            }
-
-            const url = "https://www.hulu.com/" + type + "/" + id;
-            yield {
-                appName: "HuluApp",
-                desc: item.visuals.body.text,
-                title: item.metrics_info.entity_name,
-                url,
-
-                playable: async (app: HuluApp) => {
-                    if (type === "series") {
-                        return app.resumeSeries(id);
-                    }
-                    return app.play(id, {});
-                },
-            };
-        }
+    public static createPlayerChannel() {
+        return new HuluPlayerChannel();
     }
 
     private readonly cookies: string;
@@ -381,4 +309,83 @@ export class HuluApp extends BaseApp {
         return entity;
     }
 
+}
+
+// tslint:disable max-classes-per-file
+class HuluPlayerChannel implements IPlayerChannel<HuluApp> {
+
+    public ownsUrl(url: string) {
+        return url.includes("hulu.com");
+    }
+
+    public async createPlayable(url: string) {
+        if (url.length < UUID_LENGTH) {
+            throw new Error(`'${url}' doesn't seem playable`);
+        }
+
+        const id = url.substr(-UUID_LENGTH);
+        if (url.includes("/series/")) {
+            debug("detected series", id);
+
+            return async (app: HuluApp) => app.resumeSeries(id);
+        }
+
+        if (seemsLikeValidUUID(id)) {
+            debug("detected some specific entity", id);
+            return async (app: HuluApp) => app.play(id, {});
+        }
+
+        throw new Error(`Not sure how to play '${url}'`);
+    }
+
+    public async *queryByTitle(
+        title: string,
+        opts: IHuluOpts,
+    ) {
+        const { groups } = await request({
+            headers: {
+                "Cookie": opts.cookies,
+                "Origin": "https://www.hulu.com",
+                "Referer": "https://www.hulu.com/",
+                "User-Agent": USER_AGENT,
+            },
+            json: true,
+            qs: {
+                search_query: title,
+            },
+            url: SEARCH_URL,
+        });
+
+        const { results } = groups.find((it: any) =>
+            it.category === "top results",
+        );
+        for (const item of results) {
+            if (item.actions.upsell) {
+                // if it's prompting to upsell, we probably can't cast it
+                continue;
+            }
+
+            const id = item.metrics_info.entity_id;
+            const type = item.metrics_info.entity_type;
+            if (!supportedEntityTypes.has(type)) {
+                // skip!
+                continue;
+            }
+
+            const url = "https://www.hulu.com/" + type + "/" + id;
+            yield {
+                appName: "HuluApp",
+                desc: item.visuals.body.text,
+                title: item.metrics_info.entity_name,
+                url,
+
+                playable: async (app: HuluApp) => {
+                    if (type === "series") {
+                        return app.resumeSeries(id);
+                    }
+                    return app.play(id, {});
+                },
+            };
+        }
+    }
 }
