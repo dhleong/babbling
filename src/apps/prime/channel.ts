@@ -1,9 +1,10 @@
 import _debug from "debug";
 const debug = _debug("babbling:PrimeApp:player");
 
-import { ChakramApi, ContentType, IBaseObj, ISeason } from "chakram-ts";
+import { ChakramApi, ContentType, IBaseObj, IEpisode, ISeason } from "chakram-ts";
 
 import { IPlayableOptions, IPlayerChannel, IQueryResult } from "../../app";
+import { PrimeApi } from "./api";
 
 // NOTE: this sure looks like a circular dependency, but we're just
 // importing it for the type definition
@@ -33,13 +34,15 @@ export class PrimePlayerChannel implements IPlayerChannel<PrimeApp> {
         title: string,
         opts: IPrimeOpts,
     ): AsyncIterable<IQueryResult> {
-        const api = new ChakramApi(opts.cookies);
-        for (const result of await api.search(title)) {
+        const api = new PrimeApi(opts);
+        for await (const result of api.search(title)) {
             yield {
                 appName: "PrimeApp",
-                playable: playableFromObj(result),
-                title: cleanTitle(result.title),
-                url: "https://www.amazon.com/video/detail/" + result.id,
+                desc: result.desc,
+                isPreferred: result.isInWatchlist || result.isPurchased,
+                playable: playableFromSearchResult(result),
+                title: result.title,
+                url: "https://www.amazon.com/gp/video/detail/" + result.id,
             };
         }
     }
@@ -58,13 +61,14 @@ function pickTitleIdFromUrl(url: string) {
     }
 }
 
-function cleanTitle(original: string) {
-    // including this suffix confuses title-matching
-    return original.replace("(4K UHD)", "").trim();
-}
-
 function playableFromObj(info: IBaseObj) {
-    if (info.type === ContentType.SERIES) {
+    if (info.type === ContentType.EPISODE) {
+        const { series } = info as IEpisode;
+        if (series) {
+            debug("playable for series", series.id, "from episode", info.id);
+            return async (app: PrimeApp) => app.resumeSeries(series.id);
+        }
+    } else if (info.type === ContentType.SERIES) {
         debug("playable for series", info.id);
         return async (app: PrimeApp) => app.resumeSeries(info.id);
     } else if (info.type === ContentType.SEASON) {
@@ -84,5 +88,27 @@ function playableFromObj(info: IBaseObj) {
         } else {
             await app.play(info.id, {});
         }
+    };
+}
+
+function playableFromSearchResult(result: IBaseObj) {
+    if (
+        result.type !== ContentType.SERIES
+        && result.type !== ContentType.MOVIE
+    ) {
+        return playableFromObj(result);
+    }
+
+    // we have to resolve the series, first, because the ID we have resolves
+    // to the first episode of the series, which is unhelpful; resolving the
+    // title lets us delegate to the old obj->playable logic above that we
+    // can then use to properly resume series
+    return async (app: PrimeApp, opts: IPlayableOptions) => {
+        const chakram = (app as any).chakram as ChakramApi;
+        const title = await chakram.getTitleInfo(result.id);
+        debug("resolved", result, "to", title);
+
+        const resolved = playableFromObj(title);
+        return resolved(app, opts);
     };
 }
