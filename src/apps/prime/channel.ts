@@ -93,9 +93,10 @@ function playableFromObj(info: IBaseObj) {
 
 function playableFromSearchResult(result: IBaseObj) {
     if (
-        result.type !== ContentType.SERIES
-        && result.type !== ContentType.MOVIE
+        result.type === ContentType.SERIES
+        || result.type === ContentType.MOVIE
     ) {
+        // we can use SERIES or MOVIE results directly
         return playableFromObj(result);
     }
 
