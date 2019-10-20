@@ -13,6 +13,10 @@ export interface IFindByTitleOpts {
 
 const MAX_CANDIDATES = 30;
 
+function lerp(from: number, to: number, fraction: number) {
+    return (1 - fraction) * from + fraction * to;
+}
+
 export async function pickBestMatchForTitle(
     candidates: AsyncIterable<IQueryResult>,
     title: string,
@@ -33,7 +37,15 @@ export async function pickBestMatchForTitle(
             return item;
         }
 
-        const score = 1 / distance;
+        let score = 1 / distance;
+        if (item.isPreferred) {
+            score = lerp(score, 1, 0.5);
+        } else if (item.hasAds) {
+            // in case another service has the same title
+            // but without ads
+            score = lerp(score, 0, 0.5);
+        }
+
         if (score > bestScore) {
             bestScore = score;
             best = item;

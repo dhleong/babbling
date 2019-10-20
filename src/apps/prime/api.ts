@@ -5,11 +5,15 @@ import crypto from "crypto";
 import os from "os";
 import { gzip } from "zlib";
 
+import { ContentType } from "chakram-ts";
+import { generateDeviceId } from "chakram-ts/dist/util";
 import request from "request-promise-native";
 import generateRandomUUID from "uuid/v4";
 
-import { generateDeviceId } from "chakram-ts/dist/util";
-import { IPrimeApiOpts } from "./config";
+import { toArray } from "../../async";
+
+import { IPrimeApiOpts, IPrimeOpts } from "./config";
+import { AvailabilityType, IAvailability, ISearchOpts, ISearchResult } from "./model";
 
 // ======= constants ======================================
 
@@ -99,6 +103,9 @@ export class PrimeApi {
     private readonly language = "en-US";
     private readonly deviceNameBase = "User\u2019s Babbling";
 
+    private accessToken: string | null = null;
+    private accessTokenExpiresAt: number = -1;
+
     constructor(options: IPrimeApiOpts = {}) {
         this.opts = options;
         this.deviceId = options.deviceId || generateDeviceId(
@@ -187,6 +194,56 @@ export class PrimeApi {
         return response.code;
     }
 
+    public async *search(
+        title: string,
+        searchOpts: ISearchOpts = {},
+    ): AsyncIterable<ISearchResult> {
+        const opts: ISearchOpts = Object.assign({
+            onlyPlayable: true,
+        }, searchOpts);
+
+        // ensure we only fetch this once for both requests
+        await this.getAccessToken();
+
+        const [withEntitlement, withWatchlist] = await Promise.all([
+            toArray(this.searchWithEntitlement(title, opts)),
+            toArray(this.searchWithWatchlist(title, opts)),
+        ]);
+
+        const watchlistById: {[id: string]: ISearchResult}  = {};
+        for (const item of withWatchlist) {
+            watchlistById[item.id] = item;
+        }
+
+        for (const item of withEntitlement) {
+            if (opts.onlyPlayable && !isPlayableNow(item.availability)) {
+                continue;
+            }
+
+            const itemWithWatchlist = watchlistById[item.id];
+            if (!itemWithWatchlist) {
+                yield item;
+                continue;
+            }
+
+            const purchasable = itemWithWatchlist.availability.filter(a =>
+                !playableAvailability.has(a.type));
+
+            const compositeAvailability = item.availability.concat(purchasable);
+            if (!compositeAvailability.length) {
+                // sanity check
+                continue;
+            }
+
+            yield Object.assign({}, itemWithWatchlist, item, {
+                availability: compositeAvailability,
+                isPurchased: compositeAvailability.find(a =>
+                    a.type === AvailabilityType.OWNED,
+                ) !== undefined,
+            });
+        }
+    }
+
     public getLanguage() {
         return this.language;
     }
@@ -194,6 +251,12 @@ export class PrimeApi {
     private buildUrl(path: string): string {
         const domain = this.apiDomain();
         return `https://${domain}/${path}`;
+    }
+
+    private buildApiUrl(path: string): string {
+        // TODO get region from /profile
+        const domain = "na.api.amazonvideo.com";
+        return `https://${domain}${path}`;
     }
 
     private apiDomain(): string {
@@ -222,6 +285,161 @@ export class PrimeApi {
         };
     }
 
+    private async getAccessToken() {
+        const existing = this.accessToken;
+        const existingExpires = this.accessTokenExpiresAt;
+        if (existing && Date.now() < existingExpires)  {
+            return existing;
+        }
+
+        const opts = this.opts as IPrimeOpts;
+        if (!opts.refreshToken) {
+            throw new Error("No refresh token provided");
+        }
+
+        const response = await request.post({
+            form: {
+                app_name: APP_NAME,
+                requested_token_type: "access_token",
+                source_token: opts.refreshToken,
+                source_token_type: "refresh_token",
+            },
+            headers: this.generateHeaders(),
+            json: true,
+            url: this.buildUrl("/auth/token"),
+        });
+
+        if (!response.access_token) {
+            throw new Error(`Unable to acquire access token: ${response}`);
+        }
+
+        this.accessToken = response.access_token;
+        this.accessTokenExpiresAt = Date.now() + response.expires_in * 1000;
+        return this.accessToken;
+    }
+
+    /**
+     * This search method has reliable entitlement info, but fails
+     * to provide watchlist attachment
+     */
+    private async *searchWithEntitlement(
+        title: string,
+        opts: ISearchOpts,
+    ) {
+        const response = await this.swiftApiRequest(
+            "/cdp/mobile/getDataByTransform/v1/dv-ios/search/initial/v2.js",
+            {
+                phrase: title,
+            },
+        );
+        const items = response.resource.collections[0].items;
+
+        for (const item of items) {
+            const availability: IAvailability[] = [];
+            if (item.entitlement && item.entitlement.isEntitled) {
+                if (item.isPrime) {
+                    availability.push({ type: AvailabilityType.PRIME });
+                } else if (item.entitlement.message === "Free with ads") {
+                    availability.push({ type: AvailabilityType.FREE_WITH_ADS });
+                } else if (item.entitlement.message === "Purchased") {
+                    availability.push({ type: AvailabilityType.OWNED });
+                } else {
+                    availability.push({ type: AvailabilityType.OTHER_SUBSCRIPTION });
+                }
+            }
+
+            const itemTitle = item.title;
+            const type: ContentType = item.contentType.toUpperCase();
+            if (
+                type === ContentType.SEASON
+                    && seasonNumberFromTitle(itemTitle) > 1
+            ) {
+                // only include the first season of an item
+                continue;
+            }
+
+            const id = item.actionPress.analytics.pageTypeId;
+            yield {
+                availability,
+                id,
+                title: cleanTitle(itemTitle),
+                type,
+                watchUrl: `https://www.amazon.com/dp/${id}/?autoplay=1`,
+            };
+        }
+    }
+
+    /**
+     * This search method has watchlist presence included, but fails
+     * to provide "Free with ads" availability
+     */
+    private async *searchWithWatchlist(
+        title: string,
+        opts: ISearchOpts,
+    ) {
+        const items = await this.swiftApiCollectionRequest("/swift/page/search", {
+            phrase: title,
+        });
+
+        for (const item of items) {
+            const availability = availabilityOf(item);
+            const { type } = item.decoratedTitle.catalog;
+            if (
+                type === ContentType.SEASON
+                    && item.decoratedTitle.catalog.seasonNumber > 1
+            ) {
+                // only include the first season of an item
+                continue;
+            }
+
+            const id = item.analytics.local.pageTypeId;
+            yield {
+                availability,
+                cover: item.decoratedTitle.images.imageUrls.detail_page_cover
+                    || item.decoratedTitle.images.imageUrls.detail_page_hero,
+                desc: item.decoratedTitle.catalog.synopsis,
+                id,
+                isInWatchlist: item.decoratedTitle.computed.simple.IS_IN_WATCHLIST,
+                title: cleanTitle(item.decoratedTitle.catalog.title),
+                type,
+                watchUrl: `https://www.amazon.com/dp/${id}/?autoplay=1`,
+            };
+        }
+    }
+
+    private async swiftApiCollectionRequest(path: string, qs: {} = {}) {
+        const response = await this.swiftApiRequest(path, qs);
+        const widgets = response.page.sections.center.widgets.widgetList;
+        for (const w of widgets) {
+            if (w.type === "collection") {
+                return w.items.itemList;
+            }
+        }
+
+        throw new Error("No collection found");
+    }
+
+    private async swiftApiRequest(path: string, qs: {} = {}) {
+        const accessToken = await this.getAccessToken();
+        return request.get({
+            headers: Object.assign(this.generateHeaders(), {
+                Accept: "application/json",
+                Authorization: `Bearer ${accessToken}`,
+            }),
+            json: true,
+            qs: Object.assign({
+                decorationScheme: "bond-landing-decoration",
+                deviceId: this.deviceId,
+                deviceTypeId: DEVICE_TYPE,
+                featureScheme: "mobile-android-features-v7",
+                firmware: "7.54.3923",
+                format: "json",
+                titleActionScheme: "bond-2",
+                version: "mobile-android-v2",
+            }, qs),
+            url: this.buildApiUrl(path),
+        });
+    }
 }
 
 function getIpAddress() {
@@ -233,4 +451,67 @@ function getIpAddress() {
             }
         }
     }
+}
+
+function availabilityOf(item: any): IAvailability[] {
+    const result: IAvailability[] = [];
+    let isPrime = false;
+    if (item.decoratedTitle.computed.simple.PRIME_BADGE && item.analytics.local.isPrimeCustomer === "Y") {
+        // included in active prime subscription
+        result.push({ type: AvailabilityType.PRIME });
+        isPrime = true;
+    }
+
+    if (item.titleActions.isPlayable && item.titleActions.playbackSummary.includes("You purchased")) {
+        // explicitly purchased
+        result.push({ type: AvailabilityType.OWNED });
+    } else if (item.titleActions.isPlayable && !isPrime) {
+        // if not purchased, it's probably included in prime, etc.
+        result.push({ type: AvailabilityType.PRIME });
+    } else if (!item.titleActions.isPlayable) {
+        try {
+            const summary: any = JSON.stringify(item.titleActions.titleSummary);
+            if (summary.type === "purchase" && summary.price) {
+                const type = item.titleActions.titleSummary.includes("Rent")
+                    ? AvailabilityType.RENTABLE
+                    : AvailabilityType.PURCHASABLE;
+                result.push({
+                    price: summary.price,
+                    type,
+                } as any);
+            }
+        } catch (e) {
+            // ignore
+        }
+    }
+
+    return result;
+}
+
+function cleanTitle(title: string) {
+    return title.replace(/( -)? Season \d+/, "")
+        .replace("(4K UHD)", "");
+}
+
+const playableAvailability = new Set([
+    AvailabilityType.FREE_WITH_ADS,
+    AvailabilityType.OTHER_SUBSCRIPTION,
+    AvailabilityType.OWNED,
+    AvailabilityType.PRIME,
+]);
+
+function isPlayableNow(availability: IAvailability[]) {
+    for (const a of availability) {
+        if (playableAvailability.has(a.type)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function seasonNumberFromTitle(title: string) {
+    const m = title.match(/Season (\d+)/);
+    if (m) return parseInt(m[1], 10);
+    return -1;
 }

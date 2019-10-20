@@ -64,6 +64,17 @@ export interface IQueryResult {
 
     /** @internal */
     playable: IPlayable<any>;
+
+    /**
+     * If `true`, the item can be played, but will have ads
+     */
+    hasAds?: boolean;
+
+    /**
+     * If `true`, it is a preferred result from the service,
+     * perhaps bookmarked or in a "watch list"
+     */
+    isPreferred?: boolean;
 }
 
 /**
