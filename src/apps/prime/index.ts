@@ -83,7 +83,7 @@ export class PrimeApp extends BaseApp {
         };
 
         if (startTime !== undefined) {
-            request.startTime = startTime;
+            request.currentTime = startTime;
         }
 
         // send LOAD request!
