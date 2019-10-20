@@ -36,6 +36,9 @@ export default async function searchByTitle(opts: ISearchByTitleOpts) {
         if (match.url) {
             console.log(`    - ${match.url}`);
         }
+        if (match.hasAds) {
+            console.log(`    * Includes Advertisements`);
+        }
         if (match.desc) {
             console.log(`    ${match.desc}`);
         }
