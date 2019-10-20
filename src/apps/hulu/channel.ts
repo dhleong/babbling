@@ -4,7 +4,7 @@ const debug = _debug("babbling:hulu:channel");
 import { IPlayerChannel } from "../../app";
 
 import { HuluApp, IHuluOpts } from ".";
-import { supportedEntityTypes, HuluApi } from "./api";
+import { HuluApi, supportedEntityTypes } from "./api";
 
 const UUID_LENGTH = 36;
 
