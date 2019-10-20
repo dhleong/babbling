@@ -73,5 +73,5 @@ export default async function findByTitle(opts: IFindByTitleOpts) {
 
     consoleWrite(`Playing ${best.title} via ${best.appName}`);
 
-    // await player.play(best);
+    await player.play(best);
 }
