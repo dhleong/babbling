@@ -1,5 +1,8 @@
+import { ContentType } from "chakram-ts";
 
 export enum AvailabilityType {
+    FREE_WITH_ADS,
+    OTHER_SUBSCRIPTION,
     OWNED,
     PRIME,
 
@@ -18,4 +21,16 @@ export interface ISearchOpts {
      * already purchased) will be returned.
      */
     onlyPlayable?: boolean;
+}
+
+export interface ISearchResult {
+    availability: IAvailability[];
+    cover?: string;
+    desc?: string;
+    id: string;
+    isPurchased?: boolean;
+    isInWatchlist?: boolean;
+    title: string;
+    type: ContentType;
+    watchUrl: string;
 }

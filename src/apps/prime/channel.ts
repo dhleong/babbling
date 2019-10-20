@@ -9,6 +9,7 @@ import { PrimeApi } from "./api";
 // NOTE: this sure looks like a circular dependency, but we're just
 // importing it for the type definition
 import { IPrimeOpts, PrimeApp } from ".";
+import { AvailabilityType, IAvailability } from "./model";
 
 export class PrimePlayerChannel implements IPlayerChannel<PrimeApp> {
 
@@ -39,6 +40,7 @@ export class PrimePlayerChannel implements IPlayerChannel<PrimeApp> {
             yield {
                 appName: "PrimeApp",
                 desc: result.desc,
+                hasAds: isAvailableOnlyWithAds(result.availability),
                 isPreferred: result.isInWatchlist || result.isPurchased,
                 playable: playableFromSearchResult(result),
                 title: result.title,
@@ -47,6 +49,19 @@ export class PrimePlayerChannel implements IPlayerChannel<PrimeApp> {
         }
     }
 
+}
+
+function isAvailableOnlyWithAds(availability: IAvailability[]) {
+    const canPlayWithAds = -1 !== availability.findIndex(a =>
+        a.type === AvailabilityType.FREE_WITH_ADS);
+    if (!canPlayWithAds) return false;
+
+    // we can play with ads, so it's *only* available with ads iff we don't find
+    // another availability type
+    return -1 === availability.findIndex(a =>
+        a.type === AvailabilityType.PRIME
+            || a.type === AvailabilityType.OTHER_SUBSCRIPTION
+            || a.type === AvailabilityType.OWNED);
 }
 
 function pickTitleIdFromUrl(url: string) {

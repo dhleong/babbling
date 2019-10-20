@@ -10,8 +10,10 @@ import { generateDeviceId } from "chakram-ts/dist/util";
 import request from "request-promise-native";
 import generateRandomUUID from "uuid/v4";
 
+import { toArray } from "../../async";
+
 import { IPrimeApiOpts, IPrimeOpts } from "./config";
-import { AvailabilityType, IAvailability, ISearchOpts } from "./model";
+import { AvailabilityType, IAvailability, ISearchOpts, ISearchResult } from "./model";
 
 // ======= constants ======================================
 
@@ -195,47 +197,50 @@ export class PrimeApi {
     public async *search(
         title: string,
         searchOpts: ISearchOpts = {},
-    ) {
+    ): AsyncIterable<ISearchResult> {
         const opts: ISearchOpts = Object.assign({
             onlyPlayable: true,
         }, searchOpts);
 
-        const items = await this.swiftApiRequest("/swift/page/search", {
-            phrase: title,
-        });
+        // ensure we only fetch this once for both requests
+        await this.getAccessToken();
 
-        for (const item of items) {
-            const availability = availabilityOf(item);
-            if (!availability.length) {
+        const [withEntitlement, withWatchlist] = await Promise.all([
+            toArray(this.searchWithEntitlement(title, opts)),
+            toArray(this.searchWithWatchlist(title, opts)),
+        ]);
+
+        const watchlistById: {[id: string]: ISearchResult}  = {};
+        for (const item of withWatchlist) {
+            watchlistById[item.id] = item;
+        }
+
+        for (const item of withEntitlement) {
+            if (opts.onlyPlayable && !isPlayableNow(item.availability)) {
                 continue;
             }
 
-            if (opts.onlyPlayable && !isPlayableNow(availability)) {
+            const itemWithWatchlist = watchlistById[item.id];
+            if (!itemWithWatchlist) {
+                yield item;
                 continue;
             }
 
-            const { type } = item.decoratedTitle.catalog;
-            if (
-                type === ContentType.SEASON
-                    && item.decoratedTitle.catalog.seasonNumber > 1
-            ) {
-                // only include the first season of an item
+            const purchasable = itemWithWatchlist.availability.filter(a =>
+                !playableAvailability.has(a.type));
+
+            const compositeAvailability = item.availability.concat(purchasable);
+            if (!compositeAvailability.length) {
+                // sanity check
                 continue;
             }
 
-            const id = item.analytics.local.pageTypeId;
-            yield {
-                availability,
-                cover: item.decoratedTitle.images.imageUrls.detail_page_cover
-                    || item.decoratedTitle.images.imageUrls.detail_page_hero,
-                desc: item.decoratedTitle.catalog.synopsis,
-                id,
-                isInWatchlist: item.decoratedTitle.computed.simple.IS_IN_WATCHLIST,
-                isPurchased: availability.find(a => a.type === AvailabilityType.OWNED) !== undefined,
-                title: cleanTitle(item.decoratedTitle.catalog.title),
-                type,
-                watchUrl: `https://www.amazon.com/dp/${id}/?autoplay=1`,
-            };
+            yield Object.assign({}, itemWithWatchlist, item, {
+                availability: compositeAvailability,
+                isPurchased: compositeAvailability.find(a =>
+                    a.type === AvailabilityType.OWNED,
+                ) !== undefined,
+            });
         }
     }
 
@@ -313,9 +318,110 @@ export class PrimeApi {
         return this.accessToken;
     }
 
+    /**
+     * This search method has reliable entitlement info, but fails
+     * to provide watchlist attachment
+     */
+    private async *searchWithEntitlement(
+        title: string,
+        opts: ISearchOpts,
+    ) {
+        const response = await this.swiftApiRequest(
+            "/cdp/mobile/getDataByTransform/v1/dv-ios/search/initial/v2.js",
+            {
+                phrase: title,
+            },
+        );
+        const items = response.resource.collections[0].items;
+
+        for (const item of items) {
+            const availability: IAvailability[] = [];
+            if (item.entitlement && item.entitlement.isEntitled) {
+                if (item.isPrime) {
+                    availability.push({ type: AvailabilityType.PRIME });
+                } else if (item.entitlement.message === "Free with ads") {
+                    availability.push({ type: AvailabilityType.FREE_WITH_ADS });
+                } else if (item.entitlement.message === "Purchased") {
+                    availability.push({ type: AvailabilityType.OWNED });
+                } else {
+                    availability.push({ type: AvailabilityType.OTHER_SUBSCRIPTION });
+                }
+            }
+
+            const itemTitle = item.title;
+            const type: ContentType = item.contentType.toUpperCase();
+            if (
+                type === ContentType.SEASON
+                    && seasonNumberFromTitle(itemTitle) > 1
+            ) {
+                // only include the first season of an item
+                continue;
+            }
+
+            const id = item.actionPress.analytics.pageTypeId;
+            yield {
+                availability,
+                id,
+                title: cleanTitle(itemTitle),
+                type,
+                watchUrl: `https://www.amazon.com/dp/${id}/?autoplay=1`,
+            };
+        }
+    }
+
+    /**
+     * This search method has watchlist presence included, but fails
+     * to provide "Free with ads" availability
+     */
+    private async *searchWithWatchlist(
+        title: string,
+        opts: ISearchOpts,
+    ) {
+        const items = await this.swiftApiCollectionRequest("/swift/page/search", {
+            phrase: title,
+        });
+
+        for (const item of items) {
+            const availability = availabilityOf(item);
+            const { type } = item.decoratedTitle.catalog;
+            if (
+                type === ContentType.SEASON
+                    && item.decoratedTitle.catalog.seasonNumber > 1
+            ) {
+                // only include the first season of an item
+                continue;
+            }
+
+            const id = item.analytics.local.pageTypeId;
+            yield {
+                availability,
+                cover: item.decoratedTitle.images.imageUrls.detail_page_cover
+                    || item.decoratedTitle.images.imageUrls.detail_page_hero,
+                desc: item.decoratedTitle.catalog.synopsis,
+                id,
+                isInWatchlist: item.decoratedTitle.computed.simple.IS_IN_WATCHLIST,
+                title: cleanTitle(item.decoratedTitle.catalog.title),
+                type,
+                watchUrl: `https://www.amazon.com/dp/${id}/?autoplay=1`,
+            };
+        }
+    }
+
+    private async swiftApiCollectionRequest(path: string, qs: {} = {}) {
+        const response = await this.swiftApiRequest(path, qs);
+        const widgets = response.page.sections.center.widgets.widgetList;
+        for (const w of widgets) {
+            if (w.type === "collection") {
+                return w.items.itemList;
+            }
+        }
+
+        throw new Error("No collection found");
+    }
+
     private async swiftApiRequest(path: string, qs: {} = {}) {
         const accessToken = await this.getAccessToken();
-        const response = await request.get({
+        return request.get({
             headers: Object.assign(this.generateHeaders(), {
                 Accept: "application/json",
                 Authorization: `Bearer ${accessToken}`,
@@ -333,14 +439,6 @@ export class PrimeApi {
             }, qs),
             url: this.buildApiUrl(path),
         });
-        const widgets = response.page.sections.center.widgets.widgetList;
-        for (const w of widgets) {
-            if (w.type === "collection") {
-                return w.items.itemList;
-            }
-        }
-
-        throw new Error("No collection found");
     }
 }
 
@@ -395,11 +493,25 @@ function cleanTitle(title: string) {
         .replace("(4K UHD)", "");
 }
 
+const playableAvailability = new Set([
+    AvailabilityType.FREE_WITH_ADS,
+    AvailabilityType.OTHER_SUBSCRIPTION,
+    AvailabilityType.OWNED,
+    AvailabilityType.PRIME,
+]);
+
 function isPlayableNow(availability: IAvailability[]) {
     for (const a of availability) {
-        if (a.type === AvailabilityType.OWNED) return true;
-        if (a.type === AvailabilityType.PRIME) return true;
+        if (playableAvailability.has(a.type)) {
+            return true;
+        }
     }
 
     return false;
+}
+
+function seasonNumberFromTitle(title: string) {
+    const m = title.match(/Season (\d+)/);
+    if (m) return parseInt(m[1], 10);
+    return -1;
 }
