@@ -31,6 +31,7 @@ export interface ISearchResult {
     isPurchased?: boolean;
     isInWatchlist?: boolean;
     title: string;
+    titleId: string;
     type: ContentType;
     watchUrl: string;
 }

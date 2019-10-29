@@ -34,7 +34,7 @@ export class PrimePlayerChannel implements IPlayerChannel<PrimeApp> {
     public async *queryByTitle(
         title: string,
         opts: IPrimeOpts,
-    ): AsyncIterable<IQueryResult> {
+    ): AsyncIterable<IQueryResult & { titleId: string }> {
         const api = new PrimeApi(opts);
         for await (const result of api.search(title)) {
             yield {
@@ -44,6 +44,7 @@ export class PrimePlayerChannel implements IPlayerChannel<PrimeApp> {
                 isPreferred: result.isInWatchlist || result.isPurchased,
                 playable: playableFromSearchResult(result),
                 title: result.title,
+                titleId: result.titleId,
                 url: "https://www.amazon.com/gp/video/detail/" + result.id,
             };
         }
