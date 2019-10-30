@@ -345,6 +345,10 @@ export class PrimeApi {
 
         const info: {
             episodes?: IEpisode[],
+            movie?: {
+                title: string,
+                titleId: string,
+            },
             series?: {
                 title: string,
                 titleId: string,
@@ -386,6 +390,13 @@ export class PrimeApi {
             }
 
             info.episodes = episodes;
+        }
+
+        if (resource.contentType === "MOVIE") {
+            info.movie = {
+                title: resource.title,
+                titleId: resource.titleId,
+            };
         }
 
         return info;
