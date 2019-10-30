@@ -51,6 +51,7 @@ export class PrimeApp extends BaseApp {
             startTime?: number,
         },
     ) {
+        debug("play: join", AUTH_NS);
         const session = await this.joinOrRunNamespace(AUTH_NS);
         const resp = await castRequest(session, this.message("AmIRegistered"));
         debug("registered=", resp);
@@ -117,6 +118,24 @@ export class PrimeApp extends BaseApp {
         await this.play(toResume.id, {
             startTime: toResume.startTimeSeconds,
         });
+    }
+
+    /**
+     * Attempt to resume playback of the series with the given ID
+     */
+    public async resumeSeriesByTitleId(
+        titleId: string,
+    ) {
+        const toResume = await this.api.guessResumeInfo(titleId);
+        if (toResume) {
+            debug("resume: ", toResume);
+            return this.play(toResume.titleId, {
+                startTime: toResume.watchedSeconds,
+            });
+        }
+
+        debug("no resume info found; play:", titleId);
+        return this.play(titleId, {});
     }
 
     private message(type: string, extra: any = {}) {

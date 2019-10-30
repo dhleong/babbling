@@ -94,7 +94,36 @@ function createSaltedKey(key: string, salt: crypto.BinaryLike) {
     );
 }
 
+// ======= internal types =================================
+
+interface IEpisode {
+    episodeNumber: number;
+    seasonId: string;
+    seasonNumber: number;
+    title: string;
+    titleId: string;
+
+    completedAfter: number;
+    runtimeSeconds: number;
+    watchedSeconds: number;
+}
+
+interface IWatchNextItem {
+    title: string;
+    titleId: string;
+
+    completedAfter: number;
+    resumeTitleId?: string;
+    runtimeSeconds: number;
+    watchedSeconds: number;
+}
+
 // ======= public interface ===============================
+
+interface IResumeInfo {
+    titleId: string;
+    watchedSeconds?: number;
+}
 
 export class PrimeApi {
     public readonly deviceId: string;
@@ -244,8 +273,165 @@ export class PrimeApi {
         }
     }
 
+    public async guessResumeInfo(titleId: string): Promise<IResumeInfo | undefined> {
+        const [ titleInfo, { watchNext } ] = await Promise.all([
+            this.getTitleInfo(titleId),
+            this.getHomePage(),
+        ]);
+
+        if (!titleInfo.series) {
+            // TODO: resume movie? maybe amazon handles this for us
+            debug("title is not a series");
+            return;
+        }
+
+        if (!watchNext) {
+            debug("no watchNext data");
+            return;
+        }
+
+        debug(titleInfo);
+        for (const info of watchNext) {
+            debug("Check:", info.titleId, ": ", info.title);
+            if (
+                info.titleId === titleId
+                || (
+                    titleInfo.seasonIds
+                    && titleInfo.seasonIds.has(info.titleId)
+                )
+            ) {
+                debug(titleInfo.series.title, "found in watchNext:", info);
+                return this.resolveNext(info);
+            }
+        }
+
+        debug(`couldn't find ${titleInfo.series.title} in watchNext`);
+    }
+
+    public async getHomePage() {
+        const { resource } = await this.swiftApiRequest(
+            "/cdp/mobile/getDataByTransform/v1/dv-ios/home/v1.js",
+        );
+
+        const info: {
+            watchNext?: IWatchNextItem[],
+        } = {};
+
+        const watchNextSection = resource.collections.filter((c: any) =>
+            c.title === "Watch next",
+        )[0];
+        if (watchNextSection) {
+            info.watchNext = watchNextSection.items.map((item: any) => ({
+                title: item.title,
+                titleId: item.titleId,
+
+                completedAfter: item.playAndProgress.completedAfter,
+                resumeTitleId: item.playAndProgress.titleId,
+                runtimeSeconds: item.playAndProgress.runtimeSeconds,
+                watchedSeconds: item.playAndProgress.watchedSeconds,
+            }));
+        }
+
+        return info;
+    }
+
+    public async getTitleInfo(titleId: string) {
+        const { resource } = await this.swiftApiRequest(
+            "/cdp/mobile/getDataByTransform/v1/android/atf/v3.jstl",
+            {
+                itemId: titleId,
+            },
+        );
+
+        const info: {
+            episodes?: IEpisode[],
+            movie?: {
+                title: string,
+                titleId: string,
+            },
+            series?: {
+                title: string,
+                titleId: string,
+            },
+            seasonIds?: Set<string>,
+            selectedEpisode?: IEpisode,
+        } = {};
+
+        if (resource.show) {
+            info.series = {
+                title: resource.show.title,
+                titleId: resource.show.titleId,
+            };
+        }
+
+        if (resource.seasons) {
+            info.seasonIds = new Set<string>(resource.seasons.map((s: any) =>
+                s.titleId,
+            ));
+        }
+
+        if (resource.episodes) {
+            const episodes = resource.episodes.map((e: any) => ({
+                episodeNumber: e.episodeNumber,
+                seasonId: e.season.titleId,
+                seasonNumber: e.seasonNumber,
+                title: e.title,
+                titleId: e.titleId,
+
+                isSelected: e.selectedEpisode,
+
+                completedAfter: e.completedAfterSeconds,
+                runtimeSeconds: e.runtimeSeconds,
+                watchedSeconds: e.timecodeSeconds,
+            }));
+            const selected = episodes.filter((e: any) => e.isSelected);
+            if (selected.length) {
+                info.selectedEpisode = selected[0];
+            }
+
+            info.episodes = episodes;
+        }
+
+        if (resource.contentType === "MOVIE") {
+            info.movie = {
+                title: resource.title,
+                titleId: resource.titleId,
+            };
+        }
+
+        return info;
+    }
+
     public getLanguage() {
         return this.language;
+    }
+
+    private async resolveNext(info: IWatchNextItem) {
+        if (info.resumeTitleId && !hasFinished(info)) {
+            return {
+                titleId: info.resumeTitleId,
+                watchedSeconds: info.watchedSeconds,
+            };
+        }
+
+        // fetch episodes of this season and pick the next one
+        debug("watchNext is already complete; moving on...");
+        const seasonTitle = await this.getTitleInfo(info.titleId);
+
+        if (seasonTitle.episodes) {
+            const lastIndex = seasonTitle.episodes.findIndex(e => e.titleId === info.resumeTitleId);
+            if (lastIndex < seasonTitle.episodes.length - 1) {
+                return seasonTitle.episodes[lastIndex + 1];
+            }
+        }
+
+        if (info.resumeTitleId) {
+            // otherwise, fallback to what we had
+            return {
+                titleId: info.resumeTitleId,
+                watchedSeconds: info.watchedSeconds,
+            };
+        }
     }
 
     private buildUrl(path: string): string {
@@ -358,11 +544,13 @@ export class PrimeApi {
                 continue;
             }
 
+            debug("raw item <-", item);
             const id = item.actionPress.analytics.pageTypeId;
             yield {
                 availability,
                 id,
                 title: cleanTitle(itemTitle),
+                titleId: item.titleId,
                 type,
                 watchUrl: `https://www.amazon.com/dp/${id}/?autoplay=1`,
             };
@@ -401,6 +589,7 @@ export class PrimeApi {
                 id,
                 isInWatchlist: item.decoratedTitle.computed.simple.IS_IN_WATCHLIST,
                 title: cleanTitle(item.decoratedTitle.catalog.title),
+                titleId: item.titleId,
                 type,
                 watchUrl: `https://www.amazon.com/dp/${id}/?autoplay=1`,
             };
@@ -514,4 +703,13 @@ function seasonNumberFromTitle(title: string) {
     const m = title.match(/Season (\d+)/);
     if (m) return parseInt(m[1], 10);
     return -1;
+}
+
+function hasFinished(info: IWatchNextItem) {
+    if (!info.watchedSeconds) return false;
+    if (info.watchedSeconds >= info.completedAfter) return true;
+
+    // amazon's completedAfter numbers can be bogus, especially
+    // if the item has ads at the end. screw that.
+    return (info.watchedSeconds / info.completedAfter) > 0.91;
 }
