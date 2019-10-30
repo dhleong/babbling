@@ -9,7 +9,7 @@ import { PrimeApi } from "./api";
 // NOTE: this sure looks like a circular dependency, but we're just
 // importing it for the type definition
 import { IPrimeOpts, PrimeApp } from ".";
-import { AvailabilityType, IAvailability } from "./model";
+import { AvailabilityType, IAvailability, ISearchResult } from "./model";
 
 export class PrimePlayerChannel implements IPlayerChannel<PrimeApp> {
 
@@ -107,13 +107,15 @@ function playableFromObj(info: IBaseObj) {
     };
 }
 
-function playableFromSearchResult(result: IBaseObj) {
-    if (
-        result.type === ContentType.SERIES
-        || result.type === ContentType.MOVIE
-    ) {
-        // we can use SERIES or MOVIE results directly
+function playableFromSearchResult(result: ISearchResult) {
+    if (result.type === ContentType.MOVIE) {
+        // we can use MOVIE results directly
         return playableFromObj(result);
+    }
+
+    if (result.titleId) {
+        return async (app: PrimeApp, opts: IPlayableOptions) =>
+            app.resumeSeriesByTitleId(result.titleId);
     }
 
     // we have to resolve the series, first, because the ID we have resolves

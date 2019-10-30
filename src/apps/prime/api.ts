@@ -120,6 +120,11 @@ interface IWatchNextItem {
 
 // ======= public interface ===============================
 
+interface IResumeInfo {
+    titleId: string;
+    watchedSeconds?: number;
+}
+
 export class PrimeApi {
     public readonly deviceId: string;
 
@@ -268,7 +273,7 @@ export class PrimeApi {
         }
     }
 
-    public async guessResumeInfo(titleId: string) {
+    public async guessResumeInfo(titleId: string): Promise<IResumeInfo | undefined> {
         const [ titleInfo, { watchNext } ] = await Promise.all([
             this.getTitleInfo(titleId),
             this.getHomePage(),
@@ -391,11 +396,14 @@ export class PrimeApi {
     }
 
     private async resolveNext(info: IWatchNextItem) {
-        if (!info.watchedSeconds || info.watchedSeconds < info.completedAfter) {
-            return info;
+        if (info.resumeTitleId && !hasFinished(info)) {
+            return {
+                titleId: info.resumeTitleId,
+                watchedSeconds: info.watchedSeconds,
+            };
         }
 
-        // TODO fetch episodes of this season and pick the next one
+        // fetch episodes of this season and pick the next one
         debug("watchNext is already complete; moving on...");
         const seasonTitle = await this.getTitleInfo(info.titleId);
 
@@ -406,8 +414,13 @@ export class PrimeApi {
             }
         }
 
-        // otherwise, fallback to what we had
-        return info;
+        if (info.resumeTitleId) {
+            // otherwise, fallback to what we had
+            return {
+                titleId: info.resumeTitleId,
+                watchedSeconds: info.watchedSeconds,
+            };
+        }
     }
 
     private buildUrl(path: string): string {
@@ -679,4 +692,13 @@ function seasonNumberFromTitle(title: string) {
     const m = title.match(/Season (\d+)/);
     if (m) return parseInt(m[1], 10);
     return -1;
+}
+
+function hasFinished(info: IWatchNextItem) {
+    if (!info.watchedSeconds) return false;
+    if (info.watchedSeconds >= info.completedAfter) return true;
+
+    // amazon's completedAfter numbers can be bogus, especially
+    // if the item has ads at the end. screw that.
+    return (info.watchedSeconds / info.completedAfter) > 0.91;
 }
