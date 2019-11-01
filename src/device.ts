@@ -53,7 +53,15 @@ export class ChromecastDevice {
 
     private async getCastorDevice(): Promise<IDevice> {
         const existing = this.castorDevice;
-        if (existing) return existing;
+        if (existing && !(existing as any)._stopped) {
+            // NOTE: reaching into _stopped like this is hacky, but some APIs
+            // like PlaybackTracker need to interact with the raw IDevice,
+            // and so might change the state out from under us; if we don't
+            // make sure the device is still connected, we can get into a bad
+            // state where every connect request times out (since the channel
+            // is actually closed)
+            return existing;
+        }
 
         const found = await findFirst(device => (
             !this.friendlyName // first-found
