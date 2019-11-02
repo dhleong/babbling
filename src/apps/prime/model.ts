@@ -35,3 +35,7 @@ export interface ISearchResult {
     type: ContentType;
     watchUrl: string;
 }
+
+export interface IPrimeApiInternal {
+    swiftApiRequest(path: string, qs?: {}): Promise<any>;
+}

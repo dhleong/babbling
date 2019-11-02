@@ -12,6 +12,7 @@ import generateRandomUUID from "uuid/v4";
 
 import { toArray } from "../../async";
 
+import { IFirstPage, Paginated } from "./api/paginated";
 import { IPrimeApiOpts, IPrimeOpts } from "./config";
 import { AvailabilityType, IAvailability, ISearchOpts, ISearchResult } from "./model";
 
@@ -274,9 +275,9 @@ export class PrimeApi {
     }
 
     public async guessResumeInfo(titleId: string): Promise<IResumeInfo | undefined> {
-        const [ titleInfo, { watchNext } ] = await Promise.all([
+        const [ titleInfo, watchNext ] = await Promise.all([
             this.getTitleInfo(titleId),
-            this.getHomePage(),
+            this.watchNextItems(),
         ]);
 
         if (!titleInfo.series) {
@@ -290,8 +291,7 @@ export class PrimeApi {
             return;
         }
 
-        debug(titleInfo);
-        for (const info of watchNext) {
+        for await (const info of watchNext) {
             debug("Check:", info.titleId, ": ", info.title);
             if (
                 info.titleId === titleId
@@ -308,34 +308,43 @@ export class PrimeApi {
         debug(`couldn't find ${titleInfo.series.title} in watchNext`);
     }
 
+    public async watchNextItems() {
+        // NOTE: we start with fetching the first page of results separately
+        // to increase parallelism; this is currently always used in parallel
+        // with a getTitleInfo fetch, and if this function were itself an
+        // async iterable then node would not run the fetch in parallel; this
+        // way, for the common case we have the latency of a single fetch.
+        debug("fetch home...");
+        const { watchNext } = await this.getHomePage();
+        if (!watchNext) return;
+
+        return new Paginated(this, watchNext, parseWatchNextItem);
+    }
+
     public async getHomePage() {
         const { resource } = await this.swiftApiRequest(
             "/cdp/mobile/getDataByTransform/v1/dv-ios/home/v1.js",
         );
 
         const info: {
-            watchNext?: IWatchNextItem[],
+            watchNext?: IFirstPage<IWatchNextItem>,
         } = {};
 
         const watchNextSection = resource.collections.filter((c: any) =>
             c.title === "Watch next",
         )[0];
         if (watchNextSection) {
-            info.watchNext = watchNextSection.items.map((item: any) => ({
-                title: item.title,
-                titleId: item.titleId,
-
-                completedAfter: item.playAndProgress.completedAfter,
-                resumeTitleId: item.playAndProgress.titleId,
-                runtimeSeconds: item.playAndProgress.runtimeSeconds,
-                watchedSeconds: item.playAndProgress.watchedSeconds,
-            }));
+            info.watchNext = {
+                items: watchNextSection.items.map(parseWatchNextItem),
+                paginationLink: watchNextSection.paginationLink,
+            };
         }
 
         return info;
     }
 
     public async getTitleInfo(titleId: string) {
+        debug("fetch titleInfo", titleId);
         const { resource } = await this.swiftApiRequest(
             "/cdp/mobile/getDataByTransform/v1/android/atf/v3.jstl",
             {
@@ -712,4 +721,16 @@ function hasFinished(info: IWatchNextItem) {
     // amazon's completedAfter numbers can be bogus, especially
     // if the item has ads at the end. screw that.
     return (info.watchedSeconds / info.completedAfter) > 0.91;
+}
+
+function parseWatchNextItem(item: any): IWatchNextItem {
+    return {
+        title: item.title,
+        titleId: item.titleId,
+
+        completedAfter: item.playAndProgress.completedAfter,
+        resumeTitleId: item.playAndProgress.titleId,
+        runtimeSeconds: item.playAndProgress.runtimeSeconds,
+        watchedSeconds: item.playAndProgress.watchedSeconds,
+    };
 }
