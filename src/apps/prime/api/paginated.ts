@@ -24,7 +24,7 @@ export class Paginated<T> implements AsyncIterable<T> {
         private readonly transformItem: (raw: any) => T,
     ) {}
 
-    public async *[Symbol.asyncIterator](): AsyncIterator<T, any, undefined> {
+    public async *[Symbol.asyncIterator](): AsyncIterator<T> {
         const firstPage = this.firstPage;
         yield *firstPage.items;
 
