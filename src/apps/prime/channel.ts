@@ -62,12 +62,11 @@ export class PrimePlayerChannel implements IPlayerChannel<PrimeApp> {
 
     public async *queryRecommended(): AsyncIterable<IQueryResult & { titleId: string }> {
         const api = new PrimeApi(this.options);
-        const watchNext = await api.watchNextItems();
-        if (!watchNext) return;
-
-        for await (const result of watchNext) {
+        for await (const result of api.nextUpItems()) {
             yield {
                 appName: "PrimeApp",
+                cover: result.cover,
+                desc: result.desc,
                 playable: playableFromTitleId(result.titleId),
                 title: result.title,
                 titleId: result.titleId,
