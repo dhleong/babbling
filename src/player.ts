@@ -113,6 +113,31 @@ class Player {
         return mergeAsyncIterables(iterables);
     }
 
+    /**
+     * Get an AsyncIterable representing playables from across all
+     * configured apps. Each result can be passed directly to `play`.
+     *
+     * @param onError Handler for when an app encounters an error. By
+     *                default, the error will just be thrown eagerly,
+     *                but you may prefer to simply log the error and
+     *                allow the other apps to provide their results
+     */
+    public queryRecommended(
+        onError: (app: string, e: Error) => void = (app, e) => { throw e; },
+    ) {
+        const iterables = this.apps.map(async function*(app) {
+            if (!app.channel.queryRecommended) return;
+
+            try {
+                yield *app.channel.queryRecommended();
+            } catch (e) {
+                onError(app.appConstructor.name, e);
+            }
+        });
+
+        return mergeAsyncIterables(iterables);
+    }
+
     private async playOnEachDevice(
         configured: IConfiguredApp<any>,
         playable: IPlayable<any>,
