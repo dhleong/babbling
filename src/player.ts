@@ -114,6 +114,20 @@ class Player {
     }
 
     /**
+     * Get a map each key is the name of an App and each value is an
+     * AsyncIterable representing recommended media from that app. Each result
+     * can be passed directly to `play`.
+     */
+    public getRecommendationsMap() {
+        return this.apps.reduce((m, app) => {
+            if (!app.channel.queryRecommended) return m;
+
+            m[app.appConstructor.name] = app.channel.queryRecommended();
+            return m;
+        }, {} as {[app: string]: AsyncIterable<IQueryResult>});
+    }
+
+    /**
      * Get an AsyncIterable representing playables from across all
      * configured apps. Each result can be passed directly to `play`.
      *
@@ -125,13 +139,13 @@ class Player {
     public queryRecommended(
         onError: (app: string, e: Error) => void = (app, e) => { throw e; },
     ) {
-        const iterables = this.apps.map(async function*(app) {
-            if (!app.channel.queryRecommended) return;
-
+        const m = this.getRecommendationsMap();
+        const iterables = Object.keys(m).map(async function*(appName) {
+            const results = m[appName];
             try {
-                yield *app.channel.queryRecommended();
+                yield *results;
             } catch (e) {
-                onError(app.appConstructor.name, e);
+                onError(appName, e);
             }
         });
 
