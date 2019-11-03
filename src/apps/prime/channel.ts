@@ -70,6 +70,7 @@ export class PrimePlayerChannel implements IPlayerChannel<PrimeApp> {
                 playable: playableFromTitleId(result.titleId),
                 title: result.title,
                 titleId: result.titleId,
+                url: "https://watch.amazon.com/detail?gti=" + result.titleId,
             };
         }
     }
