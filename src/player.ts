@@ -176,7 +176,7 @@ export class PlayerBuilder {
         } else {
             this.apps.push({
                 appConstructor,
-                channel: appConstructor.createPlayerChannel(options),
+                channel: appConstructor.createPlayerChannel(...options),
                 options,
             });
         }

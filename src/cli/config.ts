@@ -38,28 +38,28 @@ export async function *importConfigFromJson(
 ) {
 
     for await (const app of getAppConstructors()) {
-        if (config[app.name]) {
-            const appConfig = config[app.name];
-            if (
-                app.prototype instanceof BabblerBaseApp
-                && config.babbler
-                && !appConfig.appId
-            ) {
-                appConfig.appId = config.babbler;
-            }
+        const appConfig = config[app.name];
+        if (!appConfig) continue;
 
-            if (app.tokenConfigKeys) {
-                for (const k of app.tokenConfigKeys) {
-                    appConfig[k] = new AppConfigToken(
-                        configPath,
-                        [app.name, k],
-                        appConfig[k],
-                    );
-                }
-            }
-
-            yield [app, appConfig] as ConfigPair<any>;
+        if (
+            app.prototype instanceof BabblerBaseApp
+            && config.babbler
+            && !appConfig.appId
+        ) {
+            appConfig.appId = config.babbler;
         }
+
+        if (app.tokenConfigKeys) {
+            for (const k of app.tokenConfigKeys) {
+                appConfig[k] = new AppConfigToken(
+                    configPath,
+                    [app.name, k],
+                    appConfig[k],
+                );
+            }
+        }
+
+        yield [app, appConfig] as ConfigPair<any>;
     }
 }
 
