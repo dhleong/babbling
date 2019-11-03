@@ -7,6 +7,7 @@ import cast from "./commands/cast";
 import { config, unconfig } from "./commands/config";
 import mediaControlCommand from "./commands/do";
 import findByTitle from "./commands/find";
+import getRecommendations from "./commands/recommend";
 import scanForDevices from "./commands/scan";
 import searchByTitle from "./commands/search";
 
@@ -91,6 +92,12 @@ parser.command(
             type: "string",
         }).demand("title");
     }, searchByTitle,
+);
+
+parser.command(
+    "recommend", `List recommendations`, args => {
+        return withConfig(args);
+    }, getRecommendations,
 );
 
 parser.command(
