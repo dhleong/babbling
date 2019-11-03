@@ -108,8 +108,8 @@ export class YoutubeApp extends BaseApp {
 
     public static tokenConfigKeys = [ "cookies" ];
     public static configurable = YoutubeConfigurable;
-    public static createPlayerChannel() {
-        return new YoutubePlayerChannel();
+    public static createPlayerChannel(options: IYoutubeOpts = {}) {
+        return new YoutubePlayerChannel(options);
     }
 
     private cookies: Token;

@@ -72,10 +72,7 @@ class Player {
         const configured = pickAppForUrl(this.apps, url);
         debug("Chose", configured.appConstructor.name, "to play", url);
 
-        const playable = await configured.channel.createPlayable(
-            url,
-            ... configured.options,
-        );
+        const playable = await configured.channel.createPlayable(url);
         debug("Successfully created player for", url);
 
         return this.playOnEachDevice(configured, playable, url, opts);
@@ -107,10 +104,7 @@ class Player {
             if (!app.channel.queryByTitle) return;
 
             try {
-                yield *app.channel.queryByTitle(
-                    title,
-                    ...app.options,
-                );
+                yield *app.channel.queryByTitle(title);
             } catch (e) {
                 onError(app.appConstructor.name, e);
             }
@@ -182,7 +176,7 @@ export class PlayerBuilder {
         } else {
             this.apps.push({
                 appConstructor,
-                channel: appConstructor.createPlayerChannel(),
+                channel: appConstructor.createPlayerChannel(options),
                 options,
             });
         }

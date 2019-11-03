@@ -95,12 +95,12 @@ export interface IPlayerChannel<TSelf extends IApp> {
      * If the URL resolves to something that can't be played,
      * the returned Promise should reject.
      */
-    createPlayable(url: string, ...options: OptionsFor<TSelf>): Promise<IPlayable<AppFor<TSelf>>>;
+    createPlayable(url: string): Promise<IPlayable<AppFor<TSelf>>>;
 
     /**
      *
      */
-    queryByTitle?(title: string, ...options: OptionsFor<TSelf>): AsyncIterable<IQueryResult>;
+    queryByTitle?(title: string): AsyncIterable<IQueryResult>;
 
 }
 
@@ -111,6 +111,6 @@ extends IAppConstructor<TOptions, TSelf> {
      * Create a Channel that can be used to interact with this App
      * and its associated service
      */
-    createPlayerChannel(): IPlayerChannel<TSelf>;
+    createPlayerChannel(options?: TOptions): IPlayerChannel<TSelf>;
 
 }

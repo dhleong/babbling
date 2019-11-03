@@ -13,18 +13,22 @@ import { AvailabilityType, IAvailability, ISearchResult } from "./model";
 
 export class PrimePlayerChannel implements IPlayerChannel<PrimeApp> {
 
+    constructor(
+        private readonly options: IPrimeOpts,
+    ) {}
+
     public ownsUrl(url: string): boolean {
         // TODO other domains
         return url.includes("amazon.com");
     }
 
-    public async createPlayable(url: string, options: IPrimeOpts) {
+    public async createPlayable(url: string) {
         const titleId = pickTitleIdFromUrl(url);
         if (!titleId) {
             throw new Error(`Unsure how to play ${url}`);
         }
 
-        const api = new PrimeApi(options);
+        const api = new PrimeApi(this.options);
         const titleIdInfo = await api.getTitleInfo(titleId);
         debug("titleInfo for ", titleId, " = ", titleIdInfo);
 
@@ -40,9 +44,8 @@ export class PrimePlayerChannel implements IPlayerChannel<PrimeApp> {
 
     public async *queryByTitle(
         title: string,
-        opts: IPrimeOpts,
     ): AsyncIterable<IQueryResult & { titleId: string }> {
-        const api = new PrimeApi(opts);
+        const api = new PrimeApi(this.options);
         for await (const result of api.search(title)) {
             yield {
                 appName: "PrimeApp",

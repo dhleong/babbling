@@ -22,8 +22,8 @@ const DEFAULT_MARKETPLACE_ID = "ATVPDKIKX0DER";
 export class PrimeApp extends BaseApp {
 
     // declare Player support
-    public static createPlayerChannel() {
-        return new PrimePlayerChannel();
+    public static createPlayerChannel(options: IPrimeOpts) {
+        return new PrimePlayerChannel(options);
     }
 
     private readonly api: PrimeApi;

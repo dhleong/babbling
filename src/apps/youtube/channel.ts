@@ -10,6 +10,10 @@ import { filterFromSkippedIds } from "./util";
 
 export class YoutubePlayerChannel implements IPlayerChannel<YoutubeApp> {
 
+    constructor(
+        private readonly options: IYoutubeOpts,
+    ) {}
+
     public ownsUrl(url: string) {
         return url.includes("youtube.com") || url.includes("youtu.be");
     }
@@ -19,7 +23,7 @@ export class YoutubePlayerChannel implements IPlayerChannel<YoutubeApp> {
      * - `skip`: ID of a video to "skip" when attempting to resume
      *   a playlist. May be passed multiple times
      */
-    public async createPlayable(url: string, options?: IYoutubeOpts) {
+    public async createPlayable(url: string) {
         let videoId = "";
         let listId = "";
         let listIndex = -1;
@@ -40,7 +44,7 @@ export class YoutubePlayerChannel implements IPlayerChannel<YoutubeApp> {
             debug("extracted listId", listId);
 
             // watch later requires auth
-            if (listId === "WL" && !(options && options.cookies)) {
+            if (listId === "WL" && !(this.options && this.options.cookies)) {
                 throw new Error("Cannot use watch later playlist without cookies");
             }
 

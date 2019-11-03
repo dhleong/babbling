@@ -14,6 +14,10 @@ function seemsLikeValidUUID(uuid: string) {
 
 export class HuluPlayerChannel implements IPlayerChannel<HuluApp> {
 
+    constructor(
+        private readonly options: IHuluOpts,
+    ) {}
+
     public ownsUrl(url: string) {
         return url.includes("hulu.com");
     }
@@ -40,10 +44,8 @@ export class HuluPlayerChannel implements IPlayerChannel<HuluApp> {
 
     public async *queryByTitle(
         title: string,
-        opts: IHuluOpts,
     ) {
-
-        const results = await new HuluApi(opts).search(title);
+        const results = await new HuluApi(this.options).search(title);
         for (const item of results) {
             if (item.actions.upsell) {
                 continue;

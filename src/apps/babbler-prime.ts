@@ -1,9 +1,11 @@
 import debug_ from "debug";
 const debug = debug_("babbling:prime");
 
+// tslint:disable max-classes-per-file
+
 import { ChakramApi, ContentType, IBaseObj, IEpisode, ISeason } from "chakram-ts";
 
-import { IPlayableOptions, IQueryResult } from "../app";
+import { IPlayableOptions, IPlayerChannel, IQueryResult } from "../app";
 import { IDevice } from "../cast";
 import { CookiesConfigurable } from "../cli/configurables";
 import { BabblerBaseApp, IPlayableInfo, IQueueItem } from "./babbler/base";
@@ -61,50 +63,47 @@ function cleanTitle(original: string) {
     return original.replace("(4K UHD)", "").trim();
 }
 
-/**
- * Amazon Prime Video
- */
-export class BabblerPrimeApp extends BabblerBaseApp {
+class BabblerPrimeChannel implements IPlayerChannel<BabblerPrimeApp> {
 
-    public static configurable = new CookiesConfigurable<IBabblerPrimeOpts>("https://www.amazon.com");
+    constructor(
+        private readonly options: IBabblerPrimeOpts,
+    ) {}
 
-    public static ownsUrl(url: string) {
+    public ownsUrl(url: string): boolean {
         // TODO other domains
         return url.includes("amazon.com");
     }
 
-    public static async createPlayable(
+    public async createPlayable(
         url: string,
-        options: IBabblerPrimeOpts,
     ) {
         const m = url.match(/video\/detail\/([^\/]+)/);
         if (!m) {
             throw new Error(`Unsure how to play ${url}`);
         }
 
-        const api = new ChakramApi(options.cookies);
+        const api = new ChakramApi(this.options.cookies);
         const titleId = m[1];
         const info = await api.getTitleInfo(titleId);
 
-        return BabblerPrimeApp.playableFromObj(info);
+        return this.playableFromObj(info);
     }
 
-    public static async *queryByTitle(
+    public async *queryByTitle(
         title: string,
-        opts: IBabblerPrimeOpts,
     ): AsyncIterable<IQueryResult> {
-        const api = new ChakramApi(opts.cookies);
+        const api = new ChakramApi(this.options.cookies);
         for (const result of await api.search(title)) {
             yield {
                 appName: "PrimeApp",
-                playable: BabblerPrimeApp.playableFromObj(result),
+                playable: this.playableFromObj(result),
                 title: cleanTitle(result.title),
                 url: "https://www.amazon.com/video/detail/" + result.id,
             };
         }
     }
 
-    private static playableFromObj(info: IBaseObj) {
+    private playableFromObj(info: IBaseObj) {
         if (info.type === ContentType.SERIES) {
             debug("playable for series", info.id);
             return async (app: BabblerPrimeApp) => app.resumeSeries(info.id);
@@ -128,6 +127,19 @@ export class BabblerPrimeApp extends BabblerBaseApp {
                 await app.playTitle(info.id);
             }
         };
+    }
+
+}
+
+/**
+ * Amazon Prime Video
+ */
+export class BabblerPrimeApp extends BabblerBaseApp {
+
+    public static configurable = new CookiesConfigurable<IBabblerPrimeOpts>("https://www.amazon.com");
+
+    public static createPlayerChannel(options: IBabblerPrimeOpts) {
+        return new BabblerPrimeChannel(options);
     }
 
     private api: ChakramApi;

@@ -4,6 +4,11 @@ import { HboGoApp, IHboGoOpts } from ".";
 import { HboGoApi } from "./api";
 
 export class HboGoPlayerChannel implements IPlayerChannel<HboGoApp> {
+
+    constructor(
+        private readonly options: IHboGoOpts,
+    ) {}
+
     public ownsUrl(url: string) {
         return url.includes("play.hbogo.com");
     }
@@ -34,9 +39,8 @@ export class HboGoPlayerChannel implements IPlayerChannel<HboGoApp> {
 
     public async *queryByTitle(
         title: string,
-        opts: IHboGoOpts,
     ): AsyncIterable<IQueryResult> {
-        const api = new HboGoApi(opts.token);
+        const api = new HboGoApi(this.options.token);
         for await (const result of api.search(title)) {
             const url = "https://play.hbogo.com/" + result.urn;
             yield {

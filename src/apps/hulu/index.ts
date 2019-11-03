@@ -27,8 +27,8 @@ function eabIdFromEntity(entity: any) {
 export class HuluApp extends BaseApp {
 
     public static configurable = new CookiesConfigurable<IHuluOpts>("https://www.hulu.com");
-    public static createPlayerChannel() {
-        return new HuluPlayerChannel();
+    public static createPlayerChannel(options: IHuluOpts) {
+        return new HuluPlayerChannel(options);
     }
 
     private readonly api: HuluApi;

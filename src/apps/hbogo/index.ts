@@ -27,8 +27,8 @@ export interface IHboGoPlayOptions {
 export class HboGoApp extends BaseApp {
     public static tokenConfigKeys = [ "token" ];
     public static configurable = new HboGoConfigurable();
-    public static createPlayerChannel() {
-        return new HboGoPlayerChannel();
+    public static createPlayerChannel(options: IHboGoOpts) {
+        return new HboGoPlayerChannel(options);
     }
 
     private readonly api: HboGoApi;
