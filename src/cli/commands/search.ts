@@ -1,3 +1,4 @@
+import { IQueryResult } from "../../app";
 import { ChromecastDevice } from "../../device";
 import { PlayerBuilder } from "../../player";
 import { consoleWrite } from "./util";
@@ -27,6 +28,10 @@ export default async function searchByTitle(opts: ISearchByTitleOpts) {
 
     const results = player.queryByTitle(opts.title);
 
+    await formatQueryResults(results);
+}
+
+export async function formatQueryResults(results: AsyncIterable<IQueryResult>) {
     let found = 0;
     for await (const match of results) {
         ++found;

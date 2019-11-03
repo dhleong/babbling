@@ -74,4 +74,44 @@ export class HuluPlayerChannel implements IPlayerChannel<HuluApp> {
             };
         }
     }
+
+    public async *queryRecommended() {
+        const results = new HuluApi(this.options).fetchRecent();
+        for await (const item of results) {
+            const id = item.id;
+            const type = item._type;
+            if (!supportedEntityTypes.has(type)) {
+                // skip!
+                continue;
+            }
+
+            const url = "https://www.hulu.com/" + type + "/" + id;
+            yield {
+                appName: "HuluApp",
+                cover: pickArtwork(item),
+                desc: item.description,
+                title: item.name,
+                url,
+
+                playable: async (app: HuluApp) => {
+                    if (type === "series") {
+                        return app.resumeSeries(id);
+                    }
+                    return app.play(id, {});
+                },
+            };
+        }
+    }
+}
+
+function pickArtwork(item: any) {
+    if (!item.artwork) return;
+
+    const obj = item.artwork["program.tile"];
+    if (!(obj && obj.path)) return;
+
+    return obj.path + "&operations=" + encodeURIComponent(JSON.stringify([
+        { resize: "800x800|max" },
+        { format: "jpeg" },
+    ]));
 }

@@ -60,6 +60,20 @@ export class PrimePlayerChannel implements IPlayerChannel<PrimeApp> {
         }
     }
 
+    public async *queryRecommended(): AsyncIterable<IQueryResult & { titleId: string }> {
+        const api = new PrimeApi(this.options);
+        for await (const result of api.nextUpItems()) {
+            yield {
+                appName: "PrimeApp",
+                cover: result.cover,
+                desc: result.desc,
+                playable: playableFromTitleId(result.titleId),
+                title: result.title,
+                titleId: result.titleId,
+                url: "https://watch.amazon.com/detail?gti=" + result.titleId,
+            };
+        }
+    }
 }
 
 function isAvailableOnlyWithAds(availability: IAvailability[]) {

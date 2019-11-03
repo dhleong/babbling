@@ -343,6 +343,35 @@ export class PrimeApi {
         return info;
     }
 
+    /**
+     * This is very similar to `watchNextItems` but is missing things
+     * like watchUrl, id while adding cover art (and, at least for now,
+     * lacking pagination)
+     */
+    public async *nextUpItems() {
+        const { landingPage } = await this.swiftApiRequest(
+            "/cdp/discovery/GetLandingPage",
+            {
+                pageType: "home",
+                version: "mobile-android-v1",
+            },
+        );
+        if (!(landingPage && landingPage.sections && landingPage.sections.center)) return;
+
+        const { collections } = landingPage.sections.center;
+        if (!(collections && collections.collectionList)) return;
+
+        const { items } = collections.collectionList.find(isNextUpCollection);
+        if (!(items && items.itemList)) return;
+
+        for (const item of items.itemList) {
+            const base = parseWatchlistItem(item);
+            delete base.watchUrl;
+            delete base.id;
+            yield base;
+        }
+    }
+
     public async getTitleInfo(titleId: string) {
         debug("fetch titleInfo", titleId);
         const { resource } = await this.swiftApiRequest(
@@ -579,7 +608,6 @@ export class PrimeApi {
         });
 
         for (const item of items) {
-            const availability = availabilityOf(item);
             const { type } = item.decoratedTitle.catalog;
             if (
                 type === ContentType.SEASON
@@ -589,19 +617,7 @@ export class PrimeApi {
                 continue;
             }
 
-            const id = item.analytics.local.pageTypeId;
-            yield {
-                availability,
-                cover: item.decoratedTitle.images.imageUrls.detail_page_cover
-                    || item.decoratedTitle.images.imageUrls.detail_page_hero,
-                desc: item.decoratedTitle.catalog.synopsis,
-                id,
-                isInWatchlist: item.decoratedTitle.computed.simple.IS_IN_WATCHLIST,
-                title: cleanTitle(item.decoratedTitle.catalog.title),
-                titleId: item.titleId,
-                type,
-                watchUrl: `https://www.amazon.com/dp/${id}/?autoplay=1`,
-            };
+            yield parseWatchlistItem(item);
         }
     }
 
@@ -658,6 +674,11 @@ function availabilityOf(item: any): IAvailability[] {
         // included in active prime subscription
         result.push({ type: AvailabilityType.PRIME });
         isPrime = true;
+    }
+
+    if (!item.titleActions) {
+        // quick shortcut
+        return result;
     }
 
     if (item.titleActions.isPlayable && item.titleActions.playbackSummary.includes("You purchased")) {
@@ -733,4 +754,35 @@ function parseWatchNextItem(item: any): IWatchNextItem {
         runtimeSeconds: item.playAndProgress.runtimeSeconds,
         watchedSeconds: item.playAndProgress.watchedSeconds,
     };
+}
+
+function parseWatchlistItem(item: any) {
+    const availability = availabilityOf(item);
+    const id = item.analytics.local.pageTypeId;
+    return {
+        availability,
+        cover: item.decoratedTitle.images.imageUrls.detail_page_cover
+        || item.decoratedTitle.images.imageUrls.detail_page_hero,
+        desc: item.decoratedTitle.catalog.synopsis,
+        id,
+        isInWatchlist: item.decoratedTitle.computed.simple.IS_IN_WATCHLIST,
+        title: cleanTitle(item.decoratedTitle.catalog.title),
+        titleId: item.titleId,
+        type: item.decoratedTitle.catalog.type,
+        watchUrl: `https://www.amazon.com/dp/${id}/?autoplay=1`,
+    };
+}
+
+function isNextUpCollection(c: any): boolean {
+    if (c.debugAttributes && c.debugAttributes.includes("ATVWatchNext")) {
+        return true;
+    }
+
+    if (c.itemTypeToActionMap && c.itemTypeToActionMap.titleCard) {
+        return c.itemTypeToActionMap.titleCard.includes((action: any) => {
+            return action.parameters && action.parameters.listType === "AIV:NextUp";
+        });
+    }
+
+    return false;
 }

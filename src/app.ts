@@ -58,6 +58,11 @@ export interface IQueryResult {
     desc?: string;
 
     /**
+     * Image URL for cover art, if available
+     */
+    cover?: string;
+
+    /**
      * Playable URL for this entity, if available
      */
     url?: string;
@@ -98,9 +103,16 @@ export interface IPlayerChannel<TSelf extends IApp> {
     createPlayable(url: string): Promise<IPlayable<AppFor<TSelf>>>;
 
     /**
-     *
+     * Search for {@see Player.play}'able media by title
      */
     queryByTitle?(title: string): AsyncIterable<IQueryResult>;
+
+    /**
+     * Search for {@see Player.play}'able media per the source
+     * apps' recommendations. Could be (but not necessarily)
+     * based on recency
+     */
+    queryRecommended?(): AsyncIterable<IQueryResult>;
 
 }
 

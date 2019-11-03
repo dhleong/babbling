@@ -11,7 +11,7 @@ import {
     OptionsFor,
     Opts,
 } from "./app";
-import { mergeAsyncIterables } from "./async";
+import { interleaveAsyncIterables, mergeAsyncIterables } from "./async";
 import { importConfig } from "./cli/config";
 import { ChromecastDevice } from "./device";
 
@@ -111,6 +111,45 @@ class Player {
         });
 
         return mergeAsyncIterables(iterables);
+    }
+
+    /**
+     * Get a map each key is the name of an App and each value is an
+     * AsyncIterable representing recommended media from that app. Each result
+     * can be passed directly to `play`.
+     */
+    public getRecommendationsMap() {
+        return this.apps.reduce((m, app) => {
+            if (!app.channel.queryRecommended) return m;
+
+            m[app.appConstructor.name] = app.channel.queryRecommended();
+            return m;
+        }, {} as {[app: string]: AsyncIterable<IQueryResult>});
+    }
+
+    /**
+     * Get an AsyncIterable representing playables from across all
+     * configured apps. Each result can be passed directly to `play`.
+     *
+     * @param onError Handler for when an app encounters an error. By
+     *                default, the error will just be thrown eagerly,
+     *                but you may prefer to simply log the error and
+     *                allow the other apps to provide their results
+     */
+    public queryRecommended(
+        onError: (app: string, e: Error) => void = (app, e) => { throw e; },
+    ) {
+        const m = this.getRecommendationsMap();
+        const iterables = Object.keys(m).map(async function*(appName) {
+            const results = m[appName];
+            try {
+                yield *results;
+            } catch (e) {
+                onError(appName, e);
+            }
+        });
+
+        return interleaveAsyncIterables(iterables);
     }
 
     private async playOnEachDevice(
