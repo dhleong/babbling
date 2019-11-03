@@ -5,10 +5,13 @@ import request from "request-promise-native";
 
 import { IHuluOpts } from "./config";
 
+const DISCOVER_BASE = "https://discover.hulu.com/content/v4";
+
 // tslint:disable
-const ENTITY_DISCOVER_URL = "https://discover.hulu.com/content/v4/entity/deeplink?schema=2&referral_host=www.hulu.com";
-const SEARCH_URL = "https://discover.hulu.com/content/v4/search/entity?language=en&device_context_id=2&limit=64&include_offsite=false&schema=2&referral_host=www.hulu.com";
-const SERIES_HUB_URL_FORMAT = "https://discover.hulu.com/content/v4/hubs/series/%s/?schema=2&referral_host=www.hulu.com";
+const ENTITY_DISCOVER_URL = DISCOVER_BASE + "/entity/deeplink?schema=2&referral_host=www.hulu.com";
+const SEARCH_URL = DISCOVER_BASE + "/search/entity?language=en&device_context_id=2&limit=64&include_offsite=false&schema=2&referral_host=www.hulu.com";
+const SERIES_HUB_URL_FORMAT = DISCOVER_BASE + "/hubs/series/%s/?schema=2&referral_host=www.hulu.com";
+const RECENT_URL = DISCOVER_BASE + "/hubs/watch-history?schema=9&referral_host=production"
 
 const USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.121 Safari/537.36";
 
@@ -149,6 +152,20 @@ export class HuluApi {
         debug(`Next entity for series ${seriesId}:`, entity);
 
         return entity;
+    }
+
+    public async *fetchRecent() {
+        const { components } = await request({
+            headers: this.generateHeaders(),
+            json: true,
+            url: RECENT_URL,
+        });
+        if (!(components && components.length)) return;
+
+        const { items/* , pagination */ } = components[0];
+        for (const item of items) {
+            yield item;
+        }
     }
 
     private generateHeaders() {

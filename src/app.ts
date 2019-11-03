@@ -58,6 +58,11 @@ export interface IQueryResult {
     desc?: string;
 
     /**
+     * Image URL for cover art, if available
+     */
+    cover?: string;
+
+    /**
      * Playable URL for this entity, if available
      */
     url?: string;
