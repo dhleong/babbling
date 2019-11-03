@@ -1,6 +1,6 @@
 import * as chai from "chai";
 
-import { mergeAsyncIterables, toArray } from "../src/async";
+import { interleaveAsyncIterables, mergeAsyncIterables, toArray } from "../src/async";
 
 chai.should();
 
@@ -60,5 +60,59 @@ describe("mergeAsyncIterables", () => {
         ]));
 
         array.should.deep.equal([0, 10, 11, 1, 12, 2]);
+    });
+});
+
+describe("interleaveAsyncIterables", () => {
+    it("Respects original order", async () => {
+        const array = await toArray(interleaveAsyncIterables([
+            (async function*() {
+                yield 0;
+                yield 1;
+                yield 2;
+            })(),
+        ]));
+
+        array.should.deep.equal([0, 1, 2]);
+    });
+
+    it("Interleaves all", async () => {
+        const array = await toArray(interleaveAsyncIterables([
+            (async function*() {
+                yield 0;
+                yield 2;
+                yield 4;
+            })(),
+
+            (async function*() {
+                yield 1;
+                yield 3;
+                yield 5;
+            })(),
+        ]));
+
+        array.should.deep.equal([ 0, 1, 2, 3, 4, 5 ]);
+    });
+
+    it("Interleaves all with sleeps", async () => {
+        const array = await toArray(interleaveAsyncIterables([
+            (async function*() {
+                yield 0;
+                await sleep(10);
+                yield 2;
+                await sleep(10);
+                yield 4;
+            })(),
+
+            (async function*() {
+                yield 1;
+                await sleep(10);
+                yield 3;
+                await sleep(10);
+                yield 5;
+            })(),
+        ]));
+
+        array.should.deep.equal([ 0, 1, 2, 3, 4, 5 ]);
     });
 });

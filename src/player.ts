@@ -11,7 +11,7 @@ import {
     OptionsFor,
     Opts,
 } from "./app";
-import { mergeAsyncIterables } from "./async";
+import { interleaveAsyncIterables, mergeAsyncIterables } from "./async";
 import { importConfig } from "./cli/config";
 import { ChromecastDevice } from "./device";
 
@@ -135,7 +135,7 @@ class Player {
             }
         });
 
-        return mergeAsyncIterables(iterables);
+        return interleaveAsyncIterables(iterables);
     }
 
     private async playOnEachDevice(
