@@ -111,7 +111,7 @@ function pickArtwork(item: any) {
     if (!(obj && obj.path)) return;
 
     return obj.path + "&operations=" + encodeURIComponent(JSON.stringify([
-        { resize: "800x800|max" },
+        { resize: "600x600|max" },
         { format: "jpeg" },
     ]));
 }
