@@ -17,6 +17,33 @@ export class ChromecastDevice {
     ) { }
 
     /**
+     * Detect if the device exists, returning information about
+     * the device if it does, or null if it doesn't.
+     */
+    public async detect() {
+        try {
+            const existing = this.castorDevice;
+
+            const d = await this.getCastorDevice();
+
+            if (!existing) {
+                // don't keep the connection (and thus, any client app of this
+                // API) alive unnecessarily, but also don't close if we
+                // already had a device instance for another purpose
+                this.close();
+            }
+
+            return {
+                friendlyName: d.friendlyName,
+                id: d.id,
+                model: d.model,
+            };
+        } catch (e) {
+            return null;
+        }
+    }
+
+    /**
      * @param appConstructor The constructor of an App
      * @param options Will be provided as the 2nd+ args to
      * `appConstructor`, and are App-specific. See the relevant

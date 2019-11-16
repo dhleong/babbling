@@ -1,13 +1,83 @@
 import _debug from "debug";
 const debug = _debug("babbling:scan");
 
-import nodecastor, { IDevice } from "nodecastor";
+import { EventEmitter } from "events";
+import mdns from "mdns";
+import { CastDevice, IDevice } from "nodecastor";
 
 export enum ScanAction {
     StopScanning,
     CloseDevice,
     Connect,
     ConnectAndStopScanning,
+}
+
+/**
+ * This class based on nodecastor.scan; we've inlined to workaround
+ * a bug in the original, as well as to add extra info to the CastDevice
+ */
+class DeviceEmitter extends EventEmitter {
+    private browser: mdns.Browser;
+    private knownDevices: {[id: string]: CastDevice} = {};
+
+    private logger: any | undefined;
+    private timeout: number;
+
+    constructor(options: {
+        logger?: any,
+        timeout?: number,
+    } = {}) {
+        super();
+
+        this.logger = options.logger;
+        this.timeout = options.timeout || 5000;
+
+        const family = 0; // UNSPEC, can also use 4 or 6.
+        const resolverSequence = [
+            mdns.rst.DNSServiceResolve(),
+            "DNSServiceGetAddrInfo" in mdns.dns_sd
+                ? mdns.rst.DNSServiceGetAddrInfo()
+                : mdns.rst.getaddrinfo({ families: [ family ] }),
+            mdns.rst.makeAddressesUnique(),
+        ];
+        this.browser = mdns.createBrowser(mdns.tcp("googlecast"), {
+            resolverSequence,
+        });
+        this.browser.on("serviceUp", d => this.onServiceUp(d));
+        this.browser.on("serviceDown", d => this.onServiceDown(d));
+    }
+
+    public start() {
+        this.browser.start();
+    }
+
+    public stop() {
+        this.browser.stop();
+    }
+
+    private onServiceUp(d: mdns.Service): void {
+        if (this.knownDevices[d.txtRecord.id]) return;
+
+        const c = new CastDevice({
+            address: d.addresses[0],
+            friendlyName: d.txtRecord.fn,
+            id: d.txtRecord.id,
+            port: d.port,
+
+            logger: this.logger,
+            reconnect: {},
+            timeout: this.timeout,
+        }) as IDevice;
+
+        c.model = d.txtRecord.md;
+
+        this.knownDevices[c.id] = c;
+        this.emit("online", c);
+    }
+    private onServiceDown(d: mdns.Service): void {
+        if (!this.knownDevices[d.txtRecord.id]) return;
+        throw new Error("Method not implemented.");
+    }
 }
 
 export function scan(scanOpts: {
@@ -24,17 +94,11 @@ export function scan(scanOpts: {
         };
     }
 
-    const scanner = nodecastor.scan(options);
+    const scanner = new DeviceEmitter(options);
 
     const stopScanner = () => {
         debug("stop scanning");
-
-        // HACKS:
-        try {
-            scanner.end();
-        } catch (e) {
-            scanner.browser.stop();
-        }
+        scanner.stop();
     };
 
     const timeoutId = setTimeout(() => {
