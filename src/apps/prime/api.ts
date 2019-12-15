@@ -29,6 +29,8 @@ const DEVICE_TYPE = "A43PXU4ZN2AL1";
 const OS_VERSION = "25";
 const SOFTWARE_VERSION = "2";
 
+const DEFAULT_QUEUE_LENGTH = 10;
+
 // ======= utils ==========================================
 
 export async function generateFrcCookies(
@@ -119,11 +121,16 @@ interface IWatchNextItem {
     watchedSeconds: number;
 }
 
+type PromiseType<T extends Promise<any>> = T extends Promise<infer R> ? R : never;
+type ITitleInfo = PromiseType<ReturnType<PrimeApi["getTitleInfo"]>>;
+
 // ======= public interface ===============================
 
-interface IResumeInfo {
+export interface IResumeInfo {
     titleId: string;
     watchedSeconds?: number;
+
+    queue?: string[];
 }
 
 export class PrimeApi {
@@ -301,7 +308,14 @@ export class PrimeApi {
                 )
             ) {
                 debug(titleInfo.series.title, "found in watchNext:", info);
-                return this.resolveNext(info);
+                const upNext = await this.resolveNext(info);
+                if (!upNext) return;
+
+                const queue = await this.resolveQueue(titleInfo, upNext);
+                return {
+                    ...upNext,
+                    queue,
+                };
             }
         }
 
@@ -470,6 +484,37 @@ export class PrimeApi {
                 watchedSeconds: info.watchedSeconds,
             };
         }
+    }
+
+    private async resolveQueue(
+        titleInfo: ITitleInfo,
+        upNext: IResumeInfo,
+        opts: { queueLength?: number } = {},
+    ) {
+        if (!titleInfo.episodes) {
+            debug(`No episodes for ${titleInfo.series}; drop queue`);
+            return;
+        }
+
+        const upNextIndex = titleInfo.episodes.findIndex(ep =>
+            ep.titleId === upNext.titleId);
+        if (upNextIndex === -1) {
+            debug(`Couldn't find ${upNext.titleId} in episodes; drop queue`);
+            return;
+        }
+
+        const queueLength = opts.queueLength || DEFAULT_QUEUE_LENGTH;
+        const queue: string[] = [];
+        for (let i = 0; i < queueLength; ++i) {
+            const index = upNextIndex + 1 + i;
+            if (index >= titleInfo.episodes.length) {
+                break;
+            }
+
+            queue.push(titleInfo.episodes[index].titleId);
+        }
+
+        return queue;
     }
 
     private buildUrl(path: string): string {

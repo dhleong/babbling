@@ -2,6 +2,7 @@ import _debug from "debug";
 const debug = _debug("babbling:PrimeApp");
 
 import { ChakramApi } from "chakram-ts";
+import { ILoadRequest, IMedia } from "nodecastor";
 
 import { ICastSession, IDevice } from "../../cast";
 import { BaseApp, MEDIA_NS } from "../base";
@@ -47,7 +48,8 @@ export class PrimeApp extends BaseApp {
 
     public async play(
         titleId: string,
-        { startTime }: {
+        { queue, startTime }: {
+            queue?: string[],
             startTime?: number,
         },
     ) {
@@ -64,27 +66,23 @@ export class PrimeApp extends BaseApp {
         const s = await this.ensureCastSession();
 
         debug("request playback:", titleId);
-        const request: any = {
+        const request: ILoadRequest = {
             autoplay: true,
             customData: {
                 deviceId: this.api.deviceId,
                 initialTracks: {},
             },
-            media: {
-                customData: {
-                    videoMaterialType: "Feature", // TODO ?
-                },
-
-                contentId: titleId,
-                contentType: "video/mp4",
-                streamType: "BUFFERED",
-            },
+            media: titleIdToCastMedia(titleId),
             sessionId: s.id,
             type: "LOAD",
         };
 
         if (startTime !== undefined) {
             request.currentTime = startTime;
+        }
+
+        if (queue && queue.length) {
+            installQueue(request, queue, titleId);
         }
 
         // send LOAD request!
@@ -130,6 +128,7 @@ export class PrimeApp extends BaseApp {
         if (toResume) {
             debug("resume: ", toResume);
             return this.play(toResume.titleId, {
+                queue: toResume.queue,
                 startTime: toResume.watchedSeconds,
             });
         }
@@ -186,4 +185,42 @@ async function checkedRequest(session: ICastSession, message: any) {
     }
     debug(" -> ", resp);
     return resp;
+}
+
+function titleIdToCastMedia(titleId: string): IMedia {
+    return {
+        customData: {
+            videoMaterialType: "Feature", // TODO ?
+        },
+
+        contentId: titleId,
+        contentType: "video/mp4",
+        streamType: "BUFFERED",
+    };
+}
+
+function installQueue(
+    request: ILoadRequest,
+    queue: string[],
+    initialTitleId: string,
+) {
+    let startIndex = queue.indexOf(initialTitleId);
+    const items = queue.map(id => ({
+        customData: request.customData,
+        media: titleIdToCastMedia(id),
+    }));
+
+    if (startIndex === -1) {
+        // the queue contained only upcoming items
+        startIndex = 0;
+        items.unshift({
+            customData: request.customData,
+            media: request.media,
+        });
+    }
+
+    request.queueData = {
+        items,
+        startIndex,
+    };
 }
