@@ -1,6 +1,8 @@
 import _debug from "debug";
 const debug = _debug("babbling:hbogo");
 
+import { ILoadRequest } from "nodecastor";
+
 import { IDevice } from "../../cast";
 import { BaseApp, MEDIA_NS } from "../base";
 import { awaitMessageOfType } from "../util";
@@ -103,7 +105,7 @@ export class HboGoApp extends BaseApp {
             },
             sessionId: s.id,
             type: "LOAD",
-        });
+        } as ILoadRequest);
 
         let ms;
         do {

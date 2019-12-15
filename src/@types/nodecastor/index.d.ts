@@ -93,13 +93,13 @@ declare module "nodecastor" {
     export interface IMedia {
         contentId: string;
         contentType: string;
-        customData: any;
+        customData?: any;
 
         streamType: "BUFFERED";
     }
 
     export interface IQueueEntry {
-        customData: any;
+        customData?: any;
         media: IMedia;
     }
 

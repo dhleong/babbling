@@ -1,6 +1,8 @@
 import debug_ from "debug";
 const debug = debug_("babbling:babbler");
 
+import { ILoadRequest } from "nodecastor";
+
 import { ICastSession, IDevice, IMediaStatusMessage } from "../../cast";
 import { BaseApp, MEDIA_NS } from "../base";
 import { PlaybackTracker } from "../playback-tracker";
@@ -183,7 +185,7 @@ export class BabblerBaseApp<TMedia = {}> extends BaseApp {
             },
             sessionId: s.id,
             type: "LOAD",
-        });
+        } as ILoadRequest);
 
         let ms: IMediaStatusMessage;
         do {
