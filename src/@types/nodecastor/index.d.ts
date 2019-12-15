@@ -90,5 +90,31 @@ declare module "nodecastor" {
         on(event: "online", handler: (device: IDevice) => any): IScanner;
     }
 
+    export interface IMedia {
+        contentId: string;
+        contentType: string;
+        customData: any;
+
+        streamType: "BUFFERED";
+    }
+
+    export interface IQueueEntry {
+        customData: any;
+        media: IMedia;
+    }
+
+    export interface ILoadRequest {
+        autoplay?: boolean;
+        currentTime?: number;
+        customData?: any;
+        media: IMedia;
+        queueData?: {
+            items: IQueueEntry[];
+            startIndex: number;
+        };
+        sessionId: string;
+        type: "LOAD";
+    }
+
     export function scan(options: any): IScanner;
 }
