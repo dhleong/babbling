@@ -9,7 +9,7 @@ const DISCOVER_BASE = "https://discover.hulu.com/content/v4";
 
 // tslint:disable
 const ENTITY_DISCOVER_URL = DISCOVER_BASE + "/entity/deeplink?schema=2&referral_host=www.hulu.com";
-const SEARCH_URL = DISCOVER_BASE + "/search/entity?language=en&device_context_id=2&limit=64&include_offsite=false&schema=2&referral_host=www.hulu.com";
+const SEARCH_URL = DISCOVER_BASE + "/search/entity?language=en&device_context_id=2&limit=64&include_offsite=true&schema=2&referral_host=www.hulu.com";
 const SERIES_HUB_URL_FORMAT = DISCOVER_BASE + "/hubs/series/%s/?schema=2&referral_host=www.hulu.com";
 const RECENT_URL = DISCOVER_BASE + "/hubs/watch-history?schema=9&referral_host=production"
 
@@ -125,8 +125,13 @@ export class HuluApi {
             it.category === "top results",
         );
 
-        // if it's prompting to upsell, we probably can't cast it
-        return results.filter((item: any) => !item.actions.upsell);
+        return results.filter((item: any) =>
+            // if it's prompting to upsell, we probably can't cast it
+            !item.actions.upsell
+
+            // similarly, if we're prompted to "get related" it's not on hulu
+            && !item.actions.get_related,
+        );
     }
 
     public async findNextEntityForSeries(seriesId: string) {
