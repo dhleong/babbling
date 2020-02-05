@@ -97,8 +97,23 @@ class Player {
         query: IEpisodeQuery,
     ): Promise<IEpisodeQueryResult | undefined> {
         const configured = findAppNamed(this.apps, item.appName);
-        if (!configured.channel.findEpisodeFor) return;
-        return configured.channel.findEpisodeFor(item, query);
+        if (configured.channel.findEpisodeFor) {
+            return configured.channel.findEpisodeFor(item, query);
+        }
+
+        // fallback to a default implementation if
+        // queryEpisodeForTitle is provided
+        if (configured.channel.queryEpisodeForTitle) {
+            const results = configured.channel.queryEpisodeForTitle(
+                item.title,
+                query,
+            );
+            for await (const episode of results) {
+                if (episode.seriesTitle === item.title) {
+                    return episode;
+                }
+            }
+        }
     }
 
     /**
@@ -147,7 +162,17 @@ class Player {
         onError: AppSpecificErrorHandler = defaultAppSpecificErrorHandler,
     ): AsyncIterable<IEpisodeQueryResult> {
         const iterables = this.apps.map(async function*(app) {
-            if (!app.channel.queryEpisodeForTitle) return;
+            if (!app.channel.queryEpisodeForTitle) {
+                // fallback to a default implementation if findEpisodeFor
+                // is provided
+                if (app.channel.queryByTitle && app.channel.findEpisodeFor) {
+                    for await (const series of app.channel.queryByTitle(title)) {
+                        const episode = await app.channel.findEpisodeFor(series, query);
+                        if (episode) yield episode;
+                    }
+                }
+                return;
+            }
 
             try {
                 yield *app.channel.queryEpisodeForTitle(title, query);

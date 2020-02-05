@@ -56,6 +56,8 @@ export class HboGoPlayerChannel implements IPlayerChannel<HboGoApp> {
         }
 
         const urn = urnFromUrl(item.url!);
+        if (entityTypeFromUrn(urn) !== "series") return; // cannot have it
+
         const episodes = await this.api.getEpisodesForSeries(urn);
         const episode = episodes.get(query);
         if (!episode) return;
@@ -84,20 +86,4 @@ export class HboGoPlayerChannel implements IPlayerChannel<HboGoApp> {
         }
     }
 
-    public async *queryEpisodeForTitle(
-        title: string,
-        query: IEpisodeQuery,
-    ): AsyncIterable<IEpisodeQueryResult> {
-        for await (const result of this.queryByTitle(title)) {
-            const urn = urnFromUrl(result.url!);
-            if (entityTypeFromUrn(urn) !== "series") {
-                continue;
-            }
-
-            const episode = await this.findEpisodeFor(result, query);
-            if (episode) {
-                yield episode;
-            }
-        }
-    }
 }
