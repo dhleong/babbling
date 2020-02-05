@@ -92,6 +92,15 @@ class Player {
         );
     }
 
+    public async findEpisodeFor(
+        item: IQueryResult,
+        query: IEpisodeQuery,
+    ): Promise<IEpisodeQueryResult | undefined> {
+        const configured = findAppNamed(this.apps, item.appName);
+        if (!configured.channel.findEpisodeFor) return;
+        return configured.channel.findEpisodeFor(item, query);
+    }
+
     /**
      * Get an AsyncIterable representing playables from across all
      * configured apps. Each result can be passed directly to `play`.
