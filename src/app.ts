@@ -120,6 +120,15 @@ export interface IPlayerChannel<TSelf extends IApp> {
     createPlayable(url: string): Promise<IPlayable<AppFor<TSelf>>>;
 
     /**
+     * Find a specific {@see Player.play}'able episode for the
+     * given {@see IQueryResult}.
+     */
+    findEpisodeFor(
+        item: IQueryResult,
+        query: IEpisodeQuery,
+    ): Promise<IEpisodeQueryResult | undefined>;
+
+    /**
      * Search for {@see Player.play}'able media by title
      */
     queryByTitle?(title: string): AsyncIterable<IQueryResult>;
