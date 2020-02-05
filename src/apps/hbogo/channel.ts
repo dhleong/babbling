@@ -4,6 +4,7 @@ import {
     IPlayerChannel,
     IQueryResult,
 } from "../../app";
+import { EpisodeResolver } from "../../util/episode-resolver";
 
 import { HboGoApp, IHboGoOpts } from ".";
 import { entityTypeFromUrn, HboGoApi } from "./api";
@@ -58,8 +59,10 @@ export class HboGoPlayerChannel implements IPlayerChannel<HboGoApp> {
         const urn = urnFromUrl(item.url!);
         if (entityTypeFromUrn(urn) !== "series") return; // cannot have it
 
-        const episodes = await this.api.getEpisodesForSeries(urn);
-        const episode = episodes.get(query);
+        const resolver = new EpisodeResolver({
+            container: () => this.api.getEpisodesForSeries(urn),
+        });
+        const episode = await resolver.query(query);
         if (!episode) return;
 
         const url = "https://play.hbogo.com/" + episode.urn;

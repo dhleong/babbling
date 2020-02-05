@@ -11,6 +11,7 @@ const DISCOVER_BASE = "https://discover.hulu.com/content/v4";
 const ENTITY_DISCOVER_URL = DISCOVER_BASE + "/entity/deeplink?schema=2&referral_host=www.hulu.com";
 const SEARCH_URL = DISCOVER_BASE + "/search/entity?language=en&device_context_id=2&limit=64&include_offsite=true&schema=2&referral_host=www.hulu.com";
 const SERIES_HUB_URL_FORMAT = DISCOVER_BASE + "/hubs/series/%s/?schema=2&referral_host=www.hulu.com";
+const SEASON_HUB_URL_FORMAT = DISCOVER_BASE + "/hubs/series/%s/season/%d?limit=999&schema=9&referral_host=www.hulu.com";
 const RECENT_URL = DISCOVER_BASE + "/hubs/watch-history?schema=9&referral_host=production"
 
 const USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.121 Safari/537.36";
@@ -27,6 +28,14 @@ function extractCookie(cookies: string, cookieName: string) {
     const cookieStart = cookies.indexOf(cookieName);
     const cookieEnd = cookies.indexOf(";", cookieStart);
     return cookies.substring(cookieStart + cookieName.length + 1, cookieEnd);
+}
+
+export interface IHuluEpisode {
+    entity: any;
+    id: string;
+    indexInSeason: number;
+    name: string;
+    season: number;
 }
 
 export class HuluApi {
@@ -132,6 +141,40 @@ export class HuluApi {
             // similarly, if we're prompted to "get related" it's not on hulu
             && !item.actions.get_related,
         );
+    }
+
+    public async episodesInSeason(
+        seriesId: string,
+        seasonNumber: number,
+        pagination?: string,
+    ) {
+        debug(`Fetching episodesInSeason for series ${seriesId}`);
+
+        const url = pagination ? pagination
+            : SEASON_HUB_URL_FORMAT.replace("%s", seriesId)
+                .replace("%d", seasonNumber.toString());
+
+        const json = await request({
+            headers: {
+                "Cookie": this.cookies,
+                "Origin": "https://www.hulu.com",
+                "Referer": "https://www.hulu.com/",
+                "User-Agent": USER_AGENT,
+            },
+            json: true,
+            url,
+        });
+
+        return {
+            items: json.items.map((item: any, index: number) => ({
+                entity: item,
+                id: item.id,
+                indexInSeason: index,
+                name: item.name,
+                season: seasonNumber - 1,
+            })) as IHuluEpisode[],
+            nextPage: json.pagination.next as string | undefined,
+        };
     }
 
     public async findNextEntityForSeries(seriesId: string) {

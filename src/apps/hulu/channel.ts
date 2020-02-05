@@ -1,15 +1,25 @@
 import _debug from "debug";
 const debug = _debug("babbling:hulu:channel");
 
-import { IPlayerChannel } from "../../app";
+import {
+    IEpisodeQuery,
+    IEpisodeQueryResult,
+    IPlayerChannel,
+    IQueryResult,
+} from "../../app";
+import { EpisodeResolver } from "../../util/episode-resolver";
 
 import { HuluApp, IHuluOpts } from ".";
-import { HuluApi, supportedEntityTypes } from "./api";
+import { HuluApi, IHuluEpisode, supportedEntityTypes } from "./api";
 
 const UUID_LENGTH = 36;
 
 function seemsLikeValidUUID(uuid: string) {
     return /^[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}$/.test(uuid);
+}
+
+function createUrl(type: string, id: string) {
+    return "https://www.hulu.com/" + type + "/" + id;
 }
 
 export class HuluPlayerChannel implements IPlayerChannel<HuluApp> {
@@ -40,6 +50,45 @@ export class HuluPlayerChannel implements IPlayerChannel<HuluApp> {
         }
 
         throw new Error(`Not sure how to play '${url}'`);
+    }
+
+    public async findEpisodeFor(
+        item: IQueryResult,
+        query: IEpisodeQuery,
+    ): Promise<IEpisodeQueryResult | undefined> {
+        const api = new HuluApi(this.options);
+        const url = item.url!;
+        const seriesId = url.substring(url.lastIndexOf("/") + 1);
+
+        const resolver = new EpisodeResolver<IHuluEpisode>({
+            async *episodesInSeason(season: number) {
+                let page: string | undefined;
+                do {
+                    const { items, nextPage } = await api.episodesInSeason(
+                        seriesId,
+                        season + 1,
+                        page,
+                    );
+
+                    yield items;
+                    page = nextPage;
+                } while (page);
+            },
+        });
+
+        const episode = await resolver.query(query);
+        if (!episode) return;
+
+        return {
+            appName: "HuluApp",
+            seriesTitle: item.title,
+            title: episode.name,
+            url: createUrl("watch", episode.id),
+
+            playable: async (app: HuluApp) => {
+                return app.play(episode.id, {});
+            },
+        };
     }
 
     public async *queryByTitle(
@@ -85,7 +134,7 @@ export class HuluPlayerChannel implements IPlayerChannel<HuluApp> {
                 continue;
             }
 
-            const url = "https://www.hulu.com/" + type + "/" + id;
+            const url = createUrl(type, id);
             yield {
                 appName: "HuluApp",
                 cover: pickArtwork(item),
