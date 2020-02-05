@@ -123,7 +123,7 @@ export interface IPlayerChannel<TSelf extends IApp> {
      * Find a specific {@see Player.play}'able episode for the
      * given {@see IQueryResult}.
      */
-    findEpisodeFor(
+    findEpisodeFor?(
         item: IQueryResult,
         query: IEpisodeQuery,
     ): Promise<IEpisodeQueryResult | undefined>;
