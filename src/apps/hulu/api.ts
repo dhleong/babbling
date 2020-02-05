@@ -3,6 +3,8 @@ const debug = _debug("babbling:hulu:api");
 
 import request from "request-promise-native";
 
+import { EpisodeResolver } from "../../util/episode-resolver";
+
 import { IHuluOpts } from "./config";
 
 const DISCOVER_BASE = "https://discover.hulu.com/content/v4";
@@ -141,6 +143,25 @@ export class HuluApi {
             // similarly, if we're prompted to "get related" it's not on hulu
             && !item.actions.get_related,
         );
+    }
+
+    public episodeResolver(seriesId: string) {
+        const api = this;
+        return new EpisodeResolver<IHuluEpisode>({
+            async *episodesInSeason(season: number) {
+                let page: string | undefined;
+                do {
+                    const { items, nextPage } = await api.episodesInSeason(
+                        seriesId,
+                        season + 1,
+                        page,
+                    );
+
+                    yield items;
+                    page = nextPage;
+                } while (page);
+            },
+        });
     }
 
     public async episodesInSeason(

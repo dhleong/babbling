@@ -7,10 +7,9 @@ import {
     IPlayerChannel,
     IQueryResult,
 } from "../../app";
-import { EpisodeResolver } from "../../util/episode-resolver";
 
 import { HuluApp, IHuluOpts } from ".";
-import { HuluApi, IHuluEpisode, supportedEntityTypes } from "./api";
+import { HuluApi, supportedEntityTypes } from "./api";
 
 const UUID_LENGTH = 36;
 
@@ -60,23 +59,7 @@ export class HuluPlayerChannel implements IPlayerChannel<HuluApp> {
         const url = item.url!;
         const seriesId = url.substring(url.lastIndexOf("/") + 1);
 
-        const resolver = new EpisodeResolver<IHuluEpisode>({
-            async *episodesInSeason(season: number) {
-                let page: string | undefined;
-                do {
-                    const { items, nextPage } = await api.episodesInSeason(
-                        seriesId,
-                        season + 1,
-                        page,
-                    );
-
-                    yield items;
-                    page = nextPage;
-                } while (page);
-            },
-        });
-
-        const episode = await resolver.query(query);
+        const episode = await api.episodeResolver(seriesId).query(query);
         if (!episode) return;
 
         return {
