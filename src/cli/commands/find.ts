@@ -9,6 +9,9 @@ export interface IFindByTitleOpts {
     config: string;
     device: string;
     title: string;
+
+    episode?: number;
+    season?: number;
 }
 
 const MAX_CANDIDATES = 30;
@@ -71,7 +74,34 @@ export default async function findByTitle(opts: IFindByTitleOpts) {
         throw new Error("No match found");
     }
 
-    consoleWrite(`Playing ${best.title} via ${best.appName}`);
+    if (opts.season === undefined && opts.episode === undefined) {
+        consoleWrite(`Playing ${best.title} via ${best.appName}`);
 
-    await player.play(best);
+        await player.play(best);
+        return;
+    }
+
+    if (opts.season === undefined) {
+        throw new Error("--episode may not be provided without --season");
+    }
+
+    const episodeNumber = opts.episode !== undefined
+        ? opts.episode
+        : 1;
+    const episode = await player.findEpisodeFor(best, {
+        episodeIndex: episodeNumber - 1,
+        seasonIndex: opts.season - 1,
+    });
+
+    if (!episode) {
+        throw new Error(`No matching episode for ${best.title} on ${best.appName}`);
+    }
+
+    let label = `S${opts.season}E${episodeNumber}`;
+    if (episode.title !== label) {
+        label += ` "${episode.title}"`;
+    }
+    consoleWrite(`Playing ${best.title}: ${label} via ${best.appName}`);
+
+    await player.play(episode);
 }

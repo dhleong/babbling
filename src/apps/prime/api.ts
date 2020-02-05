@@ -122,7 +122,7 @@ interface IWatchNextItem {
 }
 
 type PromiseType<T extends Promise<any>> = T extends Promise<infer R> ? R : never;
-type ITitleInfo = PromiseType<ReturnType<PrimeApi["getTitleInfo"]>>;
+export type ITitleInfo = PromiseType<ReturnType<PrimeApi["getTitleInfo"]>>;
 
 // ======= public interface ===============================
 
@@ -303,8 +303,8 @@ export class PrimeApi {
             if (
                 info.titleId === titleId
                 || (
-                    titleInfo.seasonIds
-                    && titleInfo.seasonIds.has(info.titleId)
+                    titleInfo.seasonIdSet
+                    && titleInfo.seasonIdSet.has(info.titleId)
                 )
             ) {
                 debug(titleInfo.series.title, "found in watchNext:", info);
@@ -405,7 +405,8 @@ export class PrimeApi {
                 title: string,
                 titleId: string,
             },
-            seasonIds?: Set<string>,
+            seasonIds?: string[],
+            seasonIdSet?: Set<string>,
             selectedEpisode?: IEpisode,
         } = {};
 
@@ -417,9 +418,10 @@ export class PrimeApi {
         }
 
         if (resource.seasons) {
-            info.seasonIds = new Set<string>(resource.seasons.map((s: any) =>
+            info.seasonIds = resource.seasons.map((s: any) =>
                 s.titleId,
-            ));
+            );
+            info.seasonIdSet = new Set<string>(info.seasonIds);
         }
 
         if (resource.episodes) {

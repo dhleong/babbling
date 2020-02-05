@@ -3,13 +3,27 @@ const debug = _debug("babbling:PrimeApp:player");
 
 import { ContentType } from "chakram-ts";
 
-import { IPlayableOptions, IPlayerChannel, IQueryResult } from "../../app";
-import { PrimeApi } from "./api";
+import {
+    IEpisodeQuery,
+    IEpisodeQueryResult,
+    IPlayableOptions,
+    IPlayerChannel,
+    IQueryResult,
+} from "../../app";
+import { EpisodeResolver } from "../../util/episode-resolver";
 
 // NOTE: this sure looks like a circular dependency, but we're just
 // importing it for the type definition
 import { IPrimeOpts, PrimeApp } from ".";
+
+import { PrimeApi } from "./api";
+import { PrimeEpisodeCapabilities } from "./api/episode-capabilities";
 import { AvailabilityType, IAvailability, ISearchResult } from "./model";
+
+interface IPrimeResultExtras {
+    titleId: string;
+    type: ContentType;
+}
 
 export class PrimePlayerChannel implements IPlayerChannel<PrimeApp> {
 
@@ -42,9 +56,48 @@ export class PrimePlayerChannel implements IPlayerChannel<PrimeApp> {
         return playableForMovieById(titleId);
     }
 
+    public async findEpisodeFor(
+        item: IQueryResult,
+        query: IEpisodeQuery,
+    ): Promise<IEpisodeQueryResult | undefined> {
+        if (item.appName !== "PrimeApp") {
+            throw new Error("Given QueryResult for wrong app");
+        }
+
+        const extras = item as unknown as IPrimeResultExtras;
+        if (
+            extras.type !== ContentType.SERIES
+            && extras.type !== ContentType.SEASON
+        ) {
+            // shortcut out; it definitely does not have episodes
+            return;
+        }
+
+        const titleId = extras.titleId;
+        const api = new PrimeApi(this.options);
+        const episodes = new EpisodeResolver(
+            new PrimeEpisodeCapabilities(api, titleId),
+        );
+        const found = await episodes.query(query);
+        if (!found) return;
+
+        return {
+            appName: "PrimeApp",
+            cover: item.cover,
+            hasAds: item.hasAds,
+            isPreferred: item.isPreferred,
+            seriesTitle: item.title,
+            title: found.title,
+
+            async playable(app: PrimeApp) {
+                return app.play(found.titleId, {});
+            },
+        };
+    }
+
     public async *queryByTitle(
         title: string,
-    ): AsyncIterable<IQueryResult & { titleId: string }> {
+    ): AsyncIterable<IQueryResult & IPrimeResultExtras> {
         const api = new PrimeApi(this.options);
         for await (const result of api.search(title)) {
             yield {
@@ -55,6 +108,7 @@ export class PrimePlayerChannel implements IPlayerChannel<PrimeApp> {
                 playable: playableFromSearchResult(result),
                 title: result.title,
                 titleId: result.titleId,
+                type: result.type,
                 url: "https://www.amazon.com/gp/video/detail/" + result.id,
             };
         }

@@ -82,6 +82,23 @@ export interface IQueryResult {
     isPreferred?: boolean;
 }
 
+export interface IEpisodeQueryResult extends IQueryResult {
+    seriesTitle: string;
+}
+
+export interface ISeasonAndEpisodeQuery {
+    episodeIndex: number;
+    seasonIndex: number;
+}
+
+/**
+ * IEpisodeQuery is a map describing how to locate a specific
+ * episode to play within a series. Not all providers will
+ * support all query types; in such cases, their channel should
+ * return an empty set
+ */
+export type IEpisodeQuery = ISeasonAndEpisodeQuery;
+
 /**
  * The IPlayerChannel interface is a high-level, unified means of
  * interacting with a particular app and its service.
@@ -103,9 +120,24 @@ export interface IPlayerChannel<TSelf extends IApp> {
     createPlayable(url: string): Promise<IPlayable<AppFor<TSelf>>>;
 
     /**
+     * Find a specific {@see Player.play}'able episode for the
+     * given {@see IQueryResult}.
+     */
+    findEpisodeFor?(
+        item: IQueryResult,
+        query: IEpisodeQuery,
+    ): Promise<IEpisodeQueryResult | undefined>;
+
+    /**
      * Search for {@see Player.play}'able media by title
      */
     queryByTitle?(title: string): AsyncIterable<IQueryResult>;
+
+    /**
+     * Search for {@see Player.play}'able media by title, requesting a specific
+     * episode in the matching series
+     */
+    queryEpisodeForTitle?(title: string, query: IEpisodeQuery): AsyncIterable<IEpisodeQueryResult>;
 
     /**
      * Search for {@see Player.play}'able media per the source

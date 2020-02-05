@@ -3,6 +3,7 @@ import request, {OptionsWithUrl} from "request-promise-native";
 
 import _debug from "debug";
 import { read, Token, write } from "../../token";
+import { EpisodeContainer } from "../../util/episode-container";
 const debug = _debug("babbling:hbogo:api");
 
 const CONTENT_URL = "https://comet.api.hbo.com/content";
@@ -42,6 +43,18 @@ function extractIdFromUrn(urnOrId: string) {
     return lastColon === -1
         ? urnOrId
         : urnOrId.substring(lastColon + 1);
+}
+
+export function entityTypeFromUrn(urn: string) {
+    const [ , , entityType ] = urn.split(":");
+    return entityType as "series" | "season" | "episode" | "extra" | "feature";
+}
+
+export interface IHboEpisode {
+    urn: string;
+    indexInSeason: number;
+    season: number;
+    title: string;
 }
 
 export class HboGoApi {
@@ -86,6 +99,43 @@ export class HboGoApi {
         }
 
         return result;
+    }
+
+    public async getEpisodesForSeries(seriesUrn: string) {
+        const items = await this.fetchContent([seriesUrn]);
+
+        const container = new EpisodeContainer<IHboEpisode>();
+
+        // NOTE: not all episodes are returned, so extract titles
+        // for the ones that are
+        const episodeTitles: {[key: string]: string} = {};
+        for (const item of items) {
+            const type = entityTypeFromUrn(item.id);
+            if (type === "episode") {
+                episodeTitles[item.id] = item.body.titles.full;
+            }
+        }
+
+        for (const item of items) {
+            const type = entityTypeFromUrn(item.id);
+            if (type !== "season") continue;
+            if (!item.body.references || !item.body.references.episodes) continue;
+
+            const episodes = item.body.references.episodes as [];
+            for (let i = 0; i < episodes.length; ++i) {
+                const urn = episodes[i];
+                const season = item.body.seasonNumber - 1;
+                container.add({
+                    urn,
+
+                    indexInSeason: i,
+                    season,
+                    title: episodeTitles[urn] || `S${season + 1}E${i + 1}`,
+                });
+            }
+        }
+
+        return container;
     }
 
     /**

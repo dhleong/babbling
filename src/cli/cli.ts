@@ -71,7 +71,15 @@ parser.command(
         return withDevice(withConfig(args)).positional("title", {
             describe: "The title to play",
             type: "string",
-        }).demand("title");
+        }).demand("title")
+            .option("season", {
+                describe: "The season number to play. If `episode` is not provided, plays the first episode of that season.",
+                type: "number",
+            })
+            .option("episode", {
+                describe: "The episode number to play. Must not be provided without `season`.",
+                type: "number",
+            });
     }, findByTitle,
 );
 
