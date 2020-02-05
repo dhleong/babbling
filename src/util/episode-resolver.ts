@@ -8,7 +8,7 @@ export interface IEpisodeCapabilities<TEpisode extends IEpisodeBase> {
     /**
      * Yields batches of episodes, to support paginated implementations
      */
-    episodesInSeason?(season: number): AsyncIterable<TEpisode[]>;
+    episodesInSeason?(seasonIndex: number): AsyncIterable<TEpisode[]>;
 }
 
 export class EpisodeResolver<TEpisode extends IEpisodeBase> {

@@ -148,12 +148,12 @@ export class HuluApi {
     public episodeResolver(seriesId: string) {
         const api = this;
         return new EpisodeResolver<IHuluEpisode>({
-            async *episodesInSeason(season: number) {
+            async *episodesInSeason(seasonIndex: number) {
                 let page: string | undefined;
                 do {
                     const { items, nextPage } = await api.episodesInSeason(
                         seriesId,
-                        season + 1,
+                        seasonIndex + 1,
                         page,
                     );
 
