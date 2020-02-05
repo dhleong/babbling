@@ -3,6 +3,8 @@ const debug = _debug("babbling:player");
 
 import {
     IApp,
+    IEpisodeQuery,
+    IEpisodeQueryResult,
     IPlayable,
     IPlayableOptions,
     IPlayerChannel,
@@ -25,6 +27,10 @@ interface IConfiguredApp<TConstructor extends IPlayerEnabledConstructor<Opts, IA
     options: OptionsFor<TConstructor>;
     autoConfigure?: boolean;
 }
+
+export type AppSpecificErrorHandler = (app: string, e: Error) => void;
+const defaultAppSpecificErrorHandler: AppSpecificErrorHandler =
+    (app, e) => { throw e; };
 
 function pickAppForUrl(
     apps: Array<IConfiguredApp<IPlayerEnabledConstructor<any, any>>>,
@@ -98,13 +104,44 @@ class Player {
      */
     public queryByTitle(
         title: string,
-        onError: (app: string, e: Error) => void = (app, e) => { throw e; },
+        onError: AppSpecificErrorHandler = defaultAppSpecificErrorHandler,
     ): AsyncIterable<IQueryResult> {
         const iterables = this.apps.map(async function*(app) {
             if (!app.channel.queryByTitle) return;
 
             try {
                 yield *app.channel.queryByTitle(title);
+            } catch (e) {
+                onError(app.appConstructor.name, e);
+            }
+        });
+
+        return mergeAsyncIterables(iterables);
+    }
+
+    /**
+     * Get an AsyncIterable representing playables from across all
+     * configured apps. Each result can be passed directly to `play`.
+     * Returned IQueryResult instances represent a specific episode
+     * in a Series that matches the given title
+     *
+     * @param title The title to search for
+     * @param query A description of the desired episode to play
+     * @param onError Handler for when an app encounters an error. By
+     *                default, the error will just be thrown eagerly,
+     *                but you may prefer to simply log the error and
+     *                allow the other apps to provide their results
+     */
+    public queryEpisodeForTitle(
+        title: string,
+        query: IEpisodeQuery,
+        onError: AppSpecificErrorHandler = defaultAppSpecificErrorHandler,
+    ): AsyncIterable<IEpisodeQueryResult> {
+        const iterables = this.apps.map(async function*(app) {
+            if (!app.channel.queryEpisodeForTitle) return;
+
+            try {
+                yield *app.channel.queryEpisodeForTitle(title, query);
             } catch (e) {
                 onError(app.appConstructor.name, e);
             }
@@ -137,7 +174,7 @@ class Player {
      *                allow the other apps to provide their results
      */
     public queryRecommended(
-        onError: (app: string, e: Error) => void = (app, e) => { throw e; },
+        onError: AppSpecificErrorHandler = defaultAppSpecificErrorHandler,
     ) {
         const m = this.getRecommendationsMap();
         const iterables = Object.keys(m).map(async function*(appName) {

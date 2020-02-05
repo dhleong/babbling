@@ -1,7 +1,12 @@
-import { IPlayerChannel, IQueryResult } from "../../app";
+import {
+    IEpisodeQuery,
+    IEpisodeQueryResult,
+    IPlayerChannel,
+    IQueryResult,
+} from "../../app";
 
 import { HboGoApp, IHboGoOpts } from ".";
-import { HboGoApi } from "./api";
+import { entityTypeFromUrn, HboGoApi } from "./api";
 
 export class HboGoPlayerChannel implements IPlayerChannel<HboGoApp> {
 
@@ -16,9 +21,7 @@ export class HboGoPlayerChannel implements IPlayerChannel<HboGoApp> {
     public async createPlayable(url: string) {
         const urn = url.substring(url.lastIndexOf("/") + 1);
         try {
-            const [ , , entityType ] = urn.split(":");
-
-            switch (entityType) {
+            switch (entityTypeFromUrn(urn)) {
             case "series":
                 return async (app: HboGoApp) => app.resumeSeries(urn);
 
@@ -47,6 +50,32 @@ export class HboGoPlayerChannel implements IPlayerChannel<HboGoApp> {
                 appName: "HboGoApp",
                 playable: await this.createPlayable(url),
                 title: result.title,
+                url,
+            };
+        }
+    }
+
+    public async *queryEpisodeForTitle(
+        title: string,
+        query: IEpisodeQuery,
+    ): AsyncIterable<IEpisodeQueryResult> {
+        const api = new HboGoApi(this.options.token);
+
+        for await (const result of api.search(title)) {
+            if (entityTypeFromUrn(result.urn) !== "series") {
+                continue;
+            }
+
+            const episodes = await api.getEpisodesForSeries(result.urn);
+            const episode = episodes.get(query);
+            if (!episode) continue;
+
+            const url = "https://play.hbogo.com/" + episode.urn;
+            yield {
+                appName: "HboGoApp",
+                playable: await this.createPlayable(url),
+                seriesTitle: result.title,
+                title: episode.title,
                 url,
             };
         }
