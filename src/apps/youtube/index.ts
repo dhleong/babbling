@@ -10,6 +10,7 @@ import _debug from "debug";
 const debug = _debug("babbling:youtube");
 
 import { ICreds, WatchHistory, YoutubePlaylist } from "youtubish";
+import { isCredentials, isCredentialsPromise } from "youtubish/dist/creds";
 
 import { IVideo } from "youtubish/dist/model";
 import { ICastSession, IDevice } from "../../cast";
@@ -18,7 +19,7 @@ import { BaseApp } from "../base";
 import { awaitMessageOfType } from "../util";
 
 import { YoutubePlayerChannel } from "./channel";
-import { IPlaylistCache, IYoutubeOpts, YoutubeConfigurable } from "./config";
+import { IYoutubeOpts, YoutubeConfigurable } from "./config";
 
 export { IYoutubeOpts } from "./config";
 
@@ -126,7 +127,6 @@ export class YoutubeApp extends BaseApp {
 
     // youtubish state
     private readonly youtubish: ICreds | undefined;
-    private readonly playlistsCache: IPlaylistCache | undefined;
 
     constructor(device: IDevice, options: IYoutubeOpts = {}) {
         super(device, {
@@ -153,10 +153,6 @@ export class YoutubeApp extends BaseApp {
         this.bindData = Object.assign({}, BIND_DATA);
         if (options && options.deviceName) {
             this.bindData.name = options.deviceName;
-        }
-
-        if (this.youtubish && options) {
-            this.playlistsCache = options.playlistsCache;
         }
     }
 
@@ -482,15 +478,22 @@ export class YoutubeApp extends BaseApp {
     private async getCookies() {
         const readCookies = read(this.cookies);
         if (readCookies) return readCookies;
-        if (!this.youtubish) return undefined;
 
-        if (this.youtubish instanceof Promise) {
-            const filled = await this.youtubish;
+        const youtubish = this.youtubish;
+        if (!youtubish) return undefined;
+
+        if (isCredentialsPromise(youtubish)) {
+            const filled = await youtubish;
             this.cookies = filled.cookies;
             return filled.cookies;
         }
 
-        return this.youtubish.cookies;
+        if (isCredentials(youtubish)) {
+            return youtubish.cookies;
+        }
+
+        const creds = await youtubish.get();
+        if (creds) return creds.cookies;
     }
 
     private playlistById(id: string) {
@@ -498,18 +501,6 @@ export class YoutubeApp extends BaseApp {
             throw new Error("Cannot resume playlist without youtubish credentials");
         }
 
-        // TODO probably, expire cache periodically
-        if (this.playlistsCache && this.playlistsCache[id]) {
-            debug("Reusing playlist from cache", id);
-            return this.playlistsCache[id] as YoutubePlaylist;
-        } else {
-            const playlist = new YoutubePlaylist(this.youtubish, id);
-            debug("Fresh playlist", id);
-
-            if (this.playlistsCache) {
-                this.playlistsCache[id] = playlist;
-            }
-            return playlist;
-        }
+        return new YoutubePlaylist(this.youtubish, id);
     }
 }

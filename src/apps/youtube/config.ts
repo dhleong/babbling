@@ -3,10 +3,6 @@ import { ICreds } from "youtubish";
 import { CookiesConfigurable } from "../../cli/configurables";
 import { Token } from "../../token";
 
-export interface IPlaylistCache {
-    [id: string]: any;
-}
-
 export interface IYoutubeOpts {
     /**
      * A string of cookies as might be retrieved from the "copy as
@@ -27,16 +23,6 @@ export interface IYoutubeOpts {
      * It is not necessary to provide both this *and* `cookies`.
      */
     youtubish?: ICreds;
-
-    /**
-     * Optional cache storage for playlist data, when youtubish
-     * credentials are provided for resuming playlists. If not
-     * provided, playlists will be fetched for each request.
-     *
-     * It is recommended to use the cache for long-running
-     * processes
-     */
-    playlistsCache?: IPlaylistCache;
 
     /**
      * The name of the "device" to show when we connect to the

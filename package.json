@@ -15,7 +15,6 @@
     "check": "npm run lint && npm run build && npm run test",
     "clean": "rm -rf dist",
     "lint": "tslint -p .",
-    "prepare": "npm run build",
     "prepublishOnly": "npm run check",
     "test": "mocha -r ts-node/register 'test/**/*-test.ts'"
   },
@@ -46,7 +45,7 @@
     "request-promise-native": "^1.0.8",
     "uuid": "^3.4.0",
     "yargs": "^13.3.0",
-    "youtubish": "^1.1.0"
+    "youtubish": "^1.2.0"
   },
   "devDependencies": {
     "@types/chai": "^4.2.8",
