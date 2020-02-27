@@ -20,6 +20,7 @@ import { awaitMessageOfType } from "../util";
 
 import { YoutubePlayerChannel } from "./channel";
 import { IYoutubeOpts, YoutubeConfigurable } from "./config";
+import { TokenYoutubishCredsAdapter } from "./util";
 
 export { IYoutubeOpts } from "./config";
 
@@ -145,7 +146,7 @@ export class YoutubeApp extends BaseApp {
 
             this.cookies = options.cookies;
 
-            this.youtubish = { cookies };
+            this.youtubish = new TokenYoutubishCredsAdapter(options.cookies);
         } else if (options.youtubish) {
             this.youtubish = options.youtubish;
         }
