@@ -17,7 +17,11 @@ export const DEFAULT_CONFIG_PATH = pathlib.join(
 export async function *getAppConstructors(): AsyncIterable<IAppConstructor<any, IApp>> {
     const allExports = require("../index");
     for (const name of Object.keys(allExports)) {
-        if (name.endsWith("App") && allExports[name] instanceof Function) {
+        if (
+            name.endsWith("App")
+            && !name.endsWith("BaseApp")
+            && allExports[name] instanceof Function
+        ) {
             yield allExports[name];
         }
     }

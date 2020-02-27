@@ -2,7 +2,6 @@ export { ChromecastDevice } from "./device";
 export { PlayerBuilder } from "./player";
 export { HboGoApp, IHboGoOpts, IHboGoPlayOptions } from "./apps/hbogo";
 export { HuluApp, IHuluOpts } from "./apps/hulu";
-export { BabblerPrimeApp, IBabblerPrimeOpts } from "./apps/babbler-prime";
 export { PrimeApp, IPrimeOpts } from "./apps/prime";
 export { YoutubeApp, IYoutubeOpts } from "./apps/youtube";
 
