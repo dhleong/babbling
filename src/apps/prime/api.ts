@@ -8,7 +8,7 @@ import { gzip } from "zlib";
 import { ContentType } from "chakram-ts";
 import { generateDeviceId } from "chakram-ts/dist/util";
 import request from "request-promise-native";
-import generateRandomUUID from "uuid/v4";
+import { v4 as generateRandomUUID } from "uuid";
 
 import { toArray } from "../../async";
 
@@ -706,7 +706,10 @@ export class PrimeApi {
 function getIpAddress() {
     const ifaces = os.networkInterfaces();
     for (const ifaceName of Object.keys(ifaces)) {
-        for (const iface of ifaces[ifaceName]) {
+        const list = ifaces[ifaceName];
+        if (!list) continue;
+
+        for (const iface of list) {
             if (!iface.internal && iface.family === "IPv4") {
                 return iface.address;
             }
