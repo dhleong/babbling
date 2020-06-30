@@ -64,6 +64,7 @@
     "chai": "^4.2.0",
     "mocha": "^8.0.1",
     "ts-mockito": "^2.6.1",
+    "tslint": "^6.1.2",
     "typescript": "^3.9.5"
   },
   "optionalDependencies": {
