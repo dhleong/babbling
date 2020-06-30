@@ -7,6 +7,7 @@ import { IDevice } from "../../cast";
 import { BaseApp, MEDIA_NS } from "../base";
 import { awaitMessageOfType } from "../util";
 
+import { DisneyPlayerChannel } from "./channel";
 import { IDisneyOpts } from "./config";
 
 export { IDisneyOpts } from "./config";
@@ -14,6 +15,11 @@ export { IDisneyOpts } from "./config";
 const APP_ID = "C3DE6BC2";
 
 export class DisneyApp extends BaseApp {
+
+    // declare Player support
+    public static createPlayerChannel(options: IDisneyOpts) {
+        return new DisneyPlayerChannel(options);
+    }
 
     constructor(device: IDevice, private readonly options: IDisneyOpts) {
         super(device, {
