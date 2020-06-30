@@ -7,6 +7,7 @@ import { IDevice } from "../../cast";
 import { BaseApp, MEDIA_NS } from "../base";
 import { awaitMessageOfType } from "../util";
 
+import { DisneyApi } from "./api";
 import { DisneyPlayerChannel } from "./channel";
 import { IDisneyOpts } from "./config";
 
@@ -97,6 +98,16 @@ export class DisneyApp extends BaseApp {
         } while (!ms.status.length);
 
         debug("LOAD complete", ms.status[0].media);
+    }
+
+    public async playSeriesById(seriesId: string) {
+        debug("find resume for series", seriesId);
+
+        const api = new DisneyApi(this.options);
+        const resume = await api.pickResumeEpisodeForSeries(seriesId);
+        debug("... resume:", resume);
+
+        await this.playById(resume.contentId);
     }
 
 }

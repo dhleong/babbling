@@ -47,12 +47,7 @@ export class DisneyPlayerChannel implements IPlayerChannel<DisneyApp> {
             const seriesId = seriesMatch[1];
 
             return async (app: DisneyApp, opts: IPlayableOptions) => {
-                // TODO: this probably belongs in the app:
-                debug("find resume for series", seriesId);
-
-                const resume = await this.api.pickResumeEpisodeForSeries(seriesId);
-                debug("... resume:", resume);
-                await app.playById(resume.contentId);
+                return app.playSeriesById(seriesId);
             };
         }
 
@@ -76,7 +71,10 @@ export class DisneyPlayerChannel implements IPlayerChannel<DisneyApp> {
                 return item.field === "description" && item.type === "full";
             });
 
-            if (!titleObj) continue;
+            if (!titleObj) {
+                debug("No full title object for", result);
+                continue;
+            }
 
             let url: string;
             if (result.encodedSeriesId) {
