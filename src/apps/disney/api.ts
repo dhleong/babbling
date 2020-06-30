@@ -55,7 +55,16 @@ export interface ISearchHit {
     seasonId?: string;
     seasonSequenceNumber?: number;
     seriesId?: string;
+    type: "DmcVideo" | "DmcSeries" | "StandardCollection";
     videoId: string;
+}
+
+export interface ICollection {
+    meta: { hits: number, offset: number, page_size: number };
+    id: string;
+    items?: ISearchHit[];
+    title: string;
+    type: "BecauseYouSet" | "ContinueWatchingSet" | "CuratedSet" | "RecommendationSet"; // others?
 }
 
 export class DisneyApi {
@@ -85,6 +94,51 @@ export class DisneyApi {
         });
 
         return disneysearch.hits.map((obj: any) => obj.hit as ISearchHit) as ISearchHit[];
+    }
+
+    public async getCollections() {
+        const { containers } = await this.request("CollectionBySlug", {
+            contentClass: "home",
+            slug: "home",
+        });
+
+        const collections: ICollection[] = containers.filter((container: any) =>
+            // NOTE: these are usually links to eg Marvel collection
+            container.set.contentClass !== "brand",
+        ).map((container: any) => {
+            const { set } = container;
+            const c: ICollection = {
+                id: set.refId,
+                items: set.items,
+                meta: set.meta,
+                title: set.texts[0].content,
+                type: set.refType,
+            };
+
+            if (!c.id && set.setId) {
+                c.id = set.setId;
+                c.type = set.type;
+            }
+
+            return c;
+        });
+
+        return collections;
+    }
+
+    public async loadCollection(collection: ICollection) {
+        if (collection.items && collection.items.length) {
+            debug(`collection ${collection.title} was embedded`);
+            return collection.items;
+        }
+
+        debug(`loading collection ${collection.title}...`);
+        const { items } = await this.request("SetBySetId", {
+            setId: collection.id,
+            setType: collection.type,
+        });
+
+        return items;
     }
 
     public async ensureTokensValid() {
