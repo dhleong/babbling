@@ -18,9 +18,13 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
 
+    - name: Install other dependencies
+      run: |
+        sudo apt install libavahi-compat-libdnssd-dev
+
     - name: npm install and test
       run: |
-        npm install
+        npm ci
         npm run check
       env:
         CI: true
