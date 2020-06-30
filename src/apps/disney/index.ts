@@ -9,7 +9,7 @@ import { awaitMessageOfType } from "../util";
 
 import { DisneyApi } from "./api";
 import { DisneyPlayerChannel } from "./channel";
-import { IDisneyOpts } from "./config";
+import { DisneyConfigurable, IDisneyOpts } from "./config";
 
 export { IDisneyOpts } from "./config";
 
@@ -19,6 +19,7 @@ export class DisneyApp extends BaseApp {
 
     // declare Player support
     public static tokenConfigKeys = [ "token", "refreshToken" ];
+    public static configurable = new DisneyConfigurable();
     public static createPlayerChannel(options: IDisneyOpts) {
         return new DisneyPlayerChannel(options);
     }
