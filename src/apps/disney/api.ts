@@ -1,15 +1,21 @@
 import _debug from "debug";
 const debug = _debug("babbling:DisneyApp:api");
 
+import jwt from "jsonwebtoken";
 import request from "request-promise-native";
 
-import { read/* , Token, write*/ } from "../../token";
+import { read, write } from "../../token";
 
 import { IDisneyOpts } from "./config";
+
+const CLIENT_API_KEY_URL = "https://www.disneyplus.com/home";
+const TOKEN_URL = "https://global.edge.bamgrid.com/token";
 
 const GRAPHQL_URL_BASE = "https://search-api-disney.svcs.dssott.com/svc/search/v2/graphql/persisted/query/core/";
 const SEARCH_KEY = "disneysearch";
 const RESUME_SERIES_KEY = "ContinueWatchingSeries";
+
+const MIN_TOKEN_VALIDITY_MS = 5 * 60_000;
 
 export interface ISearchHit {
     images: Array<{
@@ -54,6 +60,8 @@ export interface ISearchHit {
 
 export class DisneyApi {
 
+    private clientInfo?: { apiKey: string, id: string };
+
     constructor(
         private readonly options: IDisneyOpts,
     ) {}
@@ -89,8 +97,86 @@ export class DisneyApi {
     }
 
     private async ensureToken() {
-        // TODO refresh if necessary?
-        return read(this.options.token);
+        const token = read(this.options.token);
+
+        const tokenData = jwt.decode(token) as any;
+        if (!tokenData) {
+            debug("Invalid token:", tokenData);
+            debug("From:", this.options.token);
+            throw new Error("Invalid token");
+        }
+
+        if (tokenData.exp * 1000 > Date.now() + MIN_TOKEN_VALIDITY_MS) {
+            debug("access token is valid");
+            return token;
+        }
+
+        debug("Refreshing access token...");
+
+        const [clientInfo, refreshToken] = await Promise.all([
+            this.getClientInfo(),
+            read(this.options.refreshToken),
+        ]);
+        debug("got client=", clientInfo);
+
+        const response = await request({
+            form: {
+                grant_type: "refresh_token",
+                latitude: 0,
+                longitude: 0,
+                platform: "browser",
+                refresh_token: refreshToken,
+            },
+            headers: {
+                "authorization": `Bearer ${clientInfo.apiKey}`,
+                "x-bamsdk-client-id": clientInfo.id,
+                "x-bamsdk-platform": "macintosh",
+                "x-bamsdk-version": "4.8",
+            },
+            json: true,
+            method: "POST",
+            url: TOKEN_URL,
+        });
+
+        const newToken = response.access_token;
+        const newRefreshToken = response.refresh_token;
+
+        if (typeof this.options.token === "string") {
+            this.options.token = newToken;
+            this.options.refreshToken = newRefreshToken;
+        } else {
+            debug("Persisting new tokens...");
+            await Promise.all([
+                write(this.options.token, newToken),
+                write(this.options.refreshToken, newRefreshToken),
+            ]);
+        }
+
+        return newToken;
+    }
+
+    private async getClientInfo() {
+        const cached = this.clientInfo;
+        if (cached) return cached;
+
+        const html = await request({
+            url: CLIENT_API_KEY_URL,
+        });
+
+        const apiKeyMatch = (html as string).match(/"clientApiKey":"([^"]+)/);
+        if (!apiKeyMatch) throw new Error("Couldn't extract API key");
+
+        const idMatch = (html as string).match(/"clientId":"(disney-[^"]+)"/);
+        if (!idMatch) throw new Error("Couldn't extract client ID");
+
+        const result = {
+            apiKey: apiKeyMatch[1],
+            id: idMatch[1],
+        };
+
+        this.clientInfo = result;
+
+        return result;
     }
 
     private async request(
