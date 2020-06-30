@@ -18,6 +18,7 @@ const APP_ID = "C3DE6BC2";
 export class DisneyApp extends BaseApp {
 
     // declare Player support
+    public static tokenConfigKeys = [ "token", "refreshToken" ];
     public static createPlayerChannel(options: IDisneyOpts) {
         return new DisneyPlayerChannel(options);
     }
@@ -38,18 +39,10 @@ export class DisneyApp extends BaseApp {
     ) {
         const language = opts.language || "en";
 
-        const s = await this.ensureCastSession();
-
-        const credentials = {
-            accessState: JSON.stringify({
-                contextState: {
-                    modes: [ "bamIdentity" ],
-                },
-                refreshToken: this.options.refreshToken,
-                token: this.options.token,
-                version: "4.8",
-            }),
-        };
+        const [s, credentials] = await Promise.all([
+            this.ensureCastSession(),
+            this.loadCredentials(),
+        ]);
 
         const media: IMedia = {
             contentId: entityId,
@@ -108,6 +101,22 @@ export class DisneyApp extends BaseApp {
         debug("... resume:", resume);
 
         await this.playById(resume.contentId);
+    }
+
+    private async loadCredentials() {
+        const api = new DisneyApi(this.options);
+        const tokens = await api.ensureTokensValid();
+
+        return {
+            accessState: JSON.stringify({
+                contextState: {
+                    modes: [ "bamIdentity" ],
+                },
+                refreshToken: tokens.refreshToken,
+                token: tokens.token,
+                version: "4.8",
+            }),
+        };
     }
 
 }

@@ -1,5 +1,7 @@
+import { Token } from "../../token";
+
 export interface IDisneyOpts {
     // TODO ?
-    token: string;
-    refreshToken: string;
+    token: Token;
+    refreshToken: Token;
 }

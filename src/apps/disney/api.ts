@@ -3,6 +3,8 @@ const debug = _debug("babbling:DisneyApp:api");
 
 import request from "request-promise-native";
 
+import { read/* , Token, write*/ } from "../../token";
+
 import { IDisneyOpts } from "./config";
 
 const GRAPHQL_URL_BASE = "https://search-api-disney.svcs.dssott.com/svc/search/v2/graphql/persisted/query/core/";
@@ -77,9 +79,18 @@ export class DisneyApi {
         return disneysearch.hits.map((obj: any) => obj.hit as ISearchHit) as ISearchHit[];
     }
 
+    public async ensureTokensValid() {
+        await this.ensureToken();
+        const [ token, refreshToken ] = await Promise.all([
+            read(this.options.token),
+            read(this.options.refreshToken),
+        ]);
+        return { token, refreshToken };
+    }
+
     private async ensureToken() {
         // TODO refresh if necessary?
-        return this.options.token;
+        return read(this.options.token);
     }
 
     private async request(
