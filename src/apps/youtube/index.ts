@@ -83,8 +83,7 @@ export function fillJar(
         const cookie = tough.Cookie.parse(part);
         if (!cookie) throw new Error();
 
-        cookie.expires = "Infinity";
-        jar.setCookie(cookie, url);
+        jar.setCookie(cookie.cookieString(), url);
     }
 }
 
