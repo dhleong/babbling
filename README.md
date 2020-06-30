@@ -21,6 +21,7 @@ Currently, Babbling supports casting videos from:
 - [HBO Go][2]
 - [Hulu][3]
 - [Amazon Video][5]
+- [Disney+][6]
 
 ### Typescript/Javascript
 
@@ -52,10 +53,11 @@ const player = (await PlayerBuilder.autoInflate())
 await player.playUrl("https://www.youtube.com/watch?v=byva0hOj8CU&list=PL1tiwbzkOjQxD0jjAE7PsWoaCrs0EkBH2");
 ```
 
-As of writing, all the apps currently supported also support the
-[Player][4] interface, allowing you to just copy the URL of the thing
-you want to watch and paste it in, whether it's for a Series, a
-Playlist, or a specific Episode.
+As of writing, all the apps currently supported also support the [Player][4]
+interface, allowing you to just copy the URL of the thing you want to watch
+and paste it in, whether it's for a Series, a Playlist, or a specific Episode.
+In addition to URL-based playback, most apps allow you to search for what you
+want—see the full [Player API](#player-api) section below.
 
 This does gloss over something slightly, which is authenticating each
 app. While Youtube can work fine without auth, if you have Youtube RED
@@ -90,8 +92,80 @@ babbling auth:prime <your@amazon-login>
 You will be prompted for your password, and, if everything goes well, you
 well then be able to use `babbling cast <url>`, etc., for Amazon videos!
 
+## Player API
+
+You've seen the `playUrl` tool above, but here's everything the `Player`
+lets you do:
+
+### `playUrl(url: string, opts: IPlayableOptions = {}): Promise`
+
+- `url`: The URL of the video or series you want to play
+- `opts`: An optional options map:
+    - `resume: boolean`: if `false`, will *not* attempt to resume plaback
+
+Play a video or series by its URL, as found in a browser. Returns a `Promise`
+that resolves when the video has been started.
+
+### `play(result: IQueryResult, opts: IPlayableOptions = {}): Promise`
+
+- `result`: A Result object
+- `opts`: As above
+
+Play a search result from one of the other query methods. Returns a `Promise`
+that resolves when the video has been started.
+
+### `findEpisodeFor(item: IQueryResult, query: IEpisodeQuery): Promise<IEpisodeQueryResult | undefined>`
+
+- `item`: A Result object
+- `query`: An Episode Query object:
+    - `episodeIndex`: 0-based index within a season
+    - `seasonIndex`: 0-based season index
+
+Try to find an episode for the given Result matching the given query. The
+result, if not-`undefined`, can be used with `play()`. The Promise will
+resolve to `undefined` if the `item` is not a series, or there is no such
+season/episode combination.
+
+### `queryByTitle(title: string, onError?: AppSpecificErrorHandler): AsyncIterable<IQueryResult>`
+
+- `title`: The media item title you want to play
+- `onError`: A handler when one app encounters an error:
+    - `fn(app: string, e: Error)`
+    - If omitted, every error will be thrown; you may instead want to simply
+      log the error so errors in one app don't crash the whole query
+
+Look for media items (eg series or movies) by their title. Returns an
+AsyncIterable of Query Results, to be consumed as eg:
+
+```js
+for await (const result of p.queryByTitle("firefly")) {
+    // do something with `result`
+}
+```
+
+### `queryEpisodeForTitle(title: string, query: IEpisodeQuery, onError: AppSpecificErrorHandler): AsyncIterable<IEpisodeQueryResult>`
+
+This method is sort of a combination of `queryByTitle` and `findEpisodeFor`
+(see above), and the arguments are the same as for those methods. Some apps
+can perform this query efficiently, and it is the most common use-case, but
+others will be implemented naively as a composition of `queryByTitle` and
+`findEpisodeFor`.
+
+### `getRecommendationsMap(): Promise<Map<string, AsyncIterable<IQueryResult>>>`
+
+Returns a map whose keys are app names (eg: `"HuluApp"`) and the values are
+`AsyncIterable` objects in the same format as for `queryByTitle`. The query
+results returned by this method represent app-provided media recommendations.
+
+### `queryRecommended(onError?: AppSpecificErrorHandler): AsyncIterable<IQueryResult>`
+
+Returns an `AsyncIterable` of recommendations as returned from
+`getRecommendationsMap` that has results from all the different apps
+interleaved together.
+
 [1]: src/apps/youtube/index.ts
 [2]: src/apps/hbogo/index.ts
 [3]: src/apps/hulu/index.ts
 [4]: src/player.ts
 [5]: src/apps/prime/index.ts
+[6]: src/apps/disney/index.ts

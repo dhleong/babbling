@@ -66,6 +66,6 @@
     "typescript": "^3.5.2"
   },
   "optionalDependencies": {
-    "chromagnon": "^1.0.2"
+    "chromagnon": "^1.1.1"
   }
 }
