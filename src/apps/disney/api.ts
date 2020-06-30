@@ -5,6 +5,7 @@ import jwt from "jsonwebtoken";
 import request from "request-promise-native";
 
 import { read, write } from "../../token";
+import { EpisodeResolver } from "../../util/episode-resolver";
 
 import { IDisneyOpts } from "./config";
 
@@ -49,6 +50,7 @@ export interface ISearchHit {
     contentId: string;
     encodedSeriesId?: string;
     episodeNumber?: number;
+    episodeSequenceNumber?: number;
     originalLanguage: string;
     programType: "movie";
     runtimeMillis: 5337000;
@@ -57,6 +59,11 @@ export interface ISearchHit {
     seriesId?: string;
     type: "DmcVideo" | "DmcSeries" | "StandardCollection";
     videoId: string;
+}
+
+export interface IDisneyEpisode extends ISearchHit {
+    indexInSeason: number;
+    season: number;
 }
 
 export interface ICollection {
@@ -141,6 +148,22 @@ export class DisneyApi {
         return items;
     }
 
+    public async getSeriesEpisodes(encodedSeriesId: string) {
+        const response = await this.request("DmcSeriesBundle", {
+            episodePageSize: 12,
+            seriesId: encodedSeriesId,
+        });
+        const seasons = response.seasons.seasons;
+
+        debug("loaded seasons for", encodedSeriesId, " = ", seasons);
+        const api = this;
+        return new EpisodeResolver<IDisneyEpisode>({
+            async *episodesInSeason(seasonIndex: number) {
+                yield *api.getSeasonEpisodeBatchesById(seasons[seasonIndex].seasonId);
+            },
+        });
+    }
+
     public async ensureTokensValid() {
         await this.ensureToken();
         const [ token, refreshToken ] = await Promise.all([
@@ -148,6 +171,40 @@ export class DisneyApi {
             read(this.options.refreshToken),
         ]);
         return { token, refreshToken };
+    }
+
+    private async *getSeasonEpisodeBatchesById(seasonId: string) {
+        const episodePageSize = 25; // can we bump this?
+        let episodePage = 0;
+
+        while (true) {
+            const { meta, videos } = await this.request("DmcEpisodes", {
+                episodePage,
+                episodePageSize,
+                seasonId: [seasonId],
+            });
+
+            const results: IDisneyEpisode[] = [];
+            for (const video of videos as ISearchHit[]) {
+                if (video.episodeSequenceNumber === undefined) continue;
+                if (video.seasonSequenceNumber === undefined) continue;
+
+                results.push({
+                    ...video,
+
+                    indexInSeason: video.episodeSequenceNumber,
+                    season: video.seasonSequenceNumber,
+                });
+            }
+            if (!results.length) break;
+
+            yield results;
+
+            if (!meta) break;
+            if (videos.length < meta.episode_page_size) break;
+
+            episodePage++;
+        }
     }
 
     private async ensureToken() {

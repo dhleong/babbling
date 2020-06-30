@@ -2,8 +2,8 @@ import _debug from "debug";
 const debug = _debug("babbling:DisneyApp:channel");
 
 import {
-    // IEpisodeQuery,
-    // IEpisodeQueryResult,
+    IEpisodeQuery,
+    IEpisodeQueryResult,
     IPlayableOptions,
     IPlayerChannel,
     IQueryResult,
@@ -39,6 +39,44 @@ export class DisneyPlayerChannel implements IPlayerChannel<DisneyApp> {
 
     public async createPlayable(url: string) {
         return this.createPlayableSync(url);
+    }
+
+    public async findEpisodeFor(
+        item: IQueryResult,
+        query: IEpisodeQuery,
+    ): Promise<IEpisodeQueryResult | undefined> {
+        if (item.appName !== "DisneyApp") {
+            throw new Error("Given QueryResult for wrong app");
+        }
+
+        const url = item.url!;
+        const seriesId = this.getSeriesIdFromUrl(url);
+        if (!seriesId) {
+            // not a series
+            return;
+        }
+
+        const episodes = await this.api.getSeriesEpisodes(seriesId);
+        const episode = await episodes.query(query);
+        if (!episode) return;
+
+        const queryResult = this.searchHitToQueryResult(episode, {
+            playEpisodeDirectly: true,
+        });
+        if (!queryResult) return;
+
+        const seriesTitleObj = episode.texts.find(text =>
+            text.field === "title"
+                && text.type === "full"
+                && text.sourceEntity === "series",
+        );
+        const seriesTitle = seriesTitleObj ? seriesTitleObj.content : "";
+
+        return {
+            ...queryResult,
+
+            seriesTitle,
+        };
     }
 
     /**
@@ -77,12 +115,25 @@ export class DisneyPlayerChannel implements IPlayerChannel<DisneyApp> {
         }
     }
 
-    private searchHitToQueryResult(result: ISearchHit) {
+    private searchHitToQueryResult(
+        result: ISearchHit,
+        { playEpisodeDirectly }: {
+            playEpisodeDirectly?: boolean,
+        } = {},
+    ) {
         const id = result.contentId;
-        const titleObj = result.texts.find(item => {
+        const isSeries = result.encodedSeriesId;
+        const sourceEntity = (isSeries && playEpisodeDirectly)
+            ? "program"
+            : null;
+
+        const filteredTexts = result.texts.filter(item => {
+            return !sourceEntity || item.sourceEntity === sourceEntity;
+        });
+        const titleObj = filteredTexts.find(item => {
             return item.field === "title" && item.type === "full";
         });
-        const descObj = result.texts.find(item => {
+        const descObj = filteredTexts.find(item => {
             return item.field === "description" && item.type === "full";
         });
 
@@ -92,7 +143,7 @@ export class DisneyPlayerChannel implements IPlayerChannel<DisneyApp> {
         }
 
         let url: string;
-        if (result.encodedSeriesId) {
+        if (isSeries && !playEpisodeDirectly) {
             const slugObj = result.texts.find(item => {
                 return item.field === "title" && item.type === "slug";
             });
@@ -122,16 +173,19 @@ export class DisneyPlayerChannel implements IPlayerChannel<DisneyApp> {
             };
         }
 
-        const seriesMatch = url.match(/\/series\/[^\/]+\/(.+)$/);
-        if (seriesMatch && seriesMatch[1]) {
-            const seriesId = seriesMatch[1];
-
+        const seriesId = this.getSeriesIdFromUrl(url);
+        if (seriesId) {
             return async (app: DisneyApp, opts: IPlayableOptions) => {
                 return app.playSeriesById(seriesId);
             };
         }
 
         throw new Error(`Unsure how to play ${url}`);
+    }
+
+    private getSeriesIdFromUrl(url: string) {
+        const seriesMatch = url.match(/\/series\/[^\/]+\/(.+)$/);
+        if (seriesMatch) return seriesMatch[1];
     }
 
 }
