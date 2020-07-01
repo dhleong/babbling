@@ -37,21 +37,6 @@ export interface IPlayableOptions {
      * for this value.
      */
     resume?: boolean;
-
-    /**
-     * By default, if the app supports it (and we know how) we will
-     * attempt to skip intros and recaps, provided that doing so
-     * wouldn't lose a significant amount of watchable content.
-     */
-    skipIntros?: boolean;
-    skipRecaps?: boolean;
-
-    /**
-     * See [skipIntros]. If the amount of time before the block of
-     * time represented by an intro/recap/combination thereof is longer
-     * than this duration (in milliseconds), we won't skip.
-     */
-    maxSkippableDurationMs?: number;
 }
 
 export type IPlayable<T extends IApp> = (app: T, opts: IPlayableOptions) => Promise<void>;
