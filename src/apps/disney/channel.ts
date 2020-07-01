@@ -17,6 +17,7 @@ import { DisneyApi, ICollection, ISearchHit } from "./api";
 
 const PLAYBACK_URL = "https://www.disneyplus.com/video/";
 const SERIES_URL = "https://www.disneyplus.com/series/";
+const MOVIE_URL = "https://www.disneyplus.com/movies/";
 
 const RECOMMENDATION_SET_TYPES = new Set([
     "RecommendationSet",
@@ -50,7 +51,7 @@ export class DisneyPlayerChannel implements IPlayerChannel<DisneyApp> {
         }
 
         const url = item.url!;
-        const seriesId = this.getSeriesIdFromUrl(url);
+        const seriesId = getSeriesIdFromUrl(url);
         if (!seriesId) {
             // not a series
             return;
@@ -123,7 +124,8 @@ export class DisneyPlayerChannel implements IPlayerChannel<DisneyApp> {
     ) {
         const id = result.contentId;
         const isSeries = result.encodedSeriesId;
-        const sourceEntity = (isSeries && playEpisodeDirectly)
+        const isMovie = !isSeries && result.programType === "movie";
+        const sourceEntity = (isMovie || (isSeries && playEpisodeDirectly))
             ? "program"
             : null;
 
@@ -148,7 +150,13 @@ export class DisneyPlayerChannel implements IPlayerChannel<DisneyApp> {
                 return item.field === "title" && item.type === "slug";
             });
             url = SERIES_URL + slugObj!!.content + "/" + result.encodedSeriesId;
+        } else if (isMovie && result.family) {
+            const slugObj = result.texts.find(item => {
+                return item.field === "title" && item.type === "slug";
+            });
+            url = MOVIE_URL + slugObj!!.content + "/" + result.family.encodedFamilyId;
         } else {
+            debug("non-series result:", result);
             url = PLAYBACK_URL + id;
         }
 
@@ -173,19 +181,32 @@ export class DisneyPlayerChannel implements IPlayerChannel<DisneyApp> {
             };
         }
 
-        const seriesId = this.getSeriesIdFromUrl(url);
+        const seriesId = getSeriesIdFromUrl(url);
         if (seriesId) {
             return async (app: DisneyApp, opts: IPlayableOptions) => {
-                return app.playSeriesById(seriesId);
+                return app.playSeriesById(seriesId, opts);
+            };
+        }
+
+        const movieId = getMovieIdFromUrl(url);
+        if (movieId) {
+            return async (app: DisneyApp, opts: IPlayableOptions) => {
+                return app.playByFamilyId(movieId, opts);
             };
         }
 
         throw new Error(`Unsure how to play ${url}`);
     }
 
-    private getSeriesIdFromUrl(url: string) {
-        const seriesMatch = url.match(/\/series\/[^\/]+\/(.+)$/);
-        if (seriesMatch) return seriesMatch[1];
-    }
-
 }
+
+function getSeriesIdFromUrl(url: string) {
+    const m = url.match(/\/series\/[^\/]+\/(.+)$/);
+    if (m) return m[1];
+}
+
+function getMovieIdFromUrl(url: string) {
+    const m = url.match(/\/movies\/[^\/]+\/(.+)$/);
+    if (m) return m[1];
+}
+

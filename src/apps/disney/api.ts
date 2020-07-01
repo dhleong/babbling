@@ -35,7 +35,7 @@ export interface ISearchHit {
             startMillis: number,
             type: "offset",
         }>;
-        milestoneType: "up_next",
+        milestoneType: "up_next" | "intro_start" | "intro_end" | "recap_start" | "recap_end",
     }>;
 
     texts: Array<{
@@ -46,6 +46,10 @@ export interface ISearchHit {
         targetEntity: "series" | "program",
         type: "brief" | "full" | "medium" | "slug" | "sort",
     }>;
+
+    family?: {
+        encodedFamilyId: string;
+    };
 
     contentId: string;
     encodedSeriesId?: string;
@@ -82,12 +86,46 @@ export class DisneyApi {
         private readonly options: IDisneyOpts,
     ) {}
 
+    public async getResumeForFamilyId(familyId: string) {
+        const data = await this.request("ContinueWatchingVideo", {
+            familyId,
+        });
+
+        if (data.resume && data.resume.userMeta) {
+            debug("resume with =", data.resume);
+            return {
+                contentId: data.resume.contentId as string,
+                startTime: data.resume.userMeta.playhead as number,
+            }
+        }
+
+        return {
+            contentId: data.labels.watchlistLabel.contentId as string,
+        };
+    }
+
     public async pickResumeEpisodeForSeries(seriesId: string) {
         const data = await this.request(RESUME_SERIES_KEY, {
             seriesId,
         });
 
-        return data.resume as ISearchHit;
+        const episode = data.resume as ISearchHit;
+
+        let startTime: number | undefined;
+        if (data.episodesWithProgress) {
+            const info = data.episodesWithProgress.find((progress: any) =>
+                progress.contentId === episode.contentId,
+            );
+            if (info && info.userMeta) {
+                debug("resume with info=", info);
+                startTime = info.userMeta.playhead; // playhead is in seconds
+            }
+        }
+
+        return {
+            startTime,
+            episode,
+        };
     }
 
     public async search(

@@ -10,6 +10,7 @@ import { awaitMessageOfType } from "../util";
 import { DisneyApi } from "./api";
 import { DisneyPlayerChannel } from "./channel";
 import { DisneyConfigurable, IDisneyOpts } from "./config";
+import { IPlayableOptions } from "../../app";
 
 export { IDisneyOpts } from "./config";
 
@@ -94,14 +95,46 @@ export class DisneyApp extends BaseApp {
         debug("LOAD complete", ms.status[0].media);
     }
 
-    public async playSeriesById(seriesId: string) {
+    public async playSeriesById(
+        seriesId: string,
+        opts: IPlayableOptions = {},
+    ) {
         debug("find resume for series", seriesId);
 
         const api = new DisneyApi(this.options);
-        const resume = await api.pickResumeEpisodeForSeries(seriesId);
-        debug("... resume:", resume);
+        const {
+            episode,
+            startTime,
+        } = await api.pickResumeEpisodeForSeries(seriesId);
 
-        await this.playById(resume.contentId);
+        debug("... resume:", episode, " at ", startTime);
+
+        if (opts.resume === false) {
+            return this.playById(episode.contentId);
+        }
+
+        await this.playById(episode.contentId, {
+            startTime,
+        });
+    }
+
+    public async playByFamilyId(
+        familyId: string,
+        opts: IPlayableOptions = {},
+    ) {
+        const api = new DisneyApi(this.options);
+        const {
+            contentId,
+            startTime,
+        } = await api.getResumeForFamilyId(familyId);
+
+        if (opts.resume === false) {
+            return this.playById(contentId);
+        }
+
+        return this.playById(contentId, {
+            startTime,
+        });
     }
 
     private async loadCredentials() {
