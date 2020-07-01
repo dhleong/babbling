@@ -43,18 +43,18 @@ describe("mergeAsyncIterables", () => {
         const array = await toArray(mergeAsyncIterables([
             (async function*() {
                 yield 0;
-                await sleep(10);
+                await sleep(20);
                 yield 1;
-                await sleep(10);
+                await sleep(20);
                 yield 2;
             })(),
 
             (async function*() {
-                await sleep(3);
-                yield 10;
-                await sleep(3);
-                yield 11;
                 await sleep(6);
+                yield 10;
+                await sleep(6);
+                yield 11;
+                await sleep(12);
                 yield 12;
             })(),
         ]));
