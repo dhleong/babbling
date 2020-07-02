@@ -1,5 +1,9 @@
+import _debug from "debug";
+const debug = _debug("babbling:config");
+
 import fs from "fs-extra";
 import pathlib from "path";
+import { Deferred } from "../../async";
 
 export async function readConfig(path: string) {
     let raw: Buffer;
@@ -11,9 +15,13 @@ export async function readConfig(path: string) {
     return JSON.parse(raw.toString());
 }
 
+const configLocks: {[path: string]: Promise<void>} = {};
+
 export async function writeConfig(path: string, obj: any) {
+    debug("start writing config...");
     await fs.mkdirp(pathlib.dirname(path));
-    return fs.writeFile(path, JSON.stringify(obj, null, "  "));
+    await fs.writeFile(path, JSON.stringify(obj, null, "  "));
+    debug("... done writing config.");
 }
 
 export function setPath(obj: any, path: string[], newValue: string) {
@@ -50,13 +58,60 @@ export async function configInPath(
     objPath: string[],
     value: any,
 ) {
-    const json = await readConfig(configFilePath);
-    setPath(json, objPath, value);
-    await writeConfig(configFilePath, json);
+    await updateConfig(configFilePath, json => {
+        setPath(json, objPath, value);
+        return json;
+    });
 }
 
 export async function unconfig(configPath: string, key: string) {
-    const json = await readConfig(configPath);
-    delete json[key];
-    await fs.writeFile(configPath, JSON.stringify(json, null, "  "));
+    await updateConfig(configPath, json => {
+        delete json[key];
+        return json;
+    });
+}
+
+/** for testing */
+export function createConfigUpdater(
+    doReadConfig: (path: string) => Promise<any>,
+    doWriteConfig: (path: string, json: any) => Promise<void>,
+) {
+    return async (configPath: string, update: (old: any) => any) => {
+        await updateConfigWithMethods(
+            doReadConfig, doWriteConfig, configPath, update,
+        );
+    };
+}
+
+const updateConfig = createConfigUpdater(readConfig, writeConfig);
+
+async function updateConfigWithMethods(
+    doReadConfig: (path: string) => Promise<any>,
+    doWriteConfig: (path: string, json: any) => Promise<void>,
+    configPath: string,
+    update: (old: any) => any,
+) {
+    const myLock = new Deferred<void>();
+
+    while (true) {
+        const lock = configLocks[configPath];
+        if (lock == null) {
+            debug("config unlocked; locking for ourselves:", configPath);
+            configLocks[configPath] = myLock.promise;
+            break;
+        } else {
+            debug("config locked: ", configPath, "; waiting...");
+            await lock;
+        }
+    }
+
+    try {
+        const json = await doReadConfig(configPath);
+        const newJson = update(json);
+        await doWriteConfig(configPath, newJson);
+    } finally {
+        delete configLocks[configPath];
+        myLock.resolve();
+        debug("released lock:", configPath);
+    }
 }

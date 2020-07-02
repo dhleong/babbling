@@ -70,3 +70,15 @@ export async function toArray<T>(iterable: AsyncIterable<T>) {
 
     return result;
 }
+
+const nop = () => { /* nop */ };
+
+export class Deferred<T> {
+    public resolve: (v: T) => void = nop;
+    public reject: (e?: Error) => void = nop;
+
+    public readonly promise = new Promise<T>((resolve, reject) => {
+        this.resolve = resolve;
+        this.reject = reject;
+    });
+}
