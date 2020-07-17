@@ -143,12 +143,14 @@ export class DisneyApp extends BaseApp {
 
         return {
             accessState: JSON.stringify({
-                contextState: {
-                    modes: [ "bamIdentity" ],
+                data: {
+                    contextState: {
+                        modes: [ "bamIdentity" ],
+                    },
+                    refreshToken: tokens.refreshToken,
+                    token: tokens.token,
                 },
-                refreshToken: tokens.refreshToken,
-                token: tokens.token,
-                version: "4.8",
+                version: "4.9",
             }),
         };
     }
