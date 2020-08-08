@@ -1,6 +1,6 @@
 {
   "name": "babbling",
-  "version": "1.23.3",
+  "version": "1.23.4",
   "description": "Cast Streaming service videos to Chromecast",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -48,7 +48,7 @@
     "tough-cookie": "^4.0.0",
     "uuid": "^8.2.0",
     "yargs": "^15.4.1",
-    "youtubish": "^1.2.0"
+    "youtubish": "^1.2.2"
   },
   "devDependencies": {
     "@types/chai": "^4.2.11",
