@@ -99,7 +99,7 @@ function createSaltedKey(key: string, salt: crypto.BinaryLike) {
 
 // ======= internal types =================================
 
-interface IEpisode {
+export interface IEpisode {
     episodeNumber: number;
     seasonId: string;
     seasonNumber: number;
@@ -293,6 +293,8 @@ export class PrimeApi {
             return;
         }
 
+        debug(titleInfo, watchNext);
+
         if (!watchNext) {
             debug("no watchNext data");
             return;
@@ -407,7 +409,9 @@ export class PrimeApi {
             },
             seasonIds?: string[],
             seasonIdSet?: Set<string>,
-            selectedEpisode?: IEpisode,
+            selectedEpisode?: IEpisode & {
+                isSelected?: boolean;
+            },
         } = {};
 
         if (resource.show) {

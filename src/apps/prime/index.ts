@@ -8,7 +8,7 @@ import { ICastSession, IDevice } from "../../cast";
 import { BaseApp, MEDIA_NS } from "../base";
 import { awaitMessageOfType } from "../util";
 
-import { PrimeApi } from "./api";
+import { PrimeApi, IEpisode } from "./api";
 import { PrimePlayerChannel } from "./channel";
 import { IPrimeOpts } from "./config";
 
@@ -133,8 +133,39 @@ export class PrimeApp extends BaseApp {
             });
         }
 
+        try {
+            const info = await this.api.getTitleInfo(titleId);
+            debug("no resume info found; play:", titleId);
+            debug(" -> info=", info);
+
+            if (info.selectedEpisode && info.selectedEpisode.isSelected) {
+                debug(" -> play selectedEpisode", info.selectedEpisode);
+                return this.playEpisode(info.selectedEpisode);
+            }
+
+            if (info.episodes && info.episodes.length) {
+                debug(" -> play the first episode:", info.episodes[0]);
+                return this.playEpisode(info.episodes[0]);
+            }
+        } catch (e) {
+            debug("unable to resolve title info", e);
+        }
+
         debug("no resume info found; play:", titleId);
         return this.play(titleId, {});
+    }
+
+    private async playEpisode(episode: IEpisode) {
+        const { completedAfter, watchedSeconds } = episode;
+        if (watchedSeconds >= completedAfter) {
+            debug(`watched=${watchedSeconds} > ${completedAfter}; restart`);
+            return this.play(episode.titleId, {});
+        }
+
+        debug(`resume ${episode.titleId} @${watchedSeconds}`);
+        return this.play(episode.titleId, {
+            startTime: watchedSeconds,
+        });
     }
 
     private message(type: string, extra: any = {}) {
