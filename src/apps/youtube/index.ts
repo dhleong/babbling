@@ -426,6 +426,8 @@ export class YoutubeApp extends BaseApp {
                 form: data,
                 headers: {
                     "X-YouTube-LoungeId-Token": this.loungeId,
+                    "X-YouTube-Lounge-XSRF-Token": this.generateXsrfToken(),
+
                     "cookie": cookies,
                     "origin": YOUTUBE_BASE_URL,
                 },
@@ -473,6 +475,28 @@ export class YoutubeApp extends BaseApp {
 
             throw e;
         }
+    }
+
+    private generateXsrfToken() {
+        // apparent algorithm:
+        //  1. base64(SID) -> a
+        //  2. base64(SAPISID) -> b
+        //  3. base64("$a,$b") -> token
+
+        const cookies = this.jar.getCookies(COOKIES_DOMAIN);
+        const sid = cookies.find(c => c.key === "SID")?.value;
+        const sapisid = cookies.find(c => c.key === "SAPISID")?.value;
+        if (!(sid && sapisid)) return;
+
+        const encodedSid = Buffer.from(sid).toString("base64");
+        const encodedSapisid = Buffer.from(sapisid).toString("base64");
+
+        const token = Buffer.from(`${encodedSid},${encodedSapisid}`)
+            .toString("base64");
+
+        debug("generated xsrf token:", token);
+
+        return token
     }
 
     private async getCookies() {
