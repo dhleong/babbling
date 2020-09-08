@@ -11,22 +11,26 @@ interface IPaginationLink {
     };
 }
 
-export interface IFirstPage<T> {
-    items: T[];
+export interface IFirstPage {
     paginationLink?: IPaginationLink;
+}
+
+function getItemsDefault(page: any) {
+    return page.items;
 }
 
 export class Paginated<T> implements AsyncIterable<T> {
 
     constructor(
         protected readonly api: PrimeApi,
-        private readonly firstPage: IFirstPage<T>,
+        private readonly firstPage: IFirstPage,
         private readonly transformItem: (raw: any) => T,
+        private readonly getItems: (page: any) => any[] = getItemsDefault,
     ) {}
 
     public async *[Symbol.asyncIterator](): AsyncIterator<T> {
         const firstPage = this.firstPage;
-        yield *firstPage.items;
+        yield *this.getItems(firstPage).map(this.transformItem);
 
         const api = this.api as unknown as IPrimeApiInternal;
         let pagination: IPaginationLink | undefined = firstPage.paginationLink;
@@ -44,7 +48,13 @@ export class Paginated<T> implements AsyncIterable<T> {
             );
             pagination = resource.paginationLink;
 
-            for (const item of resource.items) {
+            const items = this.getItems(resource);
+            if (!items) {
+                debug("no more items");
+                break;
+            }
+
+            for (const item of items) {
                 yield this.transformItem(item);
             }
         }

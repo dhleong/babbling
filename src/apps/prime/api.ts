@@ -301,7 +301,10 @@ export class PrimeApi {
         }
 
         for await (const info of watchNext) {
-            debug("Check:", info.titleId, ": ", info.title);
+            debug(
+                "Check:", info.titleId, ": ", info.title,
+                "(given:", titleId, ")"
+            );
             if (
                 info.titleId === titleId
                 || (
@@ -313,7 +316,12 @@ export class PrimeApi {
                 const upNext = await this.resolveNext(info);
                 if (!upNext) return;
 
-                const queue = await this.resolveQueue(titleInfo, upNext);
+                const { season } = upNext;
+                const queue = await this.resolveQueue(
+                    season ?? titleInfo,
+                    upNext,
+                );
+
                 return {
                     ...upNext,
                     queue,
@@ -342,18 +350,24 @@ export class PrimeApi {
             "/cdp/mobile/getDataByTransform/v1/dv-ios/home/v1.js",
         );
 
+        const homePaginated = new Paginated(this, resource,
+            c => {
+                if (c.title === "Watch next") {
+                    return c;
+                }
+            },
+            p => p.collections,
+        );
+
         const info: {
-            watchNext?: IFirstPage<IWatchNextItem>,
+            watchNext?: IFirstPage,
         } = {};
 
-        const watchNextSection = resource.collections.filter((c: any) =>
-            c.title === "Watch next",
-        )[0];
-        if (watchNextSection) {
-            info.watchNext = {
-                items: watchNextSection.items.map(parseWatchNextItem),
-                paginationLink: watchNextSection.paginationLink,
-            };
+        for await (const collection of homePaginated) {
+            if (collection) {
+                info.watchNext = collection;
+                break;
+            }
         }
 
         return info;
@@ -465,21 +479,27 @@ export class PrimeApi {
     }
 
     private async resolveNext(info: IWatchNextItem) {
+        const seasonTitle = await this.getTitleInfo(info.titleId);
+
         if (info.resumeTitleId && !hasFinished(info)) {
+            debug("resume unfinished:", info.title, info.titleId);
             return {
                 titleId: info.resumeTitleId,
+                season: seasonTitle,
                 watchedSeconds: info.watchedSeconds,
             };
         }
 
         // fetch episodes of this season and pick the next one
         debug("watchNext is already complete; moving on...");
-        const seasonTitle = await this.getTitleInfo(info.titleId);
 
         if (seasonTitle.episodes) {
             const lastIndex = seasonTitle.episodes.findIndex(e => e.titleId === info.resumeTitleId);
             if (lastIndex < seasonTitle.episodes.length - 1) {
-                return seasonTitle.episodes[lastIndex + 1];
+                return {
+                    ...seasonTitle.episodes[lastIndex + 1],
+                    season: seasonTitle,
+                };
             }
         }
 
@@ -487,6 +507,7 @@ export class PrimeApi {
             // otherwise, fallback to what we had
             return {
                 titleId: info.resumeTitleId,
+                season: seasonTitle,
                 watchedSeconds: info.watchedSeconds,
             };
         }
