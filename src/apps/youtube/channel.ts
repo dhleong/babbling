@@ -7,6 +7,7 @@ import { IPlayableOptions, IPlayerChannel } from "../../app";
 
 import { IYoutubeOpts, YoutubeApp } from ".";
 import { filterFromSkippedIds } from "./util";
+import { hasAuth } from "./config";
 
 export class YoutubePlayerChannel implements IPlayerChannel<YoutubeApp> {
 
@@ -44,8 +45,8 @@ export class YoutubePlayerChannel implements IPlayerChannel<YoutubeApp> {
             debug("extracted listId", listId);
 
             // watch later requires auth
-            if (listId === "WL" && !(this.options && this.options.cookies)) {
-                throw new Error("Cannot use watch later playlist without cookies");
+            if (listId === "WL" && !(this.options && hasAuth(this.options))) {
+                throw new Error("Cannot use watch later playlist without cookies or refreshToken");
             }
 
             if (parsed.query.index) {
