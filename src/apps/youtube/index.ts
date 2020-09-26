@@ -10,7 +10,11 @@ import _debug from "debug";
 const debug = _debug("babbling:youtube");
 
 import { ICreds, WatchHistory, YoutubePlaylist } from "youtubish";
-import { isCredentials, isCredentialsPromise } from "youtubish/dist/creds";
+import {
+    isCredentials,
+    isCredentialsPromise,
+    OauthCredentialsManager,
+} from "youtubish/dist/creds";
 
 import { IVideo } from "youtubish/dist/model";
 import { ICastSession, IDevice } from "../../cast";
@@ -19,7 +23,13 @@ import { BaseApp } from "../base";
 import { awaitMessageOfType } from "../util";
 
 import { YoutubePlayerChannel } from "./channel";
-import { IYoutubeOpts, YoutubeConfigurable } from "./config";
+import {
+    IYoutubeOpts,
+    YoutubeConfigurable,
+    isCookieAuth,
+    isYoutubish,
+    isOauth,
+} from "./config";
 import { TokenYoutubishCredsAdapter } from "./util";
 
 export { IYoutubeOpts } from "./config";
@@ -137,7 +147,7 @@ export class YoutubeApp extends BaseApp {
         this.jar = request.jar();
 
         this.cookies = "";
-        if (options && options.cookies) {
+        if (isCookieAuth(options) && options.cookies) {
             const cookies = read(options.cookies);
             if (typeof cookies !== "string") {
                 throw new Error("Invalid cookies format");
@@ -146,7 +156,23 @@ export class YoutubeApp extends BaseApp {
             this.cookies = options.cookies;
 
             this.youtubish = new TokenYoutubishCredsAdapter(options.cookies);
-        } else if (options.youtubish) {
+        } else if (isOauth(options)) {
+            const refreshToken = read(options.refreshToken);
+            const rawAccess = options.access ? read(options.access) : undefined;
+            const access = rawAccess ? JSON.parse(rawAccess) : undefined;
+            this.youtubish = new OauthCredentialsManager({
+                refreshToken,
+                access,
+            }, {
+                async persistCredentials(creds) {
+                    await write(options.refreshToken, creds.refreshToken);
+                    if (options.access && creds.access) {
+                        await write(options.access, JSON.stringify(creds.access));
+                    }
+                },
+            });
+
+        } else if (isYoutubish(options)) {
             this.youtubish = options.youtubish;
         }
 
