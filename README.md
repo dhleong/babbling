@@ -92,6 +92,25 @@ babbling auth:prime <your@amazon-login>
 You will be prompted for your password, and, if everything goes well, you
 well then be able to use `babbling cast <url>`, etc., for Amazon videos!
 
+#### Youtube
+
+The auto-auth tool will work for a time with Youtube, but Google's cookies
+have a fairly short shelf-life. If you want to authenticate Babbling to be
+able to cast Youtube videos for a longer period of time without having to
+constantly re-run `auto-auth`, we've got a tool for that, too:
+
+```
+babbling auth:youtube
+```
+
+This will open a Chrome browser for authenticating. The mechanism here is
+based on that used for [YakYak][7], and has the same caveats:
+
+> babbling may show up as iOS Device and Google may alert you that "some iOS
+> Device is trying to use your account". This is normal as babbling is an
+> unofficial client and it mimics the behaviour of an iOS device in order to
+> establish a communication with Youtube APIs.
+
 ## Player API
 
 You've seen the `playUrl` tool above, but here's everything the `Player`
@@ -169,3 +188,4 @@ interleaved together.
 [4]: src/player.ts
 [5]: src/apps/prime/index.ts
 [6]: src/apps/disney/index.ts
+[7]: https://github.com/yakyak/yakyak
