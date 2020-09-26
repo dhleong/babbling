@@ -396,9 +396,9 @@ export class PrimeApi {
 
         for (const item of items.itemList) {
             const base = parseWatchlistItem(item);
-            delete base.watchUrl;
-            delete base.id;
-            yield base;
+            delete (base as any).watchUrl;
+            delete (base as any).id;
+            yield base as Omit<Omit<typeof base, "watchUrl">, "id">;
         }
     }
 
@@ -844,7 +844,7 @@ function parseWatchlistItem(item: any) {
         title: cleanTitle(item.decoratedTitle.catalog.title),
         titleId: item.titleId,
         type: item.decoratedTitle.catalog.type,
-        watchUrl: `https://www.amazon.com/dp/${id}/?autoplay=1`,
+        watchUrl: `https://www.amazon.com/dp/${id}/?autoplay=1` ,
     };
 }
 
