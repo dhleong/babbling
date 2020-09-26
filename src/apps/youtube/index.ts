@@ -11,6 +11,7 @@ const debug = _debug("babbling:youtube");
 
 import { ICreds, WatchHistory, YoutubePlaylist } from "youtubish";
 import {
+    cached,
     isCredentials,
     isCredentialsPromise,
     OauthCredentialsManager,
@@ -151,7 +152,7 @@ export class YoutubeApp extends BaseApp {
             const refreshToken = read(options.refreshToken);
             const rawAccess = options.access ? read(options.access) : undefined;
             const access = rawAccess ? JSON.parse(rawAccess) : undefined;
-            this.youtubish = new OauthCredentialsManager({
+            this.youtubish = cached(new OauthCredentialsManager({
                 refreshToken,
                 access,
             }, {
@@ -161,7 +162,7 @@ export class YoutubeApp extends BaseApp {
                         await write(options.access, JSON.stringify(creds.access));
                     }
                 },
-            });
+            }));
         } else if (isCookieAuth(options) && options.cookies) {
             const cookies = read(options.cookies);
             if (typeof cookies !== "string") {
@@ -313,6 +314,7 @@ export class YoutubeApp extends BaseApp {
             playlist = playlist.filter(filter);
         }
 
+        debug("selecting episode to resume for playlist ", playlistId);
         const video = await selector(playlist);
 
         debug("playing playlist", playlistId, "at", video);
