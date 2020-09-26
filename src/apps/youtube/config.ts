@@ -64,4 +64,8 @@ export function isYoutubish(auth: IYoutubeAuth | undefined): auth is IYoutubishA
     return (auth as any).youtubish;
 }
 
+export function hasAuth(opts: IYoutubeOpts) {
+    return isOauth(opts) || isCookieAuth(opts) || isYoutubish(opts);
+}
+
 export const YoutubeConfigurable = new CookiesConfigurable("https://www.youtube.com");
