@@ -12,6 +12,7 @@ import scanForDevices from "./commands/scan";
 import searchByTitle from "./commands/search";
 
 import { login as primeLogin } from "./commands/auth/prime";
+import { login as youtubeLogin } from "./commands/auth/youtube";
 
 // type-safe conditional import via reference elision
 import * as AuthCommand from "./commands/auth";
@@ -152,6 +153,12 @@ parser.command(
             }).demand("email");
     }, async argv => {
         await primeLogin(argv, argv.email);
+    },
+);
+
+parser.command(
+    "auth:youtube", `Auth with youtube`, withConfig, async argv => {
+        await youtubeLogin(argv);
     },
 );
 

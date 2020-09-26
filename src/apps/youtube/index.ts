@@ -147,16 +147,7 @@ export class YoutubeApp extends BaseApp {
         this.jar = request.jar();
 
         this.cookies = "";
-        if (isCookieAuth(options) && options.cookies) {
-            const cookies = read(options.cookies);
-            if (typeof cookies !== "string") {
-                throw new Error("Invalid cookies format");
-            }
-
-            this.cookies = options.cookies;
-
-            this.youtubish = new TokenYoutubishCredsAdapter(options.cookies);
-        } else if (isOauth(options)) {
+        if (isOauth(options)) {
             const refreshToken = read(options.refreshToken);
             const rawAccess = options.access ? read(options.access) : undefined;
             const access = rawAccess ? JSON.parse(rawAccess) : undefined;
@@ -171,7 +162,15 @@ export class YoutubeApp extends BaseApp {
                     }
                 },
             });
+        } else if (isCookieAuth(options) && options.cookies) {
+            const cookies = read(options.cookies);
+            if (typeof cookies !== "string") {
+                throw new Error("Invalid cookies format");
+            }
 
+            this.cookies = options.cookies;
+
+            this.youtubish = new TokenYoutubishCredsAdapter(options.cookies);
         } else if (isYoutubish(options)) {
             this.youtubish = options.youtubish;
         }
