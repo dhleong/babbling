@@ -3,6 +3,7 @@ const debug = _debug("babbling:PrimeApp:api");
 
 import crypto from "crypto";
 import os from "os";
+import tls from "tls";
 import { gzip } from "zlib";
 
 import { ContentType } from "chakram-ts";
@@ -149,6 +150,12 @@ export class PrimeApi {
             ID_NAMESPACE,
             os.hostname(),
         ).substring(0, 32);
+
+        // NOTE: amazon apparently requires an older version of TLS than
+        // NodeJS supports on recent versions, so if we want to use
+        // Prime we have to manually lower the min version; see:
+        // https://github.com/nodejs/help/issues/1936
+        tls.DEFAULT_MIN_VERSION = "TLSv1";
     }
 
     public async login(email: string, password: string) {
@@ -593,25 +600,29 @@ export class PrimeApi {
             throw new Error("No refresh token provided");
         }
 
-        const response = await request.post({
-            form: {
-                app_name: APP_NAME,
-                requested_token_type: "access_token",
-                source_token: opts.refreshToken,
-                source_token_type: "refresh_token",
-            },
-            headers: this.generateHeaders(),
-            json: true,
-            url: this.buildUrl("/auth/token"),
-        });
+        try {
+            const response = await request.post({
+                form: {
+                    app_name: APP_NAME,
+                    requested_token_type: "access_token",
+                    source_token: opts.refreshToken,
+                    source_token_type: "refresh_token",
+                },
+                headers: this.generateHeaders(),
+                json: true,
+                url: this.buildUrl("/auth/token"),
+            });
 
-        if (!response.access_token) {
-            throw new Error(`Unable to acquire access token: ${response}`);
+            if (!response.access_token) {
+                throw new Error(`Unable to acquire access token: ${response}`);
+            }
+
+            this.accessToken = response.access_token;
+            this.accessTokenExpiresAt = Date.now() + response.expires_in * 1000;
+            return this.accessToken;
+        } catch (e) {
+            throw new Error("Unable to acquire access token\n" + e.stack);
         }
-
-        this.accessToken = response.access_token;
-        this.accessTokenExpiresAt = Date.now() + response.expires_in * 1000;
-        return this.accessToken;
     }
 
     /**
@@ -707,23 +718,32 @@ export class PrimeApi {
 
     private async swiftApiRequest(path: string, qs: {} = {}) {
         const accessToken = await this.getAccessToken();
+
+        const headers = {
+            ...this.generateHeaders(),
+            Accept: "application/json",
+            Authorization: `Bearer ${accessToken}`,
+        }
+
+        const params = {
+            ...qs,
+            decorationScheme: "bond-landing-decoration",
+            deviceId: this.deviceId,
+            deviceTypeId: DEVICE_TYPE,
+            featureScheme: "mobile-android-features-v7",
+            firmware: "7.54.3923",
+            format: "json",
+            titleActionScheme: "bond-2",
+            version: "mobile-android-v2",
+        };
+
+        const url = this.buildApiUrl(path);
+
         return request.get({
-            headers: Object.assign(this.generateHeaders(), {
-                Accept: "application/json",
-                Authorization: `Bearer ${accessToken}`,
-            }),
+            headers,
             json: true,
-            qs: Object.assign({
-                decorationScheme: "bond-landing-decoration",
-                deviceId: this.deviceId,
-                deviceTypeId: DEVICE_TYPE,
-                featureScheme: "mobile-android-features-v7",
-                firmware: "7.54.3923",
-                format: "json",
-                titleActionScheme: "bond-2",
-                version: "mobile-android-v2",
-            }, qs),
-            url: this.buildApiUrl(path),
+            qs: params,
+            url,
         });
     }
 }
