@@ -9,6 +9,8 @@ import tough from "tough-cookie";
 import _debug from "debug";
 const debug = _debug("babbling:youtube");
 
+import { ChromecastDevice, StratoChannel } from "stratocaster";
+
 import { ICreds, WatchHistory, YoutubePlaylist } from "youtubish";
 import {
     cached,
@@ -18,10 +20,8 @@ import {
 } from "youtubish/dist/creds";
 
 import { IVideo } from "youtubish/dist/model";
-import { ICastSession, IDevice } from "../../cast";
 import { read, Token, write } from "../../token";
 import { BaseApp } from "../base";
-import { awaitMessageOfType } from "../util";
 
 import { YoutubePlayerChannel } from "./channel";
 import {
@@ -77,10 +77,9 @@ type Action = keyof typeof ACTIONS;
 const GSESSION_ID_REGEX = /"S","(.*?)"]/;
 const SID_REGEX = /"c","(.*?)","/;
 
-async function getMdxScreenId(session: ICastSession) {
-    session.send({ type: "getMdxSessionStatus" });
-    const status = await awaitMessageOfType(session, "mdxSessionStatus");
-    return status.data.screenId;
+async function getMdxScreenId(session: StratoChannel) {
+    const status = await session.send({ type: "getMdxSessionStatus" });
+    return (status as any).data.screenId;
 }
 
 export type VideoFilter = (v: IVideo) => boolean;
@@ -139,7 +138,7 @@ export class YoutubeApp extends BaseApp {
     // youtubish state
     private readonly youtubish: ICreds | undefined;
 
-    constructor(device: IDevice, options: IYoutubeOpts = {}) {
+    constructor(device: ChromecastDevice, options: IYoutubeOpts = {}) {
         super(device, {
             appId: APP_ID,
             sessionNs: MDX_NS,

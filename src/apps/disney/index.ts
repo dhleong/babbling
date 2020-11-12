@@ -3,14 +3,13 @@ const debug = _debug("babbling:DisneyApp");
 
 import { ILoadRequest, IMedia } from "nodecastor";
 
-import { IDevice } from "../../cast";
 import { BaseApp, MEDIA_NS } from "../base";
-import { awaitMessageOfType } from "../util";
 
 import { DisneyApi } from "./api";
 import { DisneyPlayerChannel } from "./channel";
 import { DisneyConfigurable, IDisneyOpts } from "./config";
 import { IPlayableOptions } from "../../app";
+import { ChromecastDevice } from "stratocaster";
 
 export { IDisneyOpts } from "./config";
 
@@ -25,7 +24,7 @@ export class DisneyApp extends BaseApp {
         return new DisneyPlayerChannel(options);
     }
 
-    constructor(device: IDevice, private readonly options: IDisneyOpts) {
+    constructor(device: ChromecastDevice, private readonly options: IDisneyOpts) {
         super(device, {
             appId: APP_ID,
             sessionNs: MEDIA_NS,
@@ -66,7 +65,7 @@ export class DisneyApp extends BaseApp {
                 uiLanguage: language,
             },
             media,
-            sessionId: s.id,
+            sessionId: s.destination!!,
             type: "LOAD",
         };
 
@@ -75,24 +74,12 @@ export class DisneyApp extends BaseApp {
         }
 
         // send LOAD request!
-        s.send(request);
+        const ms = await s.send(request as any);
+        if (ms.type !== "MEDIA_STATUS") {
+            throw new Error(`Load failed: ${ms}`);
+        }
 
-        let ms;
-        do {
-            ms = await Promise.race([
-                awaitMessageOfType(s, "CLOSE"),
-                awaitMessageOfType(s, "LOAD_FAILED"),
-                awaitMessageOfType(s, "MEDIA_STATUS"),
-            ]);
-            debug(ms);
-
-            if (ms.type === "LOAD_FAILED") {
-                throw new Error(`Load failed: ${ms.detailedErrorCode}`);
-            }
-
-        } while (!ms.status.length);
-
-        debug("LOAD complete", ms.status[0].media);
+        debug("LOAD complete", (ms as any).status[0].media);
     }
 
     public async playSeriesById(

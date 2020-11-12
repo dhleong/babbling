@@ -1,9 +1,13 @@
 import _debug from "debug";
 const debug = _debug("babbling:base");
 
+import {
+    ChromecastDevice,
+    StratoApp,
+    StratoChannel,
+} from "stratocaster";
+
 import { IApp } from "../app";
-import { ICastApp, ICastSession, IDevice } from "../cast";
-import { getApp, promise } from "./util";
 
 export const MEDIA_NS = "urn:x-cast:com.google.cast.media";
 
@@ -16,11 +20,11 @@ export abstract class BaseApp implements IApp, IBaseAppProps {
     public appId: string;
     public sessionNs: string;
 
-    private app: ICastApp | undefined;
-    private session: ICastSession | undefined;
+    private app: StratoApp | undefined;
+    private session: StratoChannel | undefined;
 
     constructor(
-        protected device: IDevice,
+        protected device: ChromecastDevice,
         props: IBaseAppProps,
     ) {
         this.appId = props.appId;
@@ -53,12 +57,12 @@ export abstract class BaseApp implements IApp, IBaseAppProps {
     }
 
     protected async requestStatus() {
-        return promise(this.device, this.device.status);
+        return this.device.getStatus();
     }
 
     private async ensureApp() {
         if (!this.app) {
-            this.app = await getApp(this.device, this.appId);
+            this.app = await this.device.app(this.appId);
         }
 
         if (!this.app) {
@@ -69,19 +73,13 @@ export abstract class BaseApp implements IApp, IBaseAppProps {
     }
 
     private async joinOrRunSession(
-        app: ICastApp, ns: string,
+        app: StratoApp, ns: string,
     ) {
         debug("Got app", app.id, "opening session....");
 
-        let s: ICastSession;
-        try {
-            s = await promise(app, app.join, ns);
-        } catch (e) {
-            debug("App not running; starting it up");
-            s = await promise(app, app.run, ns);
-        }
+        const s = await app.channel(ns);
 
-        debug("Got session", s.id);
+        debug("Got session", s);
         return s;
     }
 }

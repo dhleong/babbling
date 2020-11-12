@@ -3,10 +3,9 @@ const debug = _debug("babbling:PrimeApp");
 
 import { ChakramApi } from "chakram-ts";
 import { ILoadRequest, IMedia } from "nodecastor";
+import { ChromecastDevice, StratoChannel } from "stratocaster";
 
-import { ICastSession, IDevice } from "../../cast";
 import { BaseApp, MEDIA_NS } from "../base";
-import { awaitMessageOfType } from "../util";
 
 import { PrimeApi, IEpisode } from "./api";
 import { PrimePlayerChannel } from "./channel";
@@ -32,7 +31,7 @@ export class PrimeApp extends BaseApp {
     private readonly refreshToken: string;
     private readonly marketplaceId: string;
 
-    constructor(device: IDevice, options: IPrimeOpts) {
+    constructor(device: ChromecastDevice, options: IPrimeOpts) {
         super(device, {
             appId: APP_ID,
             sessionNs: MEDIA_NS,
@@ -55,10 +54,10 @@ export class PrimeApp extends BaseApp {
     ) {
         debug("play: join", AUTH_NS);
         const session = await this.joinOrRunNamespace(AUTH_NS);
-        const resp = await castRequest(session, this.message("AmIRegistered"));
+        const resp = await session.send(this.message("AmIRegistered"));
         debug("registered=", resp);
 
-        if (resp.error && resp.error.code === "NotRegistered") {
+        if (resp.error && (resp.error as any).code === "NotRegistered") {
             await this.register(session);
         }
 
@@ -73,7 +72,7 @@ export class PrimeApp extends BaseApp {
                 initialTracks: {},
             },
             media: titleIdToCastMedia(titleId),
-            sessionId: s.id,
+            sessionId: s.destination!!,
             type: "LOAD",
         };
 
@@ -86,23 +85,12 @@ export class PrimeApp extends BaseApp {
         }
 
         // send LOAD request!
-        s.send(request);
+        const ms = await s.send(request as any);
+        if (ms.type !== "MEDIA_STATUS") {
+            throw new Error(`Load failed: ${JSON.stringify(ms)}`);
+        }
 
-        let ms;
-        do {
-            ms = await Promise.race([
-                awaitMessageOfType(s, "CLOSE"),
-                awaitMessageOfType(s, "LOAD_FAILED"),
-                awaitMessageOfType(s, "MEDIA_STATUS"),
-            ]);
-            debug(ms);
-
-            if (ms.type === "LOAD_FAILED") {
-                throw new Error(`Load failed: ${ms.detailedErrorCode}`);
-            }
-
-        } while (!ms.status.length);
-        debug(ms.status[0].media);
+        debug((ms as any).status[0].media);
     }
 
     /**
@@ -176,7 +164,7 @@ export class PrimeApp extends BaseApp {
         }, extra);
     }
 
-    private async register(session: ICastSession) {
+    private async register(session: StratoChannel) {
         debug("register with id", this.api.deviceId);
 
         const preAuthorizedLinkCode =
@@ -192,7 +180,7 @@ export class PrimeApp extends BaseApp {
         await this.applySettings(session);
     }
 
-    private async applySettings(session: ICastSession) {
+    private async applySettings(session: StratoChannel) {
         await checkedRequest(session, this.message("ApplySettings", {
             settings: {
                 autoplayNextEpisode: true,
@@ -203,14 +191,8 @@ export class PrimeApp extends BaseApp {
 
 }
 
-async function castRequest(session: ICastSession, message: any) {
-    const responseType = message.type + "Response";
-    session.send(message);
-    return awaitMessageOfType(session, responseType, 15_000);
-}
-
-async function checkedRequest(session: ICastSession, message: any) {
-    const resp = await castRequest(session, message);
+async function checkedRequest(session: StratoChannel, message: any) {
+    const resp = await session.send(message);
     if (resp.error) {
         throw resp.error;
     }
