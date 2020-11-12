@@ -1,26 +1,25 @@
 import _debug from "debug";
 const debug = _debug("babbling:controls");
 
+import { ChromecastDevice, StratoChannel } from "stratocaster";
+
 import { MEDIA_NS } from "./apps/base";
-import { awaitMessageOfType, promise } from "./apps/util";
-import { ICastSession, IDevice } from "./cast";
 
 export class MediaControls {
-    public static async open(device: IDevice) {
-        const status = await promise(device, device.status);
+    public static async open(device: ChromecastDevice) {
+        const status = await device.getStatus();
 
         if (!status.applications || !status.applications.length) {
             throw new Error("No running application");
         }
 
         try {
-            const app = await promise(device, device.application, status.applications[0].appId);
-            const session = await promise(app, app.join, MEDIA_NS);
+            const app = await device.app(status.applications[0].appId);
+            const session = await app.channel(MEDIA_NS);
 
             // request media status so we can get the mediaSession
-            session.send({ type: "GET_STATUS" });
-
-            const mediaStatus = await awaitMessageOfType(session, "MEDIA_STATUS");
+            const response = await session.send({ type: "GET_STATUS" });
+            const mediaStatus = response as any;
             debug("GOT media status", mediaStatus);
 
             return new MediaControls(session, mediaStatus.status[0].mediaSessionId);
@@ -34,7 +33,7 @@ export class MediaControls {
     }
 
     constructor(
-        private session: ICastSession,
+        private session: StratoChannel,
         private mediaSessionId: number,
     ) {}
 
@@ -89,9 +88,10 @@ export class MediaControls {
     }
 
     private sendData(data: any) {
-        const filled = Object.assign({
+        const filled = {
+            ...data,
             mediaSessionId: this.mediaSessionId,
-        }, data);
+        };
         debug("SEND", filled);
         this.session.send(filled);
     }

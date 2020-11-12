@@ -45,6 +45,7 @@
     "nodecastor": "github:dhleong/nodecastor#e18189c",
     "request": "^2.88.2",
     "request-promise-native": "^1.0.9",
+    "stratocaster": "^1.0.0",
     "tough-cookie": "^4.0.0",
     "uuid": "^8.3.1",
     "yargs": "^16.1.0",

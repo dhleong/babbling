@@ -1,4 +1,4 @@
-import { IDevice } from "./cast";
+import { ChromecastDevice } from "stratocaster";
 
 export interface IApp {
     start(): Promise<any>;
@@ -9,7 +9,7 @@ export type Opts = any[];
 export interface IAppConstructor<TOptions extends Opts, TSelf extends IApp> {
     tokenConfigKeys?: string[];
 
-    new (device: IDevice, ...options: TOptions): TSelf;
+    new (device: ChromecastDevice, ...options: TOptions): TSelf;
 }
 
 export type OptionsFor<T> =
