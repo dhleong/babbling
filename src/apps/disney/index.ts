@@ -102,10 +102,13 @@ export class DisneyApp extends BaseApp {
         debug("find resume for series", seriesId);
 
         const api = new DisneyApi(this.options);
-        const {
-            episode,
-            startTime,
-        } = await api.pickResumeEpisodeForSeries(seriesId);
+        const resume = await api.pickEpisodeForSeries(seriesId);
+        if (!resume) {
+            debug("no episode to resume; start from the beginning?");
+            return;
+        }
+
+        const { episode, startTime } = resume;
 
         debug("... resume:", episode, " at ", startTime);
 

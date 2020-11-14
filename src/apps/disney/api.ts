@@ -109,10 +109,15 @@ export class DisneyApi {
             seriesId,
         });
 
-        const episode = data.resume as ISearchHit;
+        const episode = data.resume as ISearchHit | null;
+        if (!episode) {
+            debug("No episode to resume: ", data);
+            return;
+        }
 
         let startTime: number | undefined;
         if (data.episodesWithProgress) {
+            debug("episodesWithProgress = ", data.episodesWithProgress);
             const info = data.episodesWithProgress.find((progress: any) =>
                 progress.contentId === episode.contentId,
             );
@@ -125,6 +130,33 @@ export class DisneyApi {
         return {
             startTime,
             episode,
+        };
+    }
+
+    /**
+     * Typically, a more convenient method than [pickResumeEpisodeForSeries]
+     * when you just want *some* episode. If there's nothing to resume, this
+     * will find the first episode of the series
+     */
+    public async pickEpisodeForSeries(seriesId: string) {
+        const [episodes, resume] = await Promise.all([
+            this.getSeriesEpisodes(seriesId),
+            this.pickResumeEpisodeForSeries(seriesId),
+        ]);
+        if (resume) return resume;
+
+        const episode = await episodes.query({
+            seasonIndex: 0,
+            episodeIndex: 0,
+        });
+        if (!episode) {
+            debug("Could not find episode of series ", seriesId);
+            return;
+        }
+
+        return {
+            episode,
+            startTime: undefined,
         };
     }
 
