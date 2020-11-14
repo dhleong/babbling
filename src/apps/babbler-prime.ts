@@ -4,9 +4,9 @@ const debug = debug_("babbling:prime");
 // tslint:disable max-classes-per-file
 
 import { ChakramApi, ContentType, IBaseObj, IEpisode, ISeason } from "chakram-ts";
+import { ChromecastDevice } from "stratocaster";
 
 import { IPlayableOptions, IPlayerChannel, IQueryResult } from "../app";
-import { IDevice } from "../cast";
 import { CookiesConfigurable } from "../cli/configurables";
 import { BabblerBaseApp, IPlayableInfo, IQueueItem } from "./babbler/base";
 import { SenderCapabilities } from "./babbler/model";
@@ -145,7 +145,7 @@ export class BabblerPrimeApp extends BabblerBaseApp {
     private api: ChakramApi;
 
     constructor(
-        device: IDevice,
+        device: ChromecastDevice,
         opts: IBabblerPrimeOpts,
     ) {
         super(device, {

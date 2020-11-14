@@ -1,11 +1,11 @@
 import _debug from "debug";
 const debug = _debug("babbling:hbogo");
 
-import { ILoadRequest } from "nodecastor";
+import { ChromecastDevice } from "stratocaster";
 
-import { IDevice } from "../../cast";
 import { BaseApp, MEDIA_NS } from "../base";
 import { awaitMessageOfType } from "../util";
+import { ILoadRequest } from "../../cast";
 
 import { HboGoApi } from "./api";
 import { HboGoPlayerChannel } from "./channel";
@@ -35,7 +35,7 @@ export class HboGoApp extends BaseApp {
 
     private readonly api: HboGoApi;
 
-    constructor(device: IDevice, options: IHboGoOpts) {
+    constructor(device: ChromecastDevice, options: IHboGoOpts) {
         super(device, {
             appId: APP_ID,
             sessionNs: MEDIA_NS,
@@ -65,11 +65,10 @@ export class HboGoApp extends BaseApp {
             this.api.stopConcurrentStreams(),
         ]);
 
-        debug("Joined media session", s.id);
+        debug("Joined media session", s.destination);
 
         const hbogo = await this.joinOrRunNamespace(HBO_GO_NS);
-
-        s.send({
+        const req: ILoadRequest = {
             autoplay: true,
             customData: {
                 algorithm: "adaptive",
@@ -103,15 +102,12 @@ export class HboGoApp extends BaseApp {
                 contentType: "video/mp4",
                 streamType: "BUFFERED",
             },
-            sessionId: s.id,
+            sessionId: s.destination!!,
             type: "LOAD",
-        } as ILoadRequest);
+        }
 
-        let ms;
-        do {
-            ms = await awaitMessageOfType(s, "MEDIA_STATUS");
-            debug(ms);
-        } while (!ms.status.length);
+        const ms = await s.send(req as any);
+        debug(ms);
 
         let ps;
         do {

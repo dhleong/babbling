@@ -1,10 +1,10 @@
 import _debug from "debug";
 const debug = _debug("babbling:hulu");
 
-import { IDevice } from "../../cast";
+import { ChromecastDevice, isJson } from "stratocaster";
+
 import { CookiesConfigurable } from "../../cli/configurables";
 import { BaseApp } from "../base";
-import { awaitMessageOfType } from "../util";
 
 import { HuluApi } from "./api";
 import { HuluPlayerChannel } from "./channel";
@@ -34,7 +34,7 @@ export class HuluApp extends BaseApp {
     private readonly api: HuluApi;
     private readonly captionsLanguage: string | undefined;
 
-    constructor(device: IDevice, options: IHuluOpts) {
+    constructor(device: ChromecastDevice, options: IHuluOpts) {
         super(device, {
             appId: APP_ID,
             sessionNs: HULU_PLUS_NS,
@@ -119,19 +119,23 @@ export class HuluApp extends BaseApp {
             user_token: userToken,
         }, extraData);
 
-        s.send({
+        s.write({
             data,
             event_type: "start",
             message_id: 1,
         });
+        debug("sent START message");
 
-        debug("sent");
-        let ms;
-        do {
-            ms = await awaitMessageOfType(s, "MEDIA_STATUS");
-            debug(ms);
-        } while (!ms.status.length);
-        debug(ms.status[0].media);
+        for await (const m of s.receive()) {
+            if (!isJson(m.data)) continue;
+            if (m.data.event_type !== "playback_update") continue;
+
+            const { playback_state } = m.data.data as any;
+            if (playback_state && playback_state.length && playback_state[0] === "PLAYING") {
+                debug(m.data.data);
+                break;
+            }
+        }
     }
 
 }

@@ -1,9 +1,9 @@
 import debug_ from "debug";
 const debug = debug_("babbling:babbler");
 
-import { ILoadRequest } from "nodecastor";
+import { ChromecastDevice, StratoChannel } from "stratocaster";
 
-import { ICastSession, IDevice, IMediaStatusMessage } from "../../cast";
+import { ILoadRequest, IMediaStatusMessage } from "../../cast";
 import { BaseApp, MEDIA_NS } from "../base";
 import { PlaybackTracker } from "../playback-tracker";
 import { awaitMessageOfType } from "../util";
@@ -88,7 +88,7 @@ export class BabblerBaseApp<TMedia = {}> extends BaseApp {
     private currentMedia: TMedia | undefined;
 
     constructor(
-        device: IDevice,
+        device: ChromecastDevice,
         private babblerOpts: IBabblerOpts,
     ) {
         super(device, Object.assign({
@@ -130,23 +130,30 @@ export class BabblerBaseApp<TMedia = {}> extends BaseApp {
         await super.start();
 
         const s = await this.joinOrRunNamespace(BABBLER_SESSION_NS);
-        s.on("message", m => {
-            switch (m.type) {
-            case "INFO":
-                handleErrors(this.handleInfoRequest(s, m));
-                break;
 
-            case "LICENSE":
-                if (this.babblerOpts.useLicenseIpc) {
-                    handleErrors(this.handleLicenseRequest(s, m));
+        // OOF: this never stops until you close the device; we didn't
+        // have a disconnect hook for the old nodecastor-based impl
+        // either... but also this isn't really used anymore so...
+        (async () => {
+            for await (const message of s.receive()) {
+                const m = message.data as any;
+                switch (m.type) {
+                case "INFO":
+                    handleErrors(this.handleInfoRequest(s, m));
+                    break;
+
+                case "LICENSE":
+                    if (this.babblerOpts.useLicenseIpc) {
+                        handleErrors(this.handleLicenseRequest(s, m));
+                    }
+                    break;
+
+                case "QUEUE":
+                    handleErrors(this.handleQueueRequest(s, m));
+                    break;
                 }
-                break;
-
-            case "QUEUE":
-                handleErrors(this.handleQueueRequest(s, m));
-                break;
             }
-        });
+        })();
     }
 
     protected async loadMedia(item: IQueueItem<TMedia>) {
@@ -155,7 +162,7 @@ export class BabblerBaseApp<TMedia = {}> extends BaseApp {
             return BabblerDaemon.spawn({
                 appName: this.constructor.name,
                 appOptions: this.babblerOpts.daemonOptions,
-                deviceName: this.device.friendlyName,
+                deviceName: this.device.name,
 
                 rpc: [
                     "loadMedia",
@@ -173,7 +180,7 @@ export class BabblerBaseApp<TMedia = {}> extends BaseApp {
             metadata = formatMetadata(item.metadata);
         }
 
-        s.send({
+        const req = {
             autoplay: true,
             currentTime: item.currentTime,
             customData: this.createCustomData(item),
@@ -183,9 +190,11 @@ export class BabblerBaseApp<TMedia = {}> extends BaseApp {
                 metadata,
                 streamType: "BUFFERED",
             },
-            sessionId: s.id,
+            sessionId: s.destination!!,
             type: "LOAD",
-        } as ILoadRequest);
+        } as ILoadRequest;
+
+        s.send(req as any);
 
         let ms: IMediaStatusMessage;
         do {
@@ -240,7 +249,7 @@ export class BabblerBaseApp<TMedia = {}> extends BaseApp {
         throw new Error("loadQueueAfter not implemented");
     }
 
-    private async handleInfoRequest(s: ICastSession, message: any) {
+    private async handleInfoRequest(s: StratoChannel, message: any) {
         const { contentId, requestId } = message;
 
         debug("incoming info request #", requestId);
@@ -253,7 +262,7 @@ export class BabblerBaseApp<TMedia = {}> extends BaseApp {
         });
     }
 
-    private async handleLicenseRequest(s: ICastSession, message: any) {
+    private async handleLicenseRequest(s: StratoChannel, message: any) {
         const { base64, url, requestId } = message;
         const buffer = Buffer.from(base64, "base64");
 
@@ -268,7 +277,7 @@ export class BabblerBaseApp<TMedia = {}> extends BaseApp {
     }
 
     private async handleQueueRequest(
-        s: ICastSession,
+        s: StratoChannel,
         message: any,
     ) {
         const { contentId, mode, requestId } = message;
