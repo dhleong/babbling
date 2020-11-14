@@ -1,11 +1,11 @@
 import _debug from "debug";
 const debug = _debug("babbling:hbogo");
 
-import { ILoadRequest } from "nodecastor";
 import { ChromecastDevice } from "stratocaster";
 
 import { BaseApp, MEDIA_NS } from "../base";
 import { awaitMessageOfType } from "../util";
+import { ILoadRequest } from "../../cast";
 
 import { HboGoApi } from "./api";
 import { HboGoPlayerChannel } from "./channel";

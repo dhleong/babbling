@@ -1,10 +1,9 @@
 import debug_ from "debug";
 const debug = debug_("babbling:babbler");
 
-import { ILoadRequest } from "nodecastor";
 import { ChromecastDevice, StratoChannel } from "stratocaster";
 
-import { IMediaStatusMessage } from "../../cast";
+import { ILoadRequest, IMediaStatusMessage } from "../../cast";
 import { BaseApp, MEDIA_NS } from "../base";
 import { PlaybackTracker } from "../playback-tracker";
 import { awaitMessageOfType } from "../util";

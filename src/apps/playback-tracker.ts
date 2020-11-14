@@ -1,8 +1,10 @@
 import debug_ from "debug";
 const debug = debug_("babbling:tracker");
 
-import { ICastSession, IDevice, IMediaStatus, IMediaStatusMessage, IReceiverStatusMessage } from "../cast";
+import { IMediaStatus, IMediaStatusMessage } from "../cast";
 import { BaseApp, MEDIA_NS } from "./base";
+import { StratoChannel, ChromecastDevice, isJson, IReceiverStatus, RECEIVER_NS } from "stratocaster";
+import { mergeAsyncIterables } from "../async";
 
 /**
  * value of attachedMediaSessionId when we haven't yet been attached to
@@ -38,35 +40,34 @@ export class PlaybackTracker<TMedia = void> {
     private playbackLastCurrentTime: number = -1;
 
     private attachedMediaSessionId = NOT_ATTACHED;
-
-    private session: ICastSession | undefined;
+    private stopObserving: (() => void) | undefined;
 
     constructor(
         private app: BaseApp,
         private events: IPlaybackTrackerEvents<TMedia>,
-    ) {
-    }
+    ) {}
 
     public async start() {
         debug("start tracking");
 
         const device = this.getDevice();
-        device.on("status", this.onDeviceStatus);
 
-        const s: ICastSession = await this.joinOrRunNamespace(MEDIA_NS);
-        this.session = s;
-        s.on("message", this.onSessionMessage);
+        const s: StratoChannel = await this.joinOrRunNamespace(MEDIA_NS);
+        this.stopObserving = this.observeMessages([
+            await device.channel(RECEIVER_NS),
+            s,
+        ]);
     }
 
     public stop() {
         debug("stop tracking");
 
         this.attachedMediaSessionId = NOT_ATTACHED;
-        this.getDevice().removeListener("status", this.onDeviceStatus);
-        const s = this.session;
-        this.session = undefined;
-        if (s) {
-            s.removeListener("message", this.onSessionMessage);
+
+        const stopObserving = this.stopObserving;
+        this.stopObserving = undefined;
+        if (stopObserving) {
+            stopObserving();
         }
     }
 
@@ -123,13 +124,13 @@ export class PlaybackTracker<TMedia = void> {
                 // go ahead and hang up
                 debug(`new mediaSession (${status.mediaSessionId} != ${this.attachedMediaSessionId})`);
                 await this.handleClose();
-                this.getDevice().stop();
+                this.getDevice().close();
             }
             break;
         }
     }
 
-    private onDeviceStatus = async (status: IReceiverStatusMessage) => {
+    private onDeviceStatus = async (status: IReceiverStatus) => {
         if (!status.applications) {
             // no app info; ignore
             return;
@@ -144,7 +145,7 @@ export class PlaybackTracker<TMedia = void> {
 
         // if we get here, our app has been stopped; disconnect
         await this.handleClose();
-        this.getDevice().stop();
+        this.getDevice().close();
         debug("App no longer running; shutting down");
     }
 
@@ -186,11 +187,35 @@ export class PlaybackTracker<TMedia = void> {
     // unlikely we will change them.
 
     private getDevice() {
-        return (this.app as any).device as IDevice;
+        return (this.app as any).device as ChromecastDevice;
     }
 
-    private async joinOrRunNamespace(ns: string): Promise<ICastSession> {
-        return (this.app as any).joinOrRunNamespace(ns);
+    private async joinOrRunNamespace(ns: string): Promise<StratoChannel> {
+        return this.getDevice().channel(ns);
+    }
+
+    private observeMessages(channels: StratoChannel[]) {
+        const state = { running: true };
+
+        (async () => {
+            const merged = mergeAsyncIterables(
+                channels.map(it => it.receive()));
+            for await (const m of merged) {
+                if (!state.running) break;
+                if (!isJson(m.data)) continue;
+
+                if (m.data.type === "RECEIVER_STATUS") {
+                    const status = m.data as unknown as IReceiverStatus;
+                    await this.onDeviceStatus(status);
+                } else {
+                    await this.onSessionMessage(m.data);
+                }
+            }
+        })();
+
+        return () => {
+            state.running = false;
+        };
     }
 
 }

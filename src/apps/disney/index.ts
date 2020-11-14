@@ -1,9 +1,8 @@
 import _debug from "debug";
 const debug = _debug("babbling:DisneyApp");
 
-import { ILoadRequest, IMedia } from "nodecastor";
-
 import { BaseApp, MEDIA_NS } from "../base";
+import { ILoadRequest, IMedia } from "../../cast";
 
 import { DisneyApi } from "./api";
 import { DisneyPlayerChannel } from "./channel";

@@ -2,11 +2,11 @@ import _debug from "debug";
 const debug = _debug("babbling:PrimeApp");
 
 import { ChakramApi } from "chakram-ts";
-import { ILoadRequest, IMedia } from "nodecastor";
 import { ChromecastDevice, StratoChannel } from "stratocaster";
 
 import { BaseApp, MEDIA_NS } from "../base";
 import { awaitMessageOfType } from "../util";
+import { ILoadRequest, IMedia } from "../../cast";
 
 import { PrimeApi, IEpisode } from "./api";
 import { PrimePlayerChannel } from "./channel";
