@@ -22,6 +22,7 @@ import {
 import { IVideo } from "youtubish/dist/model";
 import { read, Token, write } from "../../token";
 import { BaseApp } from "../base";
+import { awaitMessageOfType } from "../util";
 
 import { YoutubePlayerChannel } from "./channel";
 import {
@@ -78,8 +79,9 @@ const GSESSION_ID_REGEX = /"S","(.*?)"]/;
 const SID_REGEX = /"c","(.*?)","/;
 
 async function getMdxScreenId(session: StratoChannel) {
-    const status = await session.send({ type: "getMdxSessionStatus" });
-    return (status as any).data.screenId;
+    await session.write({ type: "getMdxSessionStatus" });
+    const status = await awaitMessageOfType(session, "mdxSessionStatus");
+    return status.data.screenId;
 }
 
 export type VideoFilter = (v: IVideo) => boolean;
