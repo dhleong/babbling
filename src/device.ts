@@ -12,10 +12,11 @@ export class ChromecastDevice {
 
     constructor(
         public friendlyName: string,
-        private timeout: number = 10000,
+        timeout: number = 10000,
     ) {
-        debug("TODO provide timeout to stratocaster?", this.timeout);
-        this.castorDevice = new StratoDevice(friendlyName);
+        this.castorDevice = new StratoDevice(friendlyName, {
+            searchTimeout: timeout,
+        });
     }
 
     /**
