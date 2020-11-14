@@ -48,12 +48,12 @@
     "tough-cookie": "^4.0.0",
     "uuid": "^8.3.1",
     "yargs": "^16.1.0",
-    "youtubish": "^1.3.1"
+    "youtubish": "^1.3.2"
   },
   "devDependencies": {
     "@types/chai": "^4.2.14",
     "@types/debug": "^4.1.5",
-    "@types/fs-extra": "^9.0.3",
+    "@types/fs-extra": "^9.0.4",
     "@types/jsonwebtoken": "^8.5.0",
     "@types/mdns": "0.0.33",
     "@types/mocha": "^8.0.4",
