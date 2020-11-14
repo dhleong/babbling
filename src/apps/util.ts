@@ -1,3 +1,6 @@
+import _debug from "debug";
+const debug = _debug("babbling:util");
+
 import { StratoChannel } from "stratocaster";
 
 import { ICastSession } from "../cast";
@@ -9,12 +12,16 @@ export const awaitMessageOfType = (
     new Promise((_, reject) => {
         setTimeout(() => {
             reject(new Error(`Timeout waiting for ${type}`));
-        });
+        }, timeoutMs);
     }),
 
     (async () => {
         for await (const m of session.receive()) {
-            if ((m.data as any).type === type) {
+            const received = (m.data as any).type;
+            const found = received === type;
+            debug("saw", received, "waiting for", type, found);
+            if (found) {
+                debug("yield: ", m.data);
                 return m.data;
             }
         }

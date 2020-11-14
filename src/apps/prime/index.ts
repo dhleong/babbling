@@ -6,6 +6,7 @@ import { ILoadRequest, IMedia } from "nodecastor";
 import { ChromecastDevice, StratoChannel } from "stratocaster";
 
 import { BaseApp, MEDIA_NS } from "../base";
+import { awaitMessageOfType } from "../util";
 
 import { PrimeApi, IEpisode } from "./api";
 import { PrimePlayerChannel } from "./channel";
@@ -54,10 +55,12 @@ export class PrimeApp extends BaseApp {
     ) {
         debug("play: join", AUTH_NS);
         const session = await this.joinOrRunNamespace(AUTH_NS);
-        const resp = await session.send(this.message("AmIRegistered"));
+        const resp = await castRequest(session,
+            this.message("AmIRegistered"),
+        );
         debug("registered=", resp);
 
-        if (resp.error && (resp.error as any).code === "NotRegistered") {
+        if (resp.error && resp.error.code === "NotRegistered") {
             await this.register(session);
         }
 
@@ -191,8 +194,18 @@ export class PrimeApp extends BaseApp {
 
 }
 
+async function castRequest(session: StratoChannel, message: any) {
+    // it's infuriatingly dumb that amazon built their own protocol
+    // on top of the protocol instead of just using the requestId
+    // like a normal human.
+    const responseType = message.type + "Response";
+    await session.write(message);
+    debug("wait for ", responseType, "...");
+    return awaitMessageOfType(session, responseType, 15_000);
+}
+
 async function checkedRequest(session: StratoChannel, message: any) {
-    const resp = await session.send(message);
+    const resp = await castRequest(session, message);
     if (resp.error) {
         throw resp.error;
     }
