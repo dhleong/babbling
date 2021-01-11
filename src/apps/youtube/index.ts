@@ -153,6 +153,7 @@ export class YoutubeApp extends BaseApp {
             const refreshToken = read(options.refreshToken);
             const rawAccess = options.access ? read(options.access) : undefined;
             const access = rawAccess ? JSON.parse(rawAccess) : undefined;
+            debug("using oauth credentials");
             this.youtubish = cached(new OauthCredentialsManager({
                 refreshToken,
                 access,
@@ -259,11 +260,14 @@ export class YoutubeApp extends BaseApp {
      *
      * @param filter If provided, a predicate function that must return True
      * for a video in the playlist to be considered for playback
+     * @param historyDepth How far back to search the history for an item
+     * from this playlist before giving up (default 1000 items)
      */
     public async resumePlaylist(
         id: string,
         options: {
             filter?: VideoFilter,
+            historyDepth?: number,
         } = {},
     ) {
         const creds = this.youtubish;
@@ -271,12 +275,15 @@ export class YoutubeApp extends BaseApp {
             throw new Error("Cannot resume playlist without youtubish credentials");
         }
 
+        const historyDepth = options.historyDepth ?? 1000;
+
         debug("attempting to resume playlist", id);
         return this.playItemInPlaylist(
             id,
             options.filter,
             playlist => playlist.findMostRecentlyPlayed(
                 new WatchHistory(creds),
+                historyDepth,
             ),
         );
     }
