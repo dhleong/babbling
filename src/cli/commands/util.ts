@@ -2,8 +2,8 @@
 
 import readline from "readline";
 
-export async function confirm(message?: string): Promise<string> {
-    return new Promise(resolve => {
+export async function confirm(message?: string): Promise<void> {
+    return new Promise<void>(resolve => {
         if (message) console.log(message + "\n");
         console.log("Press any key to continue.");
 

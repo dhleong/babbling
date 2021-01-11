@@ -41,7 +41,7 @@ export class BabblerDaemon {
         });
         proc.unref();
 
-        return new Promise((resolve, reject) => {
+        return new Promise<void>((resolve, reject) => {
             proc.send(opts);
             proc.on("message", _ => {
                 debug("child has started!");
