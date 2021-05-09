@@ -111,6 +111,14 @@ based on that used for [YakYak][7], and has the same caveats:
 > unofficial client and it mimics the behaviour of an iOS device in order to
 > establish a communication with Youtube APIs.
 
+⚠️ Note: in addition to the above caveat, you may run into an issue where the
+authentication browser opened crashes when arriving at the two-factor auth step,
+if you have a Security Key attached as a second factor option. It's not clear
+what causes this, but you can temporarily remove the Security Key and fallback
+to another second factor (ex: sign-in prompt, authenticator app, etc) and then
+login should proceed as expected. You may re-add the Security Key after completing
+login without affecting the continued operation of Babbling's Youtube integration.
+
 ## Player API
 
 You've seen the `playUrl` tool above, but here's everything the `Player`
