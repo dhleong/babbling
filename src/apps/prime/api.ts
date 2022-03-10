@@ -359,7 +359,7 @@ export class PrimeApi {
 
         const homePaginated = new Paginated(this, resource,
             c => {
-                if (c.title === "Watch next") {
+                if (isWatchNextCarousel(c)) {
                     return c;
                 }
             },
@@ -805,6 +805,18 @@ function availabilityOf(item: any): IAvailability[] {
 function cleanTitle(title: string) {
     return title.replace(/( -)? Season \d+/, "")
         .replace("(4K UHD)", "");
+}
+
+const watchNextCarouselTitles = new Set([
+    "Watch Next", // Old, but just in case
+    "Continue Watching",
+]);
+
+function isWatchNextCarousel(carousel: any) {
+    if (carousel.refreshIdentifier === "watchNextCarousel") {
+        return true;
+    }
+    return watchNextCarouselTitles.has(carousel.title);
 }
 
 const playableAvailability = new Set([
