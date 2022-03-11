@@ -621,7 +621,7 @@ export class PrimeApi {
             this.accessTokenExpiresAt = Date.now() + response.expires_in * 1000;
             return this.accessToken;
         } catch (e) {
-            throw new Error("Unable to acquire access token\n" + e.stack);
+            throw new Error("Unable to acquire access token\n" + (e as Error).stack);
         }
     }
 
