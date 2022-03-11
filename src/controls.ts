@@ -23,7 +23,7 @@ export class MediaControls {
             debug("GOT media status", mediaStatus);
 
             return new MediaControls(session, mediaStatus.status[0].mediaSessionId);
-        } catch (e) {
+        } catch (e: any) {
             if (e.message && e.message.includes("namespace")) {
                 throw new Error("No media app running");
             }

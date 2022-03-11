@@ -135,7 +135,7 @@ class Player {
 
             try {
                 yield *app.channel.queryByTitle(title);
-            } catch (e) {
+            } catch (e: any) {
                 onError(app.appConstructor.name, e);
             }
         });
@@ -176,7 +176,7 @@ class Player {
 
             try {
                 yield *app.channel.queryEpisodeForTitle(title, query);
-            } catch (e) {
+            } catch (e: any) {
                 onError(app.appConstructor.name, e);
             }
         });
@@ -215,7 +215,7 @@ class Player {
             const results = m[appName];
             try {
                 yield *results;
-            } catch (e) {
+            } catch (e: any) {
                 onError(appName, e);
             }
         });
