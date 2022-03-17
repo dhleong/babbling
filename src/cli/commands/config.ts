@@ -1,9 +1,10 @@
 import _debug from "debug";
-const debug = _debug("babbling:config");
 
 import fs from "fs-extra";
 import pathlib from "path";
 import { Deferred } from "../../async";
+
+const debug = _debug("babbling:config");
 
 export async function readConfig(path: string) {
     let raw: Buffer;
@@ -15,7 +16,7 @@ export async function readConfig(path: string) {
     return JSON.parse(raw.toString());
 }
 
-const configLocks: {[path: string]: Promise<void>} = {};
+const configLocks: { [path: string]: Promise<void> } = {};
 
 export async function writeConfig(path: string, obj: any) {
     debug("start writing config...");

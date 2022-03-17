@@ -1,5 +1,7 @@
 import * as chai from "chai";
-import { capture, instance, mock, when } from "ts-mockito";
+import {
+    capture, instance, mock, when,
+} from "ts-mockito";
 
 import request from "request-promise-native";
 
@@ -72,10 +74,8 @@ describe("filterFromSkippedIds", () => {
 });
 
 describe("YoutubeApp", () => {
-
     describe("Playable creation", () => {
         it("supports skip query param", async () => {
-
             const listId = "PL1tiwbzkOjQz7D0l_eLJGAISVtcL7oRu_";
             const playable = await YoutubeApp.createPlayerChannel().createPlayable(
                 `https://www.youtube.com/playlist?list=${listId}&skip=skip-id`,
@@ -88,7 +88,7 @@ describe("YoutubeApp", () => {
 
             await playable(app as any as YoutubeApp, {});
 
-            const [ id, opts ] = capture(App.resumePlaylist).last();
+            const [id, opts] = capture(App.resumePlaylist).last();
             id.should.equal(listId);
 
             if (!opts) throw new Error();
@@ -102,12 +102,11 @@ describe("YoutubeApp", () => {
         });
 
         it("supports multiple skip query params", async () => {
-
             const listId = "PL1tiwbzkOjQz7D0l_eLJGAISVtcL7oRu_";
             const playable = await YoutubeApp.createPlayerChannel().createPlayable(
-                `https://www.youtube.com/playlist?list=${listId}` +
-                    `&skip=skip-id1` +
-                    `&skip=skip-id2`,
+                `https://www.youtube.com/playlist?list=${listId}`
+                    + "&skip=skip-id1"
+                    + "&skip=skip-id2",
             );
 
             const App = mock(YoutubeApp);
@@ -117,7 +116,7 @@ describe("YoutubeApp", () => {
 
             await playable(app as any as YoutubeApp, {});
 
-            const [ id, opts ] = capture(App.resumePlaylist).last();
+            const [id, opts] = capture(App.resumePlaylist).last();
             id.should.equal(listId);
 
             if (!opts) throw new Error();
@@ -131,5 +130,4 @@ describe("YoutubeApp", () => {
             filter(videoOf("play-id")).should.be.true;
         });
     });
-
 });

@@ -1,16 +1,17 @@
 import jwt from "jsonwebtoken";
-import request, {OptionsWithUrl} from "request-promise-native";
+import request, { OptionsWithUrl } from "request-promise-native";
 
 import _debug from "debug";
 import { read, Token, write } from "../../token";
 import { EpisodeContainer } from "../../util/episode-container";
+
 const debug = _debug("babbling:hbogo:api");
 
 const CONTENT_URL = "https://comet.api.hbo.com/content";
 const TOKENS_URL = "https://comet.api.hbo.com/tokens";
 
 export const HBO_HEADERS = {
-    "Accept": "application/vnd.hbo.v9.full+json",
+    Accept: "application/vnd.hbo.v9.full+json",
     // tslint:disable-next-line
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.86 Safari/537.36",
     "X-Hbo-Client-Version": "Hadron/21.0.1.176 desktop (DESKTOP)",
@@ -46,7 +47,7 @@ function extractIdFromUrn(urnOrId: string) {
 }
 
 export function entityTypeFromUrn(urn: string) {
-    const [ , , entityType ] = urn.split(":");
+    const [, , entityType] = urn.split(":");
     return entityType as "series" | "season" | "episode" | "extra" | "feature";
 }
 
@@ -58,7 +59,6 @@ export interface IHboEpisode {
 }
 
 export class HboGoApi {
-
     private refreshToken: string | undefined;
     private refreshTokenExpires = 0;
 
@@ -86,7 +86,7 @@ export class HboGoApi {
         }
 
         // NOTE: I'm not sure what to do with `markerStatus`...
-        const focusEpisode: string = seriesMarker.focusEpisode;
+        const { focusEpisode } = seriesMarker;
         const episodeMarker = await this.getMarkerForEpisode(focusEpisode);
 
         const result = {
@@ -108,7 +108,7 @@ export class HboGoApi {
 
         // NOTE: not all episodes are returned, so extract titles
         // for the ones that are
-        const episodeTitles: {[key: string]: string} = {};
+        const episodeTitles: { [key: string]: string } = {};
         for (const item of items) {
             const type = entityTypeFromUrn(item.id);
             if (type === "episode") {
@@ -143,7 +143,7 @@ export class HboGoApi {
      * unclear what criteria is used to determine which series
      * are included in this map.
      */
-    public async getSeriesMarkers(): Promise<{[urn: string]: ISeriesMarker}> {
+    public async getSeriesMarkers(): Promise<{ [urn: string]: ISeriesMarker }> {
         const markersResult = await this.fetchContent(["urn:hbo:series-markers:mine"]);
         return markersResult[0].body.seriesMarkers;
     }
@@ -191,15 +191,15 @@ export class HboGoApi {
 
         if (Array.isArray(episodeMarkers)) {
             return episodeMarkers;
-        } else if (episodeMarkers) {
+        } if (episodeMarkers) {
             return [episodeMarkers];
         }
 
         return [];
     }
 
-    public async *search(title: string) {
-        const searchUrn = "urn:hbo:search:" + encodeURIComponent(title);
+    public async* search(title: string) {
+        const searchUrn = `urn:hbo:search:${encodeURIComponent(title)}`;
         const content = await this.fetchContent([searchUrn]);
 
         // NOTE: the first one just has references to the ids of
@@ -253,7 +253,7 @@ export class HboGoApi {
 
     private async fetchContent(urns: string[]) {
         return this.request("post", {
-            body: urns.map(urn => ({id: urn})),
+            body: urns.map(urn => ({ id: urn })),
             json: true,
             url: CONTENT_URL,
         });
@@ -265,11 +265,10 @@ export class HboGoApi {
 
     private async fillRequest(opts: OptionsWithUrl) {
         const token = await this.getRefreshToken();
-        return Object.assign({
-            headers: Object.assign({
-                Authorization: `Bearer ${token}`,
-            }, HBO_HEADERS),
-        }, opts);
+        return {
+            headers: { Authorization: `Bearer ${token}`, ...HBO_HEADERS },
+            ...opts,
+        };
     }
 
     private async loadRefreshToken() {
@@ -305,9 +304,7 @@ export class HboGoApi {
                 refresh_token: this.token,
                 scope: "browse video_playback device",
             },
-            headers: Object.assign({
-                Authorization: `Bearer ${baseTokens.refresh_token}`,
-            }, HBO_HEADERS),
+            headers: { Authorization: `Bearer ${baseTokens.refresh_token}`, ...HBO_HEADERS },
             json: true,
             url: TOKENS_URL,
         });
@@ -329,5 +326,4 @@ export class HboGoApi {
 
         return realTokens.refresh_token;
     }
-
 }

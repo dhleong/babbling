@@ -1,18 +1,20 @@
 import _debug from "debug";
-const debug = _debug("babbling:device");
 
 import { ChromecastDevice as StratoDevice } from "stratocaster";
 
-import { AppFor, IApp, IAppConstructor, OptionsFor, Opts } from "./app";
+import {
+    AppFor, IApp, IAppConstructor, OptionsFor, Opts,
+} from "./app";
 import { MediaControls } from "./controls";
 
-export class ChromecastDevice {
+const debug = _debug("babbling:device");
 
+export class ChromecastDevice {
     private readonly castorDevice: StratoDevice;
 
     constructor(
         public friendlyName: string,
-        timeout: number = 10000,
+        timeout = 10000,
     ) {
         this.castorDevice = new StratoDevice(friendlyName, {
             searchTimeout: timeout,
@@ -45,7 +47,7 @@ export class ChromecastDevice {
      */
     public async openApp<TConstructor extends IAppConstructor<Opts, IApp>>(
         appConstructor: TConstructor,
-        ...options: OptionsFor<TConstructor>  // tslint:disable-line
+        ...options: OptionsFor<TConstructor> // tslint:disable-line
     ): Promise<AppFor<TConstructor>> {
         const app = new appConstructor(
             this.castorDevice,
@@ -67,5 +69,4 @@ export class ChromecastDevice {
     public close() {
         this.castorDevice.close();
     }
-
 }

@@ -1,5 +1,4 @@
 import _debug from "debug";
-const debug = _debug("babbling:hulu");
 
 import { ChromecastDevice, isJson } from "stratocaster";
 
@@ -9,6 +8,8 @@ import { BaseApp } from "../base";
 import { HuluApi } from "./api";
 import { HuluPlayerChannel } from "./channel";
 import { IHuluOpts } from "./config";
+
+const debug = _debug("babbling:hulu");
 
 export { IHuluOpts } from "./config";
 
@@ -25,7 +26,6 @@ function eabIdFromEntity(entity: any) {
 }
 
 export class HuluApp extends BaseApp {
-
     public static configurable = new CookiesConfigurable<IHuluOpts>("https://www.hulu.com");
     public static createPlayerChannel(options: IHuluOpts) {
         return new HuluPlayerChannel(options);
@@ -45,7 +45,6 @@ export class HuluApp extends BaseApp {
             const { captionsLanguage } = options;
             this.captionsLanguage = captionsLanguage;
         }
-
     }
 
     /**
@@ -86,13 +85,13 @@ export class HuluApp extends BaseApp {
             offset_msec?: number,
         },
     ) {
-        const [ userToken, s, entity ] = await Promise.all([
+        const [userToken, s, entity] = await Promise.all([
             this.api.getUserToken(),
             this.ensureCastSession(),
             entityPromise,
         ]);
 
-        const data = Object.assign({
+        const data = {
             autoplay: {
                 autoplay: "on",
             },
@@ -117,7 +116,8 @@ export class HuluApp extends BaseApp {
             show_prerolls: true,
             user_id: this.api.userId,
             user_token: userToken,
-        }, extraData);
+            ...extraData,
+        };
 
         s.write({
             data,
@@ -137,5 +137,4 @@ export class HuluApp extends BaseApp {
             }
         }
     }
-
 }

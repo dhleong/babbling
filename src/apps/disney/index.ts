@@ -1,6 +1,6 @@
 import _debug from "debug";
-const debug = _debug("babbling:DisneyApp");
 
+import { ChromecastDevice } from "stratocaster";
 import { BaseApp, MEDIA_NS } from "../base";
 import { ILoadRequest, IMedia } from "../../cast";
 
@@ -8,16 +8,16 @@ import { DisneyApi } from "./api";
 import { DisneyPlayerChannel } from "./channel";
 import { DisneyConfigurable, IDisneyOpts } from "./config";
 import { IPlayableOptions } from "../../app";
-import { ChromecastDevice } from "stratocaster";
+
+const debug = _debug("babbling:DisneyApp");
 
 export { IDisneyOpts } from "./config";
 
 const APP_ID = "C3DE6BC2";
 
 export class DisneyApp extends BaseApp {
-
     // declare Player support
-    public static tokenConfigKeys = [ "token", "refreshToken" ];
+    public static tokenConfigKeys = ["token", "refreshToken"];
     public static configurable = new DisneyConfigurable();
     public static createPlayerChannel(options: IDisneyOpts) {
         return new DisneyPlayerChannel(options);
@@ -64,7 +64,7 @@ export class DisneyApp extends BaseApp {
                 uiLanguage: language,
             },
             media,
-            sessionId: s.destination!!,
+            sessionId: s.destination!,
             type: "LOAD",
         };
 
@@ -134,7 +134,7 @@ export class DisneyApp extends BaseApp {
             accessState: JSON.stringify({
                 data: {
                     contextState: {
-                        modes: [ "bamIdentity" ],
+                        modes: ["bamIdentity"],
                     },
                     refreshToken: tokens.refreshToken,
                     token: tokens.token,
@@ -143,5 +143,4 @@ export class DisneyApp extends BaseApp {
             }),
         };
     }
-
 }

@@ -11,7 +11,7 @@ export interface ISearchByTitleOpts {
 function padLeft(s: string, width: number) {
     if (s.length === width) {
         return s;
-    } else if (s.length > width) {
+    } if (s.length > width) {
         return s.substr(0, width);
     }
 
@@ -42,7 +42,7 @@ export async function formatQueryResults(results: AsyncIterable<IQueryResult>) {
             console.log(`    - ${match.url}`);
         }
         if (match.hasAds) {
-            console.log(`    * Includes Advertisements`);
+            console.log("    * Includes Advertisements");
         }
         if (match.desc) {
             console.log(`    ${match.desc}`);
@@ -52,6 +52,6 @@ export async function formatQueryResults(results: AsyncIterable<IQueryResult>) {
     }
 
     if (!found) {
-        consoleWrite(`No results`);
+        consoleWrite("No results");
     }
 }

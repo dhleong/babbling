@@ -1,11 +1,12 @@
 import debug_ from "debug";
-const debug = debug_("babbling:daemon");
 
 import childProc from "child_process";
 import fs from "fs";
 import { getAppConstructors } from "../../cli/config";
 import { ChromecastDevice } from "../../device";
 import { BabblerBaseApp } from "./base";
+
+const debug = debug_("babbling:daemon");
 
 const DAEMON_ENV = "IS_BABBLER_DAEMON";
 
@@ -37,7 +38,7 @@ export class BabblerDaemon {
                 DEBUG: process.env.DEBUG,
                 [DAEMON_ENV]: "true",
             },
-            stdio: [ "ignore", out, out, "ipc" ],
+            stdio: ["ignore", out, out, "ipc"],
         });
         proc.unref();
 

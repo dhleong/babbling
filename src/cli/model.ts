@@ -1,11 +1,11 @@
 import { IAppConstructor } from "../app";
 
 export interface ICookieSource {
-    query(url: string): AsyncIterable<{name: string, value: string}>;
+    query(url: string): AsyncIterable<{ name: string, value: string }>;
 }
 
 export interface ILocalStorageSource {
-    readAll(url: string): AsyncIterable<{key: string, value: string}>;
+    readAll(url: string): AsyncIterable<{ key: string, value: string }>;
 }
 
 export interface IConfigSource {

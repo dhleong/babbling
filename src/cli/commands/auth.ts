@@ -3,7 +3,6 @@
 import { CookieExtractor, LocalStorageExtractor } from "chromagnon";
 
 import _debug from "debug";
-const debug = _debug("babbling:config");
 
 import { consoleWrite, prompt } from "./util";
 
@@ -12,8 +11,9 @@ import { IConfigSource, ILocalStorageSource, isConfigurable } from "../model";
 import { IAuthOpts } from "./auth/config";
 import { readConfig, writeConfig } from "./config";
 
-class ChromagnonSource implements IConfigSource {
+const debug = _debug("babbling:config");
 
+class ChromagnonSource implements IConfigSource {
     public static async create() {
         const cookies = await CookieExtractor.create();
         const storage = await LocalStorageExtractor.create();
@@ -83,7 +83,7 @@ cookies for some apps.
             opts.ignoreErrors,
         );
 
-        consoleWrite(`Extracted auth:`);
+        consoleWrite("Extracted auth:");
         console.log(config);
 
         // don't delete pre-existing values
@@ -93,7 +93,6 @@ cookies for some apps.
         consoleWrite(`
 Wrote config to: ${opts.config}
         `);
-
     } catch (e) {
         consoleWrite(`
 Unable to complete authentication extraction:

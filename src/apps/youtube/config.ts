@@ -47,7 +47,7 @@ export type IYoutubeOpts = IYoutubeAuth & {
      * `cookies` is provided
      */
     deviceName?: string;
-}
+};
 
 export function isCookieAuth(auth: IYoutubeAuth | undefined): auth is IYoutubeCookieAuth {
     if (!auth) return false;

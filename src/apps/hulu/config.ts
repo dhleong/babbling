@@ -1,4 +1,3 @@
-
 export interface IHuluOpts {
     /**
      * A string of cookies as might be retrieved from the "copy as

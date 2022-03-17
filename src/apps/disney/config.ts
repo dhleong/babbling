@@ -14,7 +14,7 @@ export class DisneyConfigurable implements IConfigurable<IDisneyOpts> {
         for await (const { key, value } of stream) {
             if (key.startsWith("__bam_sdk_access--disney-svod")) {
                 const entry = JSON.parse(value);
-                const token = entry.context.token;
+                const { token } = entry.context;
                 const refreshToken = entry.context.tokenData.refresh_token;
                 return { token, refreshToken };
             }

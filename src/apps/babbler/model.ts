@@ -1,4 +1,3 @@
-
 // tslint:disable no-bitwise
 export enum SenderCapabilities {
     None = 0,
@@ -25,7 +24,7 @@ export enum MetadataType {
 export interface IChromecastMetadata {
     metadataType: MetadataType;
     title: string;
-    images?: Array<{url: string}>;
+    images?: Array<{ url: string }>;
 }
 
 export interface ITvShowChromecastMetadata extends IChromecastMetadata {

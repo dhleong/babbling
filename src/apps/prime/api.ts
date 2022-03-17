@@ -1,5 +1,4 @@
 import _debug from "debug";
-const debug = _debug("babbling:PrimeApp:api");
 
 import crypto from "crypto";
 import os from "os";
@@ -15,7 +14,11 @@ import { toArray } from "../../async";
 
 import { IFirstPage, Paginated } from "./api/paginated";
 import { IPrimeApiOpts, IPrimeOpts } from "./config";
-import { AvailabilityType, IAvailability, ISearchOpts, ISearchResult } from "./model";
+import {
+    AvailabilityType, IAvailability, ISearchOpts, ISearchResult,
+} from "./model";
+
+const debug = _debug("babbling:PrimeApp:api");
 
 // ======= constants ======================================
 
@@ -142,7 +145,7 @@ export class PrimeApi {
     private readonly deviceNameBase = "User\u2019s Babbling";
 
     private accessToken: string | null = null;
-    private accessTokenExpiresAt: number = -1;
+    private accessTokenExpiresAt = -1;
 
     constructor(options: IPrimeApiOpts = {}) {
         this.opts = options;
@@ -206,15 +209,13 @@ export class PrimeApi {
         debug("login successful = ", success);
         debug("cookies = ", success.tokens.website_cookies);
         return {
-            cookies: success.tokens.website_cookies.map((c: any) => {
-                return `${c.Name}=${c.Value}`;
-            }).join("; "),
+            cookies: success.tokens.website_cookies.map((c: any) => `${c.Name}=${c.Value}`).join("; "),
             refreshToken: success.tokens.bearer.refresh_token,
         };
     }
 
     public async generatePreAuthorizedLinkCode(refreshToken: string) {
-        debug(`generating pre-authorized link code...`);
+        debug("generating pre-authorized link code...");
         const body = {
             auth_data: {
                 access_token: refreshToken,
@@ -238,13 +239,11 @@ export class PrimeApi {
         return response.code;
     }
 
-    public async *search(
+    public async* search(
         title: string,
         searchOpts: ISearchOpts = {},
     ): AsyncIterable<ISearchResult> {
-        const opts: ISearchOpts = Object.assign({
-            onlyPlayable: true,
-        }, searchOpts);
+        const opts: ISearchOpts = { onlyPlayable: true, ...searchOpts };
 
         // ensure we only fetch this once for both requests
         await this.getAccessToken();
@@ -254,7 +253,7 @@ export class PrimeApi {
             toArray(this.searchWithWatchlist(title, opts)),
         ]);
 
-        const watchlistById: {[id: string]: ISearchResult}  = {};
+        const watchlistById: { [id: string]: ISearchResult } = {};
         for (const item of withWatchlist) {
             watchlistById[item.id] = item;
         }
@@ -270,8 +269,7 @@ export class PrimeApi {
                 continue;
             }
 
-            const purchasable = itemWithWatchlist.availability.filter(a =>
-                !playableAvailability.has(a.type));
+            const purchasable = itemWithWatchlist.availability.filter(a => !playableAvailability.has(a.type));
 
             const compositeAvailability = item.availability.concat(purchasable);
             if (!compositeAvailability.length) {
@@ -279,17 +277,17 @@ export class PrimeApi {
                 continue;
             }
 
-            yield Object.assign({}, itemWithWatchlist, item, {
+            yield ({
+                ...itemWithWatchlist,
+                ...item,
                 availability: compositeAvailability,
-                isPurchased: compositeAvailability.find(a =>
-                    a.type === AvailabilityType.OWNED,
-                ) !== undefined,
+                isPurchased: compositeAvailability.find(a => a.type === AvailabilityType.OWNED) !== undefined,
             });
         }
     }
 
     public async guessResumeInfo(titleId: string): Promise<IResumeInfo | undefined> {
-        const [ titleInfo, watchNext ] = await Promise.all([
+        const [titleInfo, watchNext] = await Promise.all([
             this.getTitleInfo(titleId),
             this.watchNextItems(),
         ]);
@@ -310,7 +308,7 @@ export class PrimeApi {
         for await (const info of watchNext) {
             debug(
                 "Check:", info.titleId, ": ", info.title,
-                "(given:", titleId, ")"
+                "(given:", titleId, ")",
             );
             if (
                 info.titleId === titleId
@@ -363,8 +361,7 @@ export class PrimeApi {
                     return c;
                 }
             },
-            p => p.collections,
-        );
+            p => p.collections);
 
         const info: {
             watchNext?: IFirstPage,
@@ -385,7 +382,7 @@ export class PrimeApi {
      * like watchUrl, id while adding cover art (and, at least for now,
      * lacking pagination)
      */
-    public async *nextUpItems() {
+    public async* nextUpItems() {
         const { landingPage } = await this.swiftApiRequest(
             "/cdp/discovery/GetLandingPage",
             {
@@ -443,9 +440,7 @@ export class PrimeApi {
         }
 
         if (resource.seasons) {
-            info.seasonIds = resource.seasons.map((s: any) =>
-                s.titleId,
-            );
+            info.seasonIds = resource.seasons.map((s: any) => s.titleId);
             info.seasonIdSet = new Set<string>(info.seasonIds);
         }
 
@@ -530,8 +525,7 @@ export class PrimeApi {
             return;
         }
 
-        const upNextIndex = titleInfo.episodes.findIndex(ep =>
-            ep.titleId === upNext.titleId);
+        const upNextIndex = titleInfo.episodes.findIndex(ep => ep.titleId === upNext.titleId);
         if (upNextIndex === -1) {
             debug(`Couldn't find ${upNext.titleId} in episodes; drop queue`);
             return;
@@ -591,7 +585,7 @@ export class PrimeApi {
     private async getAccessToken() {
         const existing = this.accessToken;
         const existingExpires = this.accessTokenExpiresAt;
-        if (existing && Date.now() < existingExpires)  {
+        if (existing && Date.now() < existingExpires) {
             return existing;
         }
 
@@ -621,7 +615,7 @@ export class PrimeApi {
             this.accessTokenExpiresAt = Date.now() + response.expires_in * 1000;
             return this.accessToken;
         } catch (e) {
-            throw new Error("Unable to acquire access token\n" + (e as Error).stack);
+            throw new Error(`Unable to acquire access token\n${(e as Error).stack}`);
         }
     }
 
@@ -629,7 +623,7 @@ export class PrimeApi {
      * This search method has reliable entitlement info, but fails
      * to provide watchlist attachment
      */
-    private async *searchWithEntitlement(
+    private async* searchWithEntitlement(
         title: string,
         opts: ISearchOpts,
     ) {
@@ -639,7 +633,7 @@ export class PrimeApi {
                 phrase: title,
             },
         );
-        const items = response.resource.collections[0].items;
+        const { items } = response.resource.collections[0];
 
         for (const item of items) {
             const availability: IAvailability[] = [];
@@ -682,7 +676,7 @@ export class PrimeApi {
      * This search method has watchlist presence included, but fails
      * to provide "Free with ads" availability
      */
-    private async *searchWithWatchlist(
+    private async* searchWithWatchlist(
         title: string,
         opts: ISearchOpts,
     ) {
@@ -723,7 +717,7 @@ export class PrimeApi {
             ...this.generateHeaders(),
             Accept: "application/json",
             Authorization: `Bearer ${accessToken}`,
-        }
+        };
 
         const params = {
             ...qs,
@@ -876,7 +870,7 @@ function parseWatchlistItem(item: any) {
         title: cleanTitle(item.decoratedTitle.catalog.title),
         titleId: item.titleId,
         type: item.decoratedTitle.catalog.type,
-        watchUrl: `https://www.amazon.com/dp/${id}/?autoplay=1` ,
+        watchUrl: `https://www.amazon.com/dp/${id}/?autoplay=1`,
     };
 }
 
@@ -886,9 +880,7 @@ function isNextUpCollection(c: any): boolean {
     }
 
     if (c.itemTypeToActionMap && c.itemTypeToActionMap.titleCard) {
-        return c.itemTypeToActionMap.titleCard.includes((action: any) => {
-            return action.parameters && action.parameters.listType === "AIV:NextUp";
-        });
+        return c.itemTypeToActionMap.titleCard.includes((action: any) => action.parameters && action.parameters.listType === "AIV:NextUp");
     }
 
     return false;

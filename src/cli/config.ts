@@ -1,20 +1,23 @@
 import _debug from "debug";
-const debug = _debug("babbling:config");
 
 import os from "os";
 import pathlib from "path";
 
-import { IApp, IAppConstructor, IPlayerEnabledConstructor, Opts } from "../app";
+import {
+    IApp, IAppConstructor, IPlayerEnabledConstructor, Opts,
+} from "../app";
 import { BabblerBaseApp } from "../apps/babbler/base";
 import { IWritableToken } from "../token";
 import { configInPath, readConfig } from "./commands/config";
+
+const debug = _debug("babbling:config");
 
 export const DEFAULT_CONFIG_PATH = pathlib.join(
     os.homedir(),
     ".config/babbling/auto-config.json",
 );
 
-export async function *getAppConstructors(): AsyncIterable<IAppConstructor<any, IApp>> {
+export async function* getAppConstructors(): AsyncIterable<IAppConstructor<any, IApp>> {
     const allExports = require("../index");
     for (const name of Object.keys(allExports)) {
         if (
@@ -27,20 +30,19 @@ export async function *getAppConstructors(): AsyncIterable<IAppConstructor<any, 
     }
 }
 
-export async function *importConfig(configPath?: string) {
+export async function* importConfig(configPath?: string) {
     const actualPath = configPath || DEFAULT_CONFIG_PATH;
     const config = await readConfig(actualPath);
 
-    yield *importConfigFromJson(actualPath, config);
+    yield* importConfigFromJson(actualPath, config);
 }
 
 type ConfigPair<TOpts extends Opts> = [IPlayerEnabledConstructor<TOpts, IApp>, Opts];
 
-export async function *importConfigFromJson(
+export async function* importConfigFromJson(
     configPath: string,
     config: any,
 ) {
-
     for await (const app of getAppConstructors()) {
         const appConfig = config[app.name];
         if (!appConfig) continue;
