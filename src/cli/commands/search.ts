@@ -1,3 +1,5 @@
+/* eslint-disable no-console */
+
 import { IQueryResult } from "../../app";
 import { ChromecastDevice } from "../../device";
 import { PlayerBuilder } from "../../player";
@@ -17,18 +19,6 @@ function padLeft(s: string, width: number) {
 
     const delta = width - s.length;
     return " ".repeat(delta) + s;
-}
-
-export default async function searchByTitle(opts: ISearchByTitleOpts) {
-    // tslint:disable no-console
-
-    const builder = await PlayerBuilder.autoInflate(opts.config);
-    builder.addDevice(new ChromecastDevice("_unused_"));
-    const player = builder.build();
-
-    const results = player.queryByTitle(opts.title);
-
-    await formatQueryResults(results);
 }
 
 export async function formatQueryResults(results: AsyncIterable<IQueryResult>) {
@@ -54,4 +44,14 @@ export async function formatQueryResults(results: AsyncIterable<IQueryResult>) {
     if (!found) {
         consoleWrite("No results");
     }
+}
+
+export default async function searchByTitle(opts: ISearchByTitleOpts) {
+    const builder = await PlayerBuilder.autoInflate(opts.config);
+    builder.addDevice(new ChromecastDevice("_unused_"));
+    const player = builder.build();
+
+    const results = player.queryByTitle(opts.title);
+
+    await formatQueryResults(results);
 }

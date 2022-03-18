@@ -1,5 +1,6 @@
-// tslint:disable no-console max-classes-per-file
+/* eslint-disable no-console */
 
+// eslint-disable-next-line import/no-extraneous-dependencies
 import { CookieExtractor, LocalStorageExtractor } from "chromagnon";
 
 import _debug from "debug";

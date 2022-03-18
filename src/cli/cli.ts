@@ -24,12 +24,12 @@ let authCommandModule: typeof AuthCommand;
 
 let canAutoConfigure = false;
 try {
-    // tslint:disable no-var-requires
-    require("chromagnon");
+    /* eslint-disable global-require */
+    require("chromagnon"); // eslint-disable-line import/no-extraneous-dependencies
     canAutoConfigure = true;
 
     authCommandModule = require("./commands/auth");
-    // tslint:enable no-var-requires
+    /* eslint-enable global-require */
 } catch (e) {
     /* ignore */
 }
@@ -156,5 +156,7 @@ export async function main(args: any[]) {
     }
 
     parser.showHelp();
+
+    // eslint-disable-next-line no-console
     console.log("Unknown command", result._[0]);
 }

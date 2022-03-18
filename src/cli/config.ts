@@ -4,13 +4,15 @@ import os from "os";
 import pathlib from "path";
 
 import {
-    IApp, IAppConstructor, IPlayerEnabledConstructor, Opts,
+    IApp, IPlayerEnabledConstructor, Opts,
 } from "../app";
 import { BabblerBaseApp } from "../apps/babbler/base";
 import { IWritableToken } from "../token";
 import { configInPath, readConfig } from "./commands/config";
 
-export { getAppConstructors } from "./getAppConstructors";
+import { getAppConstructors } from "./getAppConstructors";
+
+export { getAppConstructors };
 
 const debug = _debug("babbling:config");
 
