@@ -21,12 +21,14 @@ export interface IBabblerPrimeOpts {
 
 /** fisher-yates shuffle */
 function shuffle(a: any[]) {
+    /* eslint-disable no-param-reassign, no-bitwise */
     for (let i = a.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         const x = a[i];
         a[i] = a[j];
         a[j] = x;
     }
+    /* eslint-enable no-param-reassign, no-bitwise */
 }
 
 function toQueueItem(item: IBaseObj): IQueueItem<IBaseObj> {
@@ -79,7 +81,7 @@ class BabblerPrimeChannel implements IPlayerChannel<BabblerPrimeApp> {
     public async createPlayable(
         url: string,
     ) {
-        const m = url.match(/video\/detail\/([^\/]+)/);
+        const m = url.match(/video\/detail\/([^/]+)/);
         if (!m) {
             throw new Error(`Unsure how to play ${url}`);
         }
@@ -151,11 +153,11 @@ export class BabblerPrimeApp extends BabblerBaseApp {
         super(device, {
             appId: opts.appId,
 
-            // tslint:disable no-bitwise
+            /* eslint-disable no-bitwise */
             capabilities: SenderCapabilities.DeferredInfo
                 | SenderCapabilities.QueueNext
                 | SenderCapabilities.QueuePrev,
-            // tslint:enable no-bitwise
+            /* eslint-enable no-bitwise */
 
             daemonOptions: opts,
             useLicenseIpc: true,

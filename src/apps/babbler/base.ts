@@ -116,11 +116,12 @@ export class BabblerBaseApp<TMedia = {}> extends BaseApp {
     public async rpc(call: RPC) {
         const [m, args] = call;
         switch (m) {
-            case "loadMedia":
+            case "loadMedia": {
                 if (args.length < 1) throw new Error("Invalid args to loadMedia");
 
                 const [options] = args;
                 await this.loadMedia(options);
+            }
         }
     }
 
@@ -188,7 +189,7 @@ export class BabblerBaseApp<TMedia = {}> extends BaseApp {
                 metadata,
                 streamType: "BUFFERED",
             },
-            sessionId: s.destination!,
+            sessionId: s.destination ?? "",
             type: "LOAD",
         } as ILoadRequest;
 
@@ -196,6 +197,7 @@ export class BabblerBaseApp<TMedia = {}> extends BaseApp {
 
         let ms: IMediaStatusMessage;
         do {
+            // eslint-disable-next-line no-await-in-loop
             ms = await awaitMessageOfType(s, "MEDIA_STATUS");
             debug(ms);
         } while (!ms.status.length);

@@ -13,11 +13,11 @@ export interface IAppConstructor<TOptions extends Opts, TSelf extends IApp> {
 }
 
 export type OptionsFor<T> =
-    T extends IAppConstructor<infer TOpt, infer TSelf> ? TOpt :
+    T extends IAppConstructor<infer TOpt, any> ? TOpt :
         never;
 
 export type AppFor<T> =
-    T extends IAppConstructor<infer TOpt, infer TSelf> ? TSelf :
+    T extends IAppConstructor<any, infer TSelf> ? TSelf :
         never;
 
 export interface IPlayableOptions {

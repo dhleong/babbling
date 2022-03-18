@@ -2,9 +2,9 @@ import debug_ from "debug";
 
 import childProc from "child_process";
 import fs from "fs";
-import { getAppConstructors } from "../../cli/config";
+import { getAppConstructors } from "../../cli/getAppConstructors";
 import { ChromecastDevice } from "../../device";
-import { BabblerBaseApp } from "./base";
+import type { BabblerBaseApp } from "./base";
 
 const debug = debug_("babbling:daemon");
 
@@ -44,7 +44,7 @@ export class BabblerDaemon {
 
         return new Promise<void>((resolve, reject) => {
             proc.send(opts);
-            proc.on("message", _ => {
+            proc.on("message", () => {
                 debug("child has started!");
                 proc.disconnect();
                 resolve();
