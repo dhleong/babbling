@@ -35,7 +35,38 @@ const SOFTWARE_VERSION = "2";
 
 const DEFAULT_QUEUE_LENGTH = 10;
 
+const playableAvailability = new Set([
+    AvailabilityType.FREE_WITH_ADS,
+    AvailabilityType.OTHER_SUBSCRIPTION,
+    AvailabilityType.OWNED,
+    AvailabilityType.PRIME,
+]);
+
 // ======= utils ==========================================
+
+function createSaltedKey(key: string, salt: crypto.BinaryLike) {
+    return crypto.pbkdf2Sync(
+        key,
+        salt,
+        1000, // iterations
+        16, // key length (in bytes, vs Java's bits)
+        "SHA1", // hash
+    );
+}
+
+function getIpAddress() {
+    const ifaces = os.networkInterfaces();
+    for (const ifaceName of Object.keys(ifaces)) {
+        const list = ifaces[ifaceName];
+        if (!list) continue;
+
+        for (const iface of list) {
+            if (!iface.internal && iface.family === "IPv4") {
+                return iface.address;
+            }
+        }
+    }
+}
 
 export async function generateFrcCookies(
     deviceId: string,
@@ -91,14 +122,14 @@ export async function generateFrcCookies(
     return toBase64Encode.toString("base64");
 }
 
-function createSaltedKey(key: string, salt: crypto.BinaryLike) {
-    return crypto.pbkdf2Sync(
-        key,
-        salt,
-        1000, // iterations
-        16, // key length (in bytes, vs Java's bits)
-        "SHA1", // hash
-    );
+function isPlayableNow(availability: IAvailability[]) {
+    for (const a of availability) {
+        if (playableAvailability.has(a.type)) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 // ======= internal types =================================
@@ -269,7 +300,8 @@ export class PrimeApi {
                 continue;
             }
 
-            const purchasable = itemWithWatchlist.availability.filter(a => !playableAvailability.has(a.type));
+            const purchasable = itemWithWatchlist.availability
+                .filter(a => !playableAvailability.has(a.type));
 
             const compositeAvailability = item.availability.concat(purchasable);
             if (!compositeAvailability.length) {
@@ -281,7 +313,8 @@ export class PrimeApi {
                 ...itemWithWatchlist,
                 ...item,
                 availability: compositeAvailability,
-                isPurchased: compositeAvailability.find(a => a.type === AvailabilityType.OWNED) !== undefined,
+                isPurchased: compositeAvailability
+                    .find(a => a.type === AvailabilityType.OWNED) !== undefined,
             });
         }
     }
@@ -698,7 +731,7 @@ export class PrimeApi {
         }
     }
 
-    private async swiftApiCollectionRequest(path: string, qs: {} = {}) {
+    private async swiftApiCollectionRequest(path: string, qs: Record<string, unknown> = {}) {
         const response = await this.swiftApiRequest(path, qs);
         const widgets = response.page.sections.center.widgets.widgetList;
         for (const w of widgets) {
@@ -710,7 +743,7 @@ export class PrimeApi {
         throw new Error("No collection found");
     }
 
-    private async swiftApiRequest(path: string, qs: {} = {}) {
+    private async swiftApiRequest(path: string, qs: Record<string, unknown> = {}) {
         const accessToken = await this.getAccessToken();
 
         const headers = {
@@ -739,20 +772,6 @@ export class PrimeApi {
             qs: params,
             url,
         });
-    }
-}
-
-function getIpAddress() {
-    const ifaces = os.networkInterfaces();
-    for (const ifaceName of Object.keys(ifaces)) {
-        const list = ifaces[ifaceName];
-        if (!list) continue;
-
-        for (const iface of list) {
-            if (!iface.internal && iface.family === "IPv4") {
-                return iface.address;
-            }
-        }
     }
 }
 
@@ -811,23 +830,6 @@ function isWatchNextCarousel(carousel: any) {
         return true;
     }
     return watchNextCarouselTitles.has(carousel.title);
-}
-
-const playableAvailability = new Set([
-    AvailabilityType.FREE_WITH_ADS,
-    AvailabilityType.OTHER_SUBSCRIPTION,
-    AvailabilityType.OWNED,
-    AvailabilityType.PRIME,
-]);
-
-function isPlayableNow(availability: IAvailability[]) {
-    for (const a of availability) {
-        if (playableAvailability.has(a.type)) {
-            return true;
-        }
-    }
-
-    return false;
 }
 
 function seasonNumberFromTitle(title: string) {

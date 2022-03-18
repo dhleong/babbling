@@ -1,6 +1,6 @@
 import _debug from "debug";
 
-import { PrimeApi } from "../api";
+import type { PrimeApi } from "../api";
 import { IPrimeApiInternal } from "../model";
 
 const debug = _debug("babbling:prime:api:paginated");

@@ -103,7 +103,7 @@ export class HboGoApp extends BaseApp {
                 contentType: "video/mp4",
                 streamType: "BUFFERED",
             },
-            sessionId: s.destination!,
+            sessionId: s.destination ?? "",
             type: "LOAD",
         };
 

@@ -130,8 +130,8 @@ export class HuluApp extends BaseApp {
             if (!isJson(m.data)) continue;
             if (m.data.event_type !== "playback_update") continue;
 
-            const { playback_state } = m.data.data as any;
-            if (playback_state && playback_state.length && playback_state[0] === "PLAYING") {
+            const { playback_state: playbackState } = m.data.data as any;
+            if (playbackState && playbackState.length && playbackState[0] === "PLAYING") {
                 debug(m.data.data);
                 break;
             }

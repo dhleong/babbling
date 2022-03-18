@@ -64,7 +64,7 @@ export class DisneyApp extends BaseApp {
                 uiLanguage: language,
             },
             media,
-            sessionId: s.destination!,
+            sessionId: s.destination ?? "",
             type: "LOAD",
         };
 

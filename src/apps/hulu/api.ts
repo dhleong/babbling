@@ -111,13 +111,15 @@ export class HuluApi {
 
         debug(`loaded entity ${entityId}:`, entity);
 
-        if (entity._type === "series") {
+        const { _type: type } = entity;
+
+        if (type === "series") {
             throw new Error("Use resumeSeries for series");
         }
 
-        if (!supportedEntityTypes.has(entity._type)) {
+        if (!supportedEntityTypes.has(type)) {
             // for example, 'series'
-            throw new Error(`Unsupported entity '${entity.name}' (type '${entity._type}')`);
+            throw new Error(`Unsupported entity '${entity.name}' (type '${type}')`);
         }
 
         return entity;
@@ -135,16 +137,17 @@ export class HuluApi {
 
         const { results } = groups.find((it: any) => it.category === "top results");
 
-        return results.filter((item: any) =>
+        return results.filter((item: any) => {
             // if it's prompting to upsell, we probably can't cast it
-            !item.actions.upsell
+            if (!item.actions.upsell) return false;
 
             // similarly, if we're prompted to "get related" it's not on hulu
-            && !item.actions.get_related);
+            return !item.actions.get_related;
+        });
     }
 
     public episodeResolver(seriesId: string) {
-        const api = this;
+        const api = this; // eslint-disable-line @typescript-eslint/no-this-alias
         return new EpisodeResolver<IHuluEpisode>({
             async* episodesInSeason(seasonIndex: number) {
                 let page: string | undefined;

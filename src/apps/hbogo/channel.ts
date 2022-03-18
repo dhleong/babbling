@@ -6,7 +6,7 @@ import {
 } from "../../app";
 import { EpisodeResolver } from "../../util/episode-resolver";
 
-import { HboGoApp, IHboGoOpts } from ".";
+import type { HboGoApp, IHboGoOpts } from ".";
 import { entityTypeFromUrn, HboGoApi } from "./api";
 
 function urnFromUrl(url: string) {
@@ -36,6 +36,7 @@ export class HboGoPlayerChannel implements IPlayerChannel<HboGoApp> {
                 case "episode":
                 case "extra":
                 case "feature":
+                case "season":
                 // TODO: it may be possible to resume specific episodes or
                 // features (movies)...
                     return async (app: HboGoApp) => app.play(urn);
@@ -43,8 +44,6 @@ export class HboGoPlayerChannel implements IPlayerChannel<HboGoApp> {
         } catch (e) {
             throw new Error(`'${urn}' doesn't look playable`);
         }
-
-        throw new Error(`Not sure how to play '${urn}'`);
     }
 
     public async findEpisodeFor(
@@ -53,9 +52,11 @@ export class HboGoPlayerChannel implements IPlayerChannel<HboGoApp> {
     ): Promise<IEpisodeQueryResult | undefined> {
         if (item.appName !== "HboGoApp") {
             throw new Error("Given QueryResult for wrong app");
+        } else if (item.url == null) {
+            throw new Error(`Given query result has no URL: ${item.title}`);
         }
 
-        const urn = urnFromUrl(item.url!);
+        const urn = urnFromUrl(item.url);
         if (entityTypeFromUrn(urn) !== "series") return; // cannot have it
 
         const resolver = new EpisodeResolver({

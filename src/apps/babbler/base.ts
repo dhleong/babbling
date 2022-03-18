@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import debug_ from "debug";
 
 import { ChromecastDevice, StratoChannel } from "stratocaster";
@@ -79,7 +80,7 @@ export interface IPlayableInfo {
 /**
  * Base class for apps that use Babbler for playback
  */
-export class BabblerBaseApp<TMedia = {}> extends BaseApp {
+export class BabblerBaseApp<TMedia = unknown> extends BaseApp {
     protected tracker: PlaybackTracker<TMedia> | undefined;
 
     /** @internal */
@@ -197,7 +198,6 @@ export class BabblerBaseApp<TMedia = {}> extends BaseApp {
 
         let ms: IMediaStatusMessage;
         do {
-            // eslint-disable-next-line no-await-in-loop
             ms = await awaitMessageOfType(s, "MEDIA_STATUS");
             debug(ms);
         } while (!ms.status.length);

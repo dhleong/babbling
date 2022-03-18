@@ -118,7 +118,9 @@ export class DisneyApi {
         let startTime: number | undefined;
         if (data.episodesWithProgress) {
             debug("episodesWithProgress = ", data.episodesWithProgress);
-            const info = data.episodesWithProgress.find((progress: any) => progress.contentId === episode.contentId);
+            const info = data.episodesWithProgress.find(
+                (progress: any) => progress.contentId === episode.contentId,
+            );
             if (info && info.userMeta) {
                 debug("resume with info=", info);
                 startTime = info.userMeta.playhead; // playhead is in seconds
@@ -177,25 +179,26 @@ export class DisneyApi {
             slug: "home",
         });
 
-        const collections: ICollection[] = containers.filter((container: any) =>
-            // NOTE: these are usually links to eg Marvel collection
-            container.set.contentClass !== "brand").map((container: any) => {
-            const { set } = container;
-            const c: ICollection = {
-                id: set.refId,
-                items: set.items,
-                meta: set.meta,
-                title: set.texts[0].content,
-                type: set.refType,
-            };
+        const collections: ICollection[] = containers
+        // NOTE: these are usually links to eg Marvel collection
+            .filter((container: any) => container.set.contentClass !== "brand")
+            .map((container: any) => {
+                const { set } = container;
+                const c: ICollection = {
+                    id: set.refId,
+                    items: set.items,
+                    meta: set.meta,
+                    title: set.texts[0].content,
+                    type: set.refType,
+                };
 
-            if (!c.id && set.setId) {
-                c.id = set.setId;
-                c.type = set.type;
-            }
+                if (!c.id && set.setId) {
+                    c.id = set.setId;
+                    c.type = set.type;
+                }
 
-            return c;
-        });
+                return c;
+            });
 
         return collections;
     }
@@ -223,7 +226,7 @@ export class DisneyApi {
         const { seasons } = response.seasons;
 
         debug("loaded seasons for", encodedSeriesId, " = ", seasons);
-        const api = this;
+        const api = this; // eslint-disable-line @typescript-eslint/no-this-alias
         return new EpisodeResolver<IDisneyEpisode>({
             async* episodesInSeason(seasonIndex: number) {
                 yield* api.getSeasonEpisodeBatchesById(seasons[seasonIndex].seasonId);

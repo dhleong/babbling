@@ -129,6 +129,9 @@ export class PlaybackTracker<TMedia = void> {
                     this.getDevice().close();
                 }
                 break;
+
+            case "LOADING":
+                // nop
         }
     }
 
@@ -157,12 +160,13 @@ export class PlaybackTracker<TMedia = void> {
                 await this.handleClose();
                 break;
 
-            case "MEDIA_STATUS":
+            case "MEDIA_STATUS": {
                 const statusMessage = m as IMediaStatusMessage;
                 if (!statusMessage.status.length) return;
 
                 this.handleMediaStatus(statusMessage.status[0]);
                 break;
+            }
         }
     };
 

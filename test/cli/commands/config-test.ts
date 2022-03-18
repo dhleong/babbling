@@ -29,7 +29,7 @@ describe("configUpdater", () => {
     it("prevents simultaneous file writes", async () => {
         let storedConfig = 1;
         const update = createConfigUpdater(
-            async (path: string) => {
+            async () => {
                 delay(10); // simulate disk access
                 return storedConfig;
             },
