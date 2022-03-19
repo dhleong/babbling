@@ -4,13 +4,6 @@ import { IMessage, StratoChannel } from "stratocaster";
 
 const debug = _debug("babbling:util");
 
-export const awaitMessageOfType = (
-    session: StratoChannel, type: string,
-    timeoutMs = 5000,
-): Promise<any> => awaitMessageOfTypeFrom(
-    session.receive(), type, timeoutMs,
-);
-
 export const awaitMessageOfTypeFrom = (
     stream: AsyncIterable<IMessage>, type: string,
     timeoutMs = 5000,
@@ -35,3 +28,10 @@ export const awaitMessageOfTypeFrom = (
         throw new Error(`Failed to receive ${type}`);
     })(),
 ]);
+
+export const awaitMessageOfType = (
+    session: StratoChannel, type: string,
+    timeoutMs = 5000,
+): Promise<any> => awaitMessageOfTypeFrom(
+    session.receive(), type, timeoutMs,
+);

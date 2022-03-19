@@ -4,7 +4,7 @@ import URL from "url";
 
 import { IPlayableOptions, IPlayerChannel } from "../../app";
 
-import { IYoutubeOpts, YoutubeApp } from ".";
+import type { IYoutubeOpts, YoutubeApp } from ".";
 import { filterFromSkippedIds } from "./util";
 import { hasAuth } from "./config";
 

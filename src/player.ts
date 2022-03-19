@@ -19,7 +19,7 @@ import { ChromecastDevice } from "./device";
 const debug = _debug("babbling:player");
 
 type IAppOf<T> =
-    T extends IPlayerEnabledConstructor<infer TOpt, infer TApp> ? TApp :
+    T extends IPlayerEnabledConstructor<any, infer TApp> ? TApp :
         never;
 
 interface IConfiguredApp<TConstructor extends IPlayerEnabledConstructor<Opts, IApp>> {
@@ -130,7 +130,7 @@ class Player {
         title: string,
         onError: AppSpecificErrorHandler = defaultAppSpecificErrorHandler,
     ): AsyncIterable<IQueryResult> {
-        const iterables = this.apps.map(async function* (app) {
+        const iterables = this.apps.map(async function* iterable(app) {
             if (!app.channel.queryByTitle) return;
 
             try {
@@ -161,7 +161,7 @@ class Player {
         query: IEpisodeQuery,
         onError: AppSpecificErrorHandler = defaultAppSpecificErrorHandler,
     ): AsyncIterable<IEpisodeQueryResult> {
-        const iterables = this.apps.map(async function* (app) {
+        const iterables = this.apps.map(async function* iterable(app) {
             if (!app.channel.queryEpisodeForTitle) {
                 // fallback to a default implementation if findEpisodeFor
                 // is provided
@@ -190,12 +190,14 @@ class Player {
      * can be passed directly to `play`.
      */
     public getRecommendationsMap() {
+        /* eslint-disable no-param-reassign */
         return this.apps.reduce((m, app) => {
             if (!app.channel.queryRecommended) return m;
 
             m[app.appConstructor.name] = app.channel.queryRecommended();
             return m;
         }, {} as { [app: string]: AsyncIterable<IQueryResult> });
+        /* eslint-enable no-param-reassign */
     }
 
     /**
@@ -211,7 +213,7 @@ class Player {
         onError: AppSpecificErrorHandler = defaultAppSpecificErrorHandler,
     ) {
         const m = this.getRecommendationsMap();
-        const iterables = Object.keys(m).map(async function* (appName) {
+        const iterables = Object.keys(m).map(async function* iterable(appName) {
             const results = m[appName];
             try {
                 yield* results;
@@ -278,7 +280,8 @@ export class PlayerBuilder {
         const index = this.apps.findIndex(old => old.appConstructor === appConstructor);
         if (index !== -1) {
             // extend existing config, for use with autoInflate();
-            this.apps[index].options = this.apps[index].options.map((old, i) => ({ ...old, ...options[i] }));
+            this.apps[index].options = this.apps[index].options
+                .map((old, i) => ({ ...old, ...options[i] }));
         } else {
             this.apps.push({
                 appConstructor,

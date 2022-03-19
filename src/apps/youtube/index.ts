@@ -200,9 +200,10 @@ export class YoutubeApp extends BaseApp {
         } = {},
     ) {
         const { listId, startTime } = options;
+        let videoIdToRequest = videoId;
 
         if (
-            videoId === ""
+            videoIdToRequest === ""
             && listId
             && listId.length
             && this.youtubish
@@ -211,7 +212,7 @@ export class YoutubeApp extends BaseApp {
             // load the first video in it (if we can)
             try {
                 const video = await this.playlistById(listId).get(0);
-                videoId = video.id;
+                videoIdToRequest = video.id;
             } catch (e) {
                 // ignore; this is best-effort
                 debug(`Failed to load playlist '${listId}':`, e);
@@ -226,7 +227,7 @@ export class YoutubeApp extends BaseApp {
                 [KEYS.currentTime]: startTime === undefined ? -1 : startTime,
                 [KEYS.currentIndex]: -1,
                 [KEYS.audioOnly]: "false",
-                [KEYS.videoId]: videoId,
+                [KEYS.videoId]: videoIdToRequest,
                 [KEYS.count]: 1,
             },
         });
@@ -237,7 +238,7 @@ export class YoutubeApp extends BaseApp {
      * video in the playlist, but you can provide an index into the
      * playlist via the options map
      *
-     * @param filter If provided, a predicate function that must return True
+     * @param options.filter If provided, a predicate function that must return True
      * for a video in the playlist to be considered for playback
      */
     public async playPlaylist(
@@ -258,9 +259,9 @@ export class YoutubeApp extends BaseApp {
     /**
      * Requires Youtubish credentials
      *
-     * @param filter If provided, a predicate function that must return True
+     * @param options.filter If provided, a predicate function that must return True
      * for a video in the playlist to be considered for playback
-     * @param historyDepth How far back to search the history for an item
+     * @param options.historyDepth How far back to search the history for an item
      * from this playlist before giving up (default 1000 items)
      */
     public async resumePlaylist(
@@ -399,8 +400,9 @@ export class YoutubeApp extends BaseApp {
         if (!this.inSession) {
             await this.ensureYoutubeSession();
         } else {
-            // There is a bug that causes session to get out of sync after about 30 seconds. Binding again works.
-            // Binding for each session request has a pretty big performance impact
+            // There is a bug that causes session to get out of
+            // sync after about 30 seconds. Binding again works. Binding for
+            // each session request has a pretty big performance impact
             await this.bind();
         }
 
@@ -426,19 +428,22 @@ export class YoutubeApp extends BaseApp {
             RID: this.rid++,
             VER: 8,
         } as any;
+        let form = data;
 
         if (!isBind) {
             const reqId = this.nextRequestId++;
             const reqPrefix = `req${reqId}`;
 
-            data = Object.keys(data).reduce((m, k) => {
+            /* eslint-disable no-param-reassign */
+            form = Object.keys(data).reduce((m, k) => {
                 if (k.startsWith("_")) {
-                    m[reqPrefix + k] = data[k];
+                    m[reqPrefix + k] = form[k];
                 } else {
-                    m[k] = data[k];
+                    m[k] = form[k];
                 }
                 return m;
             }, {} as any);
+            /* eslint-enable no-param-reassign */
 
             qs.SID = this.sid;
             qs.gsessionid = this.gsessionId;
@@ -457,7 +462,7 @@ export class YoutubeApp extends BaseApp {
             }
 
             const response = await request.post({
-                form: data,
+                form,
                 headers: {
                     "X-YouTube-LoungeId-Token": this.loungeId,
                     "X-YouTube-Lounge-XSRF-Token": this.generateXsrfToken(),
@@ -494,7 +499,8 @@ export class YoutubeApp extends BaseApp {
 
             // 404 resets the sid, session counters
             // 400 in session probably means bad sid
-            // If user did a bad request (eg. remove an non-existing video from queue) bind restores the session.
+            // If user did a bad request (eg. remove an
+            // non-existing video from queue) bind restores the session.
             if (
                 e.response.statusCode === 400
                 || e.response.statusCode === 404
