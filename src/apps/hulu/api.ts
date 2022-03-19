@@ -10,7 +10,6 @@ const debug = _debug("babbling:hulu:api");
 
 const DISCOVER_BASE = "https://discover.hulu.com/content/v4";
 
-// tslint:disable
 const ENTITY_DISCOVER_URL = `${DISCOVER_BASE}/entity/deeplink?schema=2&referral_host=www.hulu.com`;
 const SEARCH_URL = `${DISCOVER_BASE}/search/entity?language=en&device_context_id=2&limit=64&include_offsite=true&schema=2&referral_host=www.hulu.com`;
 const SERIES_HUB_URL_FORMAT = `${DISCOVER_BASE}/hubs/series/%s/?schema=2&referral_host=www.hulu.com`;
@@ -23,7 +22,6 @@ const CSRF_URL = "https://www.hulu.com/api/3.0/generate_csrf_value?&for_hoth=tru
 const CSRF_COOKIE_NAME = "_tcv";
 
 const CHROMECAST_AUTH_URL = "https://auth.hulu.com/v1/web/chromecast/authenticate";
-// tslint:enable
 
 export const supportedEntityTypes = new Set(["series", "movie", "episode"]);
 

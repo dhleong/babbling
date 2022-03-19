@@ -1,4 +1,4 @@
-// tslint:disable no-console
+/* eslint-disable no-console */
 
 import yargs from "yargs";
 
@@ -157,6 +157,5 @@ export async function main(args: any[]) {
 
     parser.showHelp();
 
-    // eslint-disable-next-line no-console
     console.log("Unknown command", result._[0]);
 }

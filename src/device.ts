@@ -47,7 +47,7 @@ export class ChromecastDevice {
      */
     public async openApp<TConstructor extends IAppConstructor<Opts, IApp>>(
         AppConstructor: TConstructor,
-        ...options: OptionsFor<TConstructor> // tslint:disable-line
+        ...options: OptionsFor<TConstructor>
     ): Promise<AppFor<TConstructor>> {
         const app = new AppConstructor(
             this.castorDevice,

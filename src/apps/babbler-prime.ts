@@ -1,7 +1,5 @@
 import debug_ from "debug";
 
-// tslint:disable max-classes-per-file
-
 import {
     ChakramApi, ContentType, IBaseObj, IEpisode, ISeason,
 } from "chakram-ts";

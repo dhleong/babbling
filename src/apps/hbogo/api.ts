@@ -12,7 +12,6 @@ const TOKENS_URL = "https://comet.api.hbo.com/tokens";
 
 export const HBO_HEADERS = {
     Accept: "application/vnd.hbo.v9.full+json",
-    // tslint:disable-next-line
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.86 Safari/537.36",
     "X-Hbo-Client-Version": "Hadron/21.0.1.176 desktop (DESKTOP)",
 };

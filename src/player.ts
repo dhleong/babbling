@@ -275,7 +275,7 @@ export class PlayerBuilder {
 
     public withApp<TConstructor extends IPlayerEnabledConstructor<Opts, IApp>>(
         appConstructor: TConstructor,
-        ...options: OptionsFor<TConstructor> // tslint:disable-line
+        ...options: OptionsFor<TConstructor>
     ) {
         const index = this.apps.findIndex(old => old.appConstructor === appConstructor);
         if (index !== -1) {
