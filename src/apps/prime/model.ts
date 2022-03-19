@@ -37,5 +37,5 @@ export interface ISearchResult {
 }
 
 export interface IPrimeApiInternal {
-    swiftApiRequest(path: string, qs?: {}): Promise<any>;
+    swiftApiRequest(path: string, qs?: Record<string, unknown>): Promise<any>;
 }

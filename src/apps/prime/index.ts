@@ -21,6 +21,67 @@ const AUTH_NS = "urn:x-cast:com.amazon.primevideo.cast";
 // USA marketplace ID
 const DEFAULT_MARKETPLACE_ID = "ATVPDKIKX0DER";
 
+// ======= Utils ==========================================
+
+async function castRequest(session: StratoChannel, message: any) {
+    // it's infuriatingly dumb that amazon built their own protocol
+    // on top of the protocol instead of just using the requestId
+    // like a normal human.
+    const responseType = `${message.type}Response`;
+    await session.write(message);
+    debug("wait for ", responseType, "...");
+    return awaitMessageOfType(session, responseType, 15_000);
+}
+
+async function checkedRequest(session: StratoChannel, message: any) {
+    const resp = await castRequest(session, message);
+    if (resp.error) {
+        throw resp.error;
+    }
+    debug(" -> ", resp);
+    return resp;
+}
+
+function titleIdToCastMedia(titleId: string): IMedia {
+    return {
+        customData: {
+            videoMaterialType: "Feature", // TODO ?
+        },
+
+        contentId: titleId,
+        contentType: "video/mp4",
+        streamType: "BUFFERED",
+    };
+}
+
+function installQueue(
+    request: ILoadRequest,
+    queue: string[],
+    initialTitleId: string,
+) {
+    let startIndex = queue.indexOf(initialTitleId);
+    const items = queue.map(id => ({
+        customData: request.customData,
+        media: titleIdToCastMedia(id),
+    }));
+
+    if (startIndex === -1) {
+        // the queue contained only upcoming items
+        startIndex = 0;
+        items.unshift({
+            customData: request.customData,
+            media: request.media,
+        });
+    }
+
+    request.queueData = {
+        items,
+        startIndex,
+    };
+}
+
+// ======= Public Interface ===============================
+
 export class PrimeApp extends BaseApp {
     // declare Player support
     public static createPlayerChannel(options: IPrimeOpts) {
@@ -74,7 +135,7 @@ export class PrimeApp extends BaseApp {
                 initialTracks: {},
             },
             media: titleIdToCastMedia(titleId),
-            sessionId: s.destination!,
+            sessionId: s.destination ?? "",
             type: "LOAD",
         };
 
@@ -170,7 +231,9 @@ export class PrimeApp extends BaseApp {
     private async register(session: StratoChannel) {
         debug("register with id", this.api.deviceId);
 
-        const preAuthorizedLinkCode = await this.api.generatePreAuthorizedLinkCode(this.refreshToken);
+        const preAuthorizedLinkCode = await this.api.generatePreAuthorizedLinkCode(
+            this.refreshToken,
+        );
 
         await checkedRequest(session, this.message("Register", {
             marketplaceId: this.marketplaceId,
@@ -190,61 +253,4 @@ export class PrimeApp extends BaseApp {
             },
         }));
     }
-}
-
-async function castRequest(session: StratoChannel, message: any) {
-    // it's infuriatingly dumb that amazon built their own protocol
-    // on top of the protocol instead of just using the requestId
-    // like a normal human.
-    const responseType = `${message.type}Response`;
-    await session.write(message);
-    debug("wait for ", responseType, "...");
-    return awaitMessageOfType(session, responseType, 15_000);
-}
-
-async function checkedRequest(session: StratoChannel, message: any) {
-    const resp = await castRequest(session, message);
-    if (resp.error) {
-        throw resp.error;
-    }
-    debug(" -> ", resp);
-    return resp;
-}
-
-function titleIdToCastMedia(titleId: string): IMedia {
-    return {
-        customData: {
-            videoMaterialType: "Feature", // TODO ?
-        },
-
-        contentId: titleId,
-        contentType: "video/mp4",
-        streamType: "BUFFERED",
-    };
-}
-
-function installQueue(
-    request: ILoadRequest,
-    queue: string[],
-    initialTitleId: string,
-) {
-    let startIndex = queue.indexOf(initialTitleId);
-    const items = queue.map(id => ({
-        customData: request.customData,
-        media: titleIdToCastMedia(id),
-    }));
-
-    if (startIndex === -1) {
-        // the queue contained only upcoming items
-        startIndex = 0;
-        items.unshift({
-            customData: request.customData,
-            media: request.media,
-        });
-    }
-
-    request.queueData = {
-        items,
-        startIndex,
-    };
 }

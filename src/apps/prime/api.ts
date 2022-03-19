@@ -17,6 +17,12 @@ import { IPrimeApiOpts, IPrimeOpts } from "./config";
 import {
     AvailabilityType, IAvailability, ISearchOpts, ISearchResult,
 } from "./model";
+import {
+    cleanTitle, parseWatchlistItem, parseWatchNextItem, seasonNumberFromTitle,
+} from "./api/parsing";
+import { IEpisode, IWatchNextItem } from "./api/types";
+
+export { IEpisode };
 
 const debug = _debug("babbling:PrimeApp:api");
 
@@ -132,29 +138,40 @@ function isPlayableNow(availability: IAvailability[]) {
     return false;
 }
 
+const watchNextCarouselTitles = new Set([
+    "Watch Next", // Old, but just in case
+    "Continue Watching",
+]);
+
+function isWatchNextCarousel(carousel: any) {
+    if (carousel.refreshIdentifier === "watchNextCarousel") {
+        return true;
+    }
+    return watchNextCarouselTitles.has(carousel.title);
+}
+
+function isNextUpCollection(c: any): boolean {
+    if (c.debugAttributes && c.debugAttributes.includes("ATVWatchNext")) {
+        return true;
+    }
+
+    if (c.itemTypeToActionMap && c.itemTypeToActionMap.titleCard) {
+        return c.itemTypeToActionMap.titleCard.includes((action: any) => action.parameters && action.parameters.listType === "AIV:NextUp");
+    }
+
+    return false;
+}
+
+function hasFinished(info: IWatchNextItem) {
+    if (!info.watchedSeconds) return false;
+    if (info.watchedSeconds >= info.completedAfter) return true;
+
+    // amazon's completedAfter numbers can be bogus, especially
+    // if the item has ads at the end. screw that.
+    return (info.watchedSeconds / info.completedAfter) > 0.91;
+}
+
 // ======= internal types =================================
-
-export interface IEpisode {
-    episodeNumber: number;
-    seasonId: string;
-    seasonNumber: number;
-    title: string;
-    titleId: string;
-
-    completedAfter: number;
-    runtimeSeconds: number;
-    watchedSeconds: number;
-}
-
-interface IWatchNextItem {
-    title: string;
-    titleId: string;
-
-    completedAfter: number;
-    resumeTitleId?: string;
-    runtimeSeconds: number;
-    watchedSeconds: number;
-}
 
 type PromiseType<T extends Promise<any>> = T extends Promise<infer R> ? R : never;
 export type ITitleInfo = PromiseType<ReturnType<PrimeApi["getTitleInfo"]>>;
@@ -493,7 +510,8 @@ export class PrimeApi {
             }));
             const selected = episodes.filter((e: any) => e.isSelected);
             if (selected.length) {
-                info.selectedEpisode = selected[0];
+                const [firstSelected] = selected;
+                info.selectedEpisode = firstSelected;
             }
 
             info.episodes = episodes;
@@ -658,7 +676,7 @@ export class PrimeApi {
      */
     private async* searchWithEntitlement(
         title: string,
-        opts: ISearchOpts,
+        _opts: ISearchOpts,
     ) {
         const response = await this.swiftApiRequest(
             "/cdp/mobile/getDataByTransform/v1/dv-ios/search/initial/v2.js",
@@ -711,7 +729,7 @@ export class PrimeApi {
      */
     private async* searchWithWatchlist(
         title: string,
-        opts: ISearchOpts,
+        _opts: ISearchOpts,
     ) {
         const items = await this.swiftApiCollectionRequest("/swift/page/search", {
             phrase: title,
@@ -773,117 +791,4 @@ export class PrimeApi {
             url,
         });
     }
-}
-
-function availabilityOf(item: any): IAvailability[] {
-    const result: IAvailability[] = [];
-    let isPrime = false;
-    if (item.decoratedTitle.computed.simple.PRIME_BADGE && item.analytics.local.isPrimeCustomer === "Y") {
-        // included in active prime subscription
-        result.push({ type: AvailabilityType.PRIME });
-        isPrime = true;
-    }
-
-    if (!item.titleActions) {
-        // quick shortcut
-        return result;
-    }
-
-    if (item.titleActions.isPlayable && item.titleActions.playbackSummary.includes("You purchased")) {
-        // explicitly purchased
-        result.push({ type: AvailabilityType.OWNED });
-    } else if (item.titleActions.isPlayable && !isPrime) {
-        // if not purchased, it's probably included in prime, etc.
-        result.push({ type: AvailabilityType.PRIME });
-    } else if (!item.titleActions.isPlayable) {
-        try {
-            const summary: any = JSON.stringify(item.titleActions.titleSummary);
-            if (summary.type === "purchase" && summary.price) {
-                const type = item.titleActions.titleSummary.includes("Rent")
-                    ? AvailabilityType.RENTABLE
-                    : AvailabilityType.PURCHASABLE;
-                result.push({
-                    price: summary.price,
-                    type,
-                } as any);
-            }
-        } catch (e) {
-            // ignore
-        }
-    }
-
-    return result;
-}
-
-function cleanTitle(title: string) {
-    return title.replace(/( -)? Season \d+/, "")
-        .replace("(4K UHD)", "");
-}
-
-const watchNextCarouselTitles = new Set([
-    "Watch Next", // Old, but just in case
-    "Continue Watching",
-]);
-
-function isWatchNextCarousel(carousel: any) {
-    if (carousel.refreshIdentifier === "watchNextCarousel") {
-        return true;
-    }
-    return watchNextCarouselTitles.has(carousel.title);
-}
-
-function seasonNumberFromTitle(title: string) {
-    const m = title.match(/Season (\d+)/);
-    if (m) return parseInt(m[1], 10);
-    return -1;
-}
-
-function hasFinished(info: IWatchNextItem) {
-    if (!info.watchedSeconds) return false;
-    if (info.watchedSeconds >= info.completedAfter) return true;
-
-    // amazon's completedAfter numbers can be bogus, especially
-    // if the item has ads at the end. screw that.
-    return (info.watchedSeconds / info.completedAfter) > 0.91;
-}
-
-function parseWatchNextItem(item: any): IWatchNextItem {
-    return {
-        title: item.title,
-        titleId: item.titleId,
-
-        completedAfter: item.playAndProgress.completedAfter,
-        resumeTitleId: item.playAndProgress.titleId,
-        runtimeSeconds: item.playAndProgress.runtimeSeconds,
-        watchedSeconds: item.playAndProgress.watchedSeconds,
-    };
-}
-
-function parseWatchlistItem(item: any) {
-    const availability = availabilityOf(item);
-    const id = item.analytics.local.pageTypeId;
-    return {
-        availability,
-        cover: item.decoratedTitle.images.imageUrls.detail_page_cover
-        || item.decoratedTitle.images.imageUrls.detail_page_hero,
-        desc: item.decoratedTitle.catalog.synopsis,
-        id,
-        isInWatchlist: item.decoratedTitle.computed.simple.IS_IN_WATCHLIST,
-        title: cleanTitle(item.decoratedTitle.catalog.title),
-        titleId: item.titleId,
-        type: item.decoratedTitle.catalog.type,
-        watchUrl: `https://www.amazon.com/dp/${id}/?autoplay=1`,
-    };
-}
-
-function isNextUpCollection(c: any): boolean {
-    if (c.debugAttributes && c.debugAttributes.includes("ATVWatchNext")) {
-        return true;
-    }
-
-    if (c.itemTypeToActionMap && c.itemTypeToActionMap.titleCard) {
-        return c.itemTypeToActionMap.titleCard.includes((action: any) => action.parameters && action.parameters.listType === "AIV:NextUp");
-    }
-
-    return false;
 }
