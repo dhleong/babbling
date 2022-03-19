@@ -26,7 +26,8 @@
   },
   "parser": "@typescript-eslint/parser",
   "plugins": [
-    "@typescript-eslint"
+    "@typescript-eslint",
+    "import"
   ],
   "extends": [
     "airbnb-typescript/base",
