@@ -1,9 +1,10 @@
 import _debug from "debug";
-const debug = _debug("babbling:controls");
 
 import { ChromecastDevice, StratoChannel } from "stratocaster";
 
 import { MEDIA_NS } from "./apps/base";
+
+const debug = _debug("babbling:controls");
 
 export class MediaControls {
     public static async open(device: ChromecastDevice) {

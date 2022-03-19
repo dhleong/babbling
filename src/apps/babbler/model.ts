@@ -1,5 +1,4 @@
-
-// tslint:disable no-bitwise
+/* eslint-disable no-bitwise */
 export enum SenderCapabilities {
     None = 0,
 
@@ -8,7 +7,7 @@ export enum SenderCapabilities {
     QueueNext = 1 << 2,
     QueuePrev = 1 << 3,
 }
-// tslint:enable no-bitwise
+/* eslint-enable no-bitwise */
 
 export interface IMediaMetadata {
     title: string;
@@ -25,7 +24,7 @@ export enum MetadataType {
 export interface IChromecastMetadata {
     metadataType: MetadataType;
     title: string;
-    images?: Array<{url: string}>;
+    images?: Array<{ url: string }>;
 }
 
 export interface ITvShowChromecastMetadata extends IChromecastMetadata {

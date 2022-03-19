@@ -1,18 +1,20 @@
 import _debug from "debug";
-const debug = _debug("babbling:device");
 
 import { ChromecastDevice as StratoDevice } from "stratocaster";
 
-import { AppFor, IApp, IAppConstructor, OptionsFor, Opts } from "./app";
+import {
+    AppFor, IApp, IAppConstructor, OptionsFor, Opts,
+} from "./app";
 import { MediaControls } from "./controls";
 
-export class ChromecastDevice {
+const debug = _debug("babbling:device");
 
+export class ChromecastDevice {
     private readonly castorDevice: StratoDevice;
 
     constructor(
         public friendlyName: string,
-        timeout: number = 10000,
+        timeout = 10000,
     ) {
         this.castorDevice = new StratoDevice(friendlyName, {
             searchTimeout: timeout,
@@ -38,21 +40,21 @@ export class ChromecastDevice {
     }
 
     /**
-     * @param appConstructor The constructor of an App
+     * @param AppConstructor The constructor of an App
      * @param options Will be provided as the 2nd+ args to
      * `appConstructor`, and are App-specific. See the relevant
      * constructor for more information on what is accepted here.
      */
     public async openApp<TConstructor extends IAppConstructor<Opts, IApp>>(
-        appConstructor: TConstructor,
-        ...options: OptionsFor<TConstructor>  // tslint:disable-line
+        AppConstructor: TConstructor,
+        ...options: OptionsFor<TConstructor>
     ): Promise<AppFor<TConstructor>> {
-        const app = new appConstructor(
+        const app = new AppConstructor(
             this.castorDevice,
             ...options,
         ) as AppFor<TConstructor>;
 
-        debug("Starting", appConstructor.name);
+        debug("Starting", AppConstructor.name);
         await app.start();
         return app;
     }
@@ -67,5 +69,4 @@ export class ChromecastDevice {
     public close() {
         this.castorDevice.close();
     }
-
 }

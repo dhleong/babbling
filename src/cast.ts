@@ -38,4 +38,3 @@ export interface ILoadRequest {
     sessionId: string;
     type: "LOAD";
 }
-

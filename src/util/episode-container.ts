@@ -43,5 +43,4 @@ export class EpisodeContainer<TEpisode extends IEpisodeBase> {
 
         return seasonObj.episodes[episode];
     }
-
 }

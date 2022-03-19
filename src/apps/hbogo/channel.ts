@@ -6,7 +6,7 @@ import {
 } from "../../app";
 import { EpisodeResolver } from "../../util/episode-resolver";
 
-import { HboGoApp, IHboGoOpts } from ".";
+import type { HboGoApp, IHboGoOpts } from ".";
 import { entityTypeFromUrn, HboGoApi } from "./api";
 
 function urnFromUrl(url: string) {
@@ -30,22 +30,20 @@ export class HboGoPlayerChannel implements IPlayerChannel<HboGoApp> {
         const urn = urnFromUrl(url);
         try {
             switch (entityTypeFromUrn(urn)) {
-            case "series":
-                return async (app: HboGoApp) => app.resumeSeries(urn);
+                case "series":
+                    return async (app: HboGoApp) => app.resumeSeries(urn);
 
-            case "episode":
-            case "extra":
-            case "feature":
+                case "episode":
+                case "extra":
+                case "feature":
+                case "season":
                 // TODO: it may be possible to resume specific episodes or
                 // features (movies)...
-                return async (app: HboGoApp) => app.play(urn);
+                    return async (app: HboGoApp) => app.play(urn);
             }
-
         } catch (e) {
             throw new Error(`'${urn}' doesn't look playable`);
         }
-
-        throw new Error(`Not sure how to play '${urn}'`);
     }
 
     public async findEpisodeFor(
@@ -54,9 +52,11 @@ export class HboGoPlayerChannel implements IPlayerChannel<HboGoApp> {
     ): Promise<IEpisodeQueryResult | undefined> {
         if (item.appName !== "HboGoApp") {
             throw new Error("Given QueryResult for wrong app");
+        } else if (item.url == null) {
+            throw new Error(`Given query result has no URL: ${item.title}`);
         }
 
-        const urn = urnFromUrl(item.url!);
+        const urn = urnFromUrl(item.url);
         if (entityTypeFromUrn(urn) !== "series") return; // cannot have it
 
         const resolver = new EpisodeResolver({
@@ -65,7 +65,7 @@ export class HboGoPlayerChannel implements IPlayerChannel<HboGoApp> {
         const episode = await resolver.query(query);
         if (!episode) return;
 
-        const url = "https://play.hbogo.com/" + episode.urn;
+        const url = `https://play.hbogo.com/${episode.urn}`;
         return {
             appName: "HboGoApp",
             playable: await this.createPlayable(url),
@@ -75,11 +75,11 @@ export class HboGoPlayerChannel implements IPlayerChannel<HboGoApp> {
         };
     }
 
-    public async *queryByTitle(
+    public async* queryByTitle(
         title: string,
     ): AsyncIterable<IQueryResult> {
         for await (const result of this.api.search(title)) {
-            const url = "https://play.hbogo.com/" + result.urn;
+            const url = `https://play.hbogo.com/${result.urn}`;
             yield {
                 appName: "HboGoApp",
                 playable: await this.createPlayable(url),
@@ -88,5 +88,4 @@ export class HboGoPlayerChannel implements IPlayerChannel<HboGoApp> {
             };
         }
     }
-
 }

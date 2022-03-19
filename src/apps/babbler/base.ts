@@ -1,5 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import debug_ from "debug";
-const debug = debug_("babbling:babbler");
 
 import { ChromecastDevice, StratoChannel } from "stratocaster";
 
@@ -13,6 +13,8 @@ import {
     MetadataType,
     SenderCapabilities,
 } from "./model";
+
+const debug = debug_("babbling:babbler");
 
 const BABBLER_SESSION_NS = "urn:x-cast:com.github.dhleong.babbler";
 
@@ -78,12 +80,11 @@ export interface IPlayableInfo {
 /**
  * Base class for apps that use Babbler for playback
  */
-export class BabblerBaseApp<TMedia = {}> extends BaseApp {
-
+export class BabblerBaseApp<TMedia = unknown> extends BaseApp {
     protected tracker: PlaybackTracker<TMedia> | undefined;
 
     /** @internal */
-    private isDaemon: boolean = false;
+    private isDaemon = false;
 
     private currentMedia: TMedia | undefined;
 
@@ -91,9 +92,7 @@ export class BabblerBaseApp<TMedia = {}> extends BaseApp {
         device: ChromecastDevice,
         private babblerOpts: IBabblerOpts,
     ) {
-        super(device, Object.assign({
-            sessionNs: MEDIA_NS,
-        }, babblerOpts));
+        super(device, { sessionNs: MEDIA_NS, ...babblerOpts });
 
         if (!this.appId) {
             throw new Error("No babbler app ID configured");
@@ -116,13 +115,14 @@ export class BabblerBaseApp<TMedia = {}> extends BaseApp {
 
     /** @internal */
     public async rpc(call: RPC) {
-        const [ m, args ] = call;
+        const [m, args] = call;
         switch (m) {
-        case "loadMedia":
-            if (args.length < 1) throw new Error("Invalid args to loadMedia");
+            case "loadMedia": {
+                if (args.length < 1) throw new Error("Invalid args to loadMedia");
 
-            const [ options ] = args;
-            await this.loadMedia(options);
+                const [options] = args;
+                await this.loadMedia(options);
+            }
         }
     }
 
@@ -138,19 +138,19 @@ export class BabblerBaseApp<TMedia = {}> extends BaseApp {
             for await (const message of s.receive()) {
                 const m = message.data as any;
                 switch (m.type) {
-                case "INFO":
-                    handleErrors(this.handleInfoRequest(s, m));
-                    break;
+                    case "INFO":
+                        handleErrors(this.handleInfoRequest(s, m));
+                        break;
 
-                case "LICENSE":
-                    if (this.babblerOpts.useLicenseIpc) {
-                        handleErrors(this.handleLicenseRequest(s, m));
-                    }
-                    break;
+                    case "LICENSE":
+                        if (this.babblerOpts.useLicenseIpc) {
+                            handleErrors(this.handleLicenseRequest(s, m));
+                        }
+                        break;
 
-                case "QUEUE":
-                    handleErrors(this.handleQueueRequest(s, m));
-                    break;
+                    case "QUEUE":
+                        handleErrors(this.handleQueueRequest(s, m));
+                        break;
                 }
             }
         })();
@@ -190,7 +190,7 @@ export class BabblerBaseApp<TMedia = {}> extends BaseApp {
                 metadata,
                 streamType: "BUFFERED",
             },
-            sessionId: s.destination!!,
+            sessionId: s.destination ?? "",
             type: "LOAD",
         } as ILoadRequest;
 
@@ -308,5 +308,4 @@ export class BabblerBaseApp<TMedia = {}> extends BaseApp {
             },
         };
     }
-
 }

@@ -1,15 +1,15 @@
-// tslint:disable no-console
+/* eslint-disable no-console */
 
 import readline from "readline";
 
 export async function confirm(message?: string): Promise<void> {
     return new Promise<void>(resolve => {
-        if (message) console.log(message + "\n");
+        if (message) console.log(`${message}\n`);
         console.log("Press any key to continue.");
 
         process.stdin.setRawMode(true);
         process.stdin.resume();
-        process.stdin.once('data', () => {
+        process.stdin.once("data", () => {
             process.stdin.setRawMode(false);
             process.stdin.pause();
             resolve();

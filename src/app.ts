@@ -13,12 +13,12 @@ export interface IAppConstructor<TOptions extends Opts, TSelf extends IApp> {
 }
 
 export type OptionsFor<T> =
-    T extends IAppConstructor<infer TOpt, infer TSelf> ? TOpt :
-    never;
+    T extends IAppConstructor<infer TOpt, any> ? TOpt :
+        never;
 
 export type AppFor<T> =
-    T extends IAppConstructor<infer TOpt, infer TSelf> ? TSelf :
-    never;
+    T extends IAppConstructor<any, infer TSelf> ? TSelf :
+        never;
 
 export interface IPlayableOptions {
     /**
@@ -149,7 +149,7 @@ export interface IPlayerChannel<TSelf extends IApp> {
 }
 
 export interface IPlayerEnabledConstructor<TOptions extends Opts, TSelf extends IApp>
-extends IAppConstructor<TOptions, TSelf> {
+    extends IAppConstructor<TOptions, TSelf> {
 
     /**
      * Create a Channel that can be used to interact with this App

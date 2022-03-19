@@ -1,5 +1,4 @@
 import _debug from "debug";
-const debug = _debug("babbling:hbogo");
 
 import { ChromecastDevice } from "stratocaster";
 
@@ -10,6 +9,8 @@ import { ILoadRequest } from "../../cast";
 import { HboGoApi } from "./api";
 import { HboGoPlayerChannel } from "./channel";
 import { HboGoConfigurable, IHboGoOpts } from "./config";
+
+const debug = _debug("babbling:hbogo");
 export { IHboGoOpts } from "./config";
 
 const APP_ID = "144BDEF0";
@@ -27,7 +28,7 @@ export interface IHboGoPlayOptions {
 }
 
 export class HboGoApp extends BaseApp {
-    public static tokenConfigKeys = [ "token" ];
+    public static tokenConfigKeys = ["token"];
     public static configurable = new HboGoConfigurable();
     public static createPlayerChannel(options: IHboGoOpts) {
         return new HboGoPlayerChannel(options);
@@ -57,7 +58,7 @@ export class HboGoApp extends BaseApp {
             userTkey,
         } = await this.api.extractTokenInfo();
 
-        const [ refreshToken, s ] = await Promise.all([
+        const [refreshToken, s] = await Promise.all([
             this.api.getRefreshToken(),
             this.ensureCastSession(),
 
@@ -102,9 +103,9 @@ export class HboGoApp extends BaseApp {
                 contentType: "video/mp4",
                 streamType: "BUFFERED",
             },
-            sessionId: s.destination!!,
+            sessionId: s.destination ?? "",
             type: "LOAD",
-        }
+        };
 
         const ms = await s.send(req as any);
         debug(ms);

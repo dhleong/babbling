@@ -1,4 +1,3 @@
-
 import { exchangeAuthCode } from "youtubish/dist/auth";
 import { requestAuthCode } from "youtubish/dist/login";
 
@@ -22,4 +21,3 @@ export async function login(opts: IAuthOpts) {
 
     consoleWrite("Success!");
 }
-

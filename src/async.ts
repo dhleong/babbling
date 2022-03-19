@@ -2,7 +2,9 @@
  * Async util methods
  */
 
-export async function *mergeAsyncIterables<T>(iterables: Array<AsyncIterable<T>>): AsyncIterable<T> {
+export async function* mergeAsyncIterables<T>(
+    iterables: Array<AsyncIterable<T>>,
+): AsyncIterable<T> {
     const finished = new Promise<any>(() => null);
 
     const iterators = iterables.map(it => it[Symbol.asyncIterator]());
@@ -29,7 +31,9 @@ export async function *mergeAsyncIterables<T>(iterables: Array<AsyncIterable<T>>
     }
 }
 
-export async function *interleaveAsyncIterables<T>(iterables: Array<AsyncIterable<T>>): AsyncIterable<T> {
+export async function* interleaveAsyncIterables<T>(
+    iterables: Array<AsyncIterable<T>>,
+): AsyncIterable<T> {
     const finished = new Promise<any>(() => null);
 
     const iterators = iterables.map(it => it[Symbol.asyncIterator]());

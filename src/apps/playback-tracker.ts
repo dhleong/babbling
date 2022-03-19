@@ -1,10 +1,13 @@
 import debug_ from "debug";
-const debug = debug_("babbling:tracker");
 
+import {
+    StratoChannel, ChromecastDevice, isJson, IReceiverStatus, RECEIVER_NS,
+} from "stratocaster";
 import { IMediaStatus, IMediaStatusMessage } from "../cast";
 import { BaseApp, MEDIA_NS } from "./base";
-import { StratoChannel, ChromecastDevice, isJson, IReceiverStatus, RECEIVER_NS } from "stratocaster";
 import { mergeAsyncIterables } from "../async";
+
+const debug = debug_("babbling:tracker");
 
 /**
  * value of attachedMediaSessionId when we haven't yet been attached to
@@ -26,18 +29,17 @@ export interface IPlaybackTrackerEvents<TMedia> {
  * Utility for tracking playback events
  */
 export class PlaybackTracker<TMedia = void> {
-
     /**
      * @internal
      * a timestamp from Date.now() if playing, else a negative number
      */
-    private playbackStartedAt: number = -1;
+    private playbackStartedAt = -1;
 
     /**
      * @internal
      * the time in SECONDS at which we started playback
      */
-    private playbackLastCurrentTime: number = -1;
+    private playbackLastCurrentTime = -1;
 
     private attachedMediaSessionId = NOT_ATTACHED;
     private stopObserving: (() => void) | undefined;
@@ -64,7 +66,7 @@ export class PlaybackTracker<TMedia = void> {
 
         this.attachedMediaSessionId = NOT_ATTACHED;
 
-        const stopObserving = this.stopObserving;
+        const { stopObserving } = this;
         this.stopObserving = undefined;
         if (stopObserving) {
             stopObserving();
@@ -103,30 +105,33 @@ export class PlaybackTracker<TMedia = void> {
         }
 
         switch (status.playerState) {
-        case "BUFFERING": // buffering should be the same as "paused"
-        case "PAUSED":
-            this.playbackStartedAt = -1;
-            this.playbackLastCurrentTime = -1;
-            await this.onPlayerPaused(status.currentTime, this.getCurrentMedia());
-            break;
+            case "BUFFERING": // buffering should be the same as "paused"
+            case "PAUSED":
+                this.playbackStartedAt = -1;
+                this.playbackLastCurrentTime = -1;
+                await this.onPlayerPaused(status.currentTime, this.getCurrentMedia());
+                break;
 
-        case "PLAYING":
-            this.playbackStartedAt = Date.now();
-            this.playbackLastCurrentTime = status.currentTime;
-            break;
+            case "PLAYING":
+                this.playbackStartedAt = Date.now();
+                this.playbackLastCurrentTime = status.currentTime;
+                break;
 
-        case "IDLE":
-            if (this.attachedMediaSessionId === NOT_ATTACHED) {
-                this.attachedMediaSessionId = status.mediaSessionId;
-                debug(`attached to mediaSession #${status.mediaSessionId}`);
-            } else if (status.mediaSessionId !== this.attachedMediaSessionId) {
+            case "IDLE":
+                if (this.attachedMediaSessionId === NOT_ATTACHED) {
+                    this.attachedMediaSessionId = status.mediaSessionId;
+                    debug(`attached to mediaSession #${status.mediaSessionId}`);
+                } else if (status.mediaSessionId !== this.attachedMediaSessionId) {
                 // if a new mediaSession starts, we can go (and should)
                 // go ahead and hang up
-                debug(`new mediaSession (${status.mediaSessionId} != ${this.attachedMediaSessionId})`);
-                await this.handleClose();
-                this.getDevice().close();
-            }
-            break;
+                    debug(`new mediaSession (${status.mediaSessionId} != ${this.attachedMediaSessionId})`);
+                    await this.handleClose();
+                    this.getDevice().close();
+                }
+                break;
+
+            case "LOADING":
+                // nop
         }
     }
 
@@ -147,7 +152,7 @@ export class PlaybackTracker<TMedia = void> {
         await this.handleClose();
         this.getDevice().close();
         debug("App no longer running; shutting down");
-    }
+    };
 
     private onSessionMessage = async (m: any) => {
         switch (m.type) {
@@ -155,14 +160,15 @@ export class PlaybackTracker<TMedia = void> {
                 await this.handleClose();
                 break;
 
-            case "MEDIA_STATUS":
+            case "MEDIA_STATUS": {
                 const statusMessage = m as IMediaStatusMessage;
                 if (!statusMessage.status.length) return;
 
                 this.handleMediaStatus(statusMessage.status[0]);
                 break;
+            }
         }
-    }
+    };
 
     /**
      * event helpers
@@ -199,7 +205,8 @@ export class PlaybackTracker<TMedia = void> {
 
         (async () => {
             const merged = mergeAsyncIterables(
-                channels.map(it => it.receive()));
+                channels.map(it => it.receive()),
+            );
             for await (const m of merged) {
                 if (!state.running) break;
                 if (!isJson(m.data)) continue;
@@ -217,5 +224,4 @@ export class PlaybackTracker<TMedia = void> {
             state.running = false;
         };
     }
-
 }

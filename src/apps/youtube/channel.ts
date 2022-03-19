@@ -1,16 +1,16 @@
 import _debug from "debug";
-const debug = _debug("babbling:youtube:channel");
 
 import URL from "url";
 
 import { IPlayableOptions, IPlayerChannel } from "../../app";
 
-import { IYoutubeOpts, YoutubeApp } from ".";
+import type { IYoutubeOpts, YoutubeApp } from ".";
 import { filterFromSkippedIds } from "./util";
 import { hasAuth } from "./config";
 
-export class YoutubePlayerChannel implements IPlayerChannel<YoutubeApp> {
+const debug = _debug("babbling:youtube:channel");
 
+export class YoutubePlayerChannel implements IPlayerChannel<YoutubeApp> {
     constructor(
         private readonly options: IYoutubeOpts,
     ) {}

@@ -7,7 +7,7 @@ export function withConfig<T>(args: Argv<T>) {
         alias: "c",
         config: true,
         default: DEFAULT_CONFIG_PATH,
-        describe: `Config file path`,
+        describe: "Config file path",
         type: "string",
     });
 }
@@ -24,14 +24,14 @@ export function withDevice<T>(args: Argv<T>) {
 export function withKey<T>(args: Argv<T>) {
     return args.positional("key", {
         choice: ["device"],
-        describe: `Config key`,
+        describe: "Config key",
         type: "string",
     }).demand("key");
 }
 
 export function withValue<T>(args: Argv<T>) {
     return args.positional("value", {
-        describe: `Config key`,
+        describe: "Config key",
         type: "string",
     });
 }

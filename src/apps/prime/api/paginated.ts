@@ -1,13 +1,14 @@
 import _debug from "debug";
-const debug = _debug("babbling:prime:api:paginated");
 
-import { PrimeApi } from "../api";
+import type { PrimeApi } from "../api";
 import { IPrimeApiInternal } from "../model";
+
+const debug = _debug("babbling:prime:api:paginated");
 
 interface IPaginationLink {
     requestContext: {
         transform: string;
-        requestParameters: {[key: string]: string},
+        requestParameters: { [key: string]: string },
     };
 }
 
@@ -20,7 +21,6 @@ function getItemsDefault(page: any) {
 }
 
 export class Paginated<T> implements AsyncIterable<T> {
-
     constructor(
         protected readonly api: PrimeApi,
         private readonly firstPage: IFirstPage,
@@ -28,9 +28,9 @@ export class Paginated<T> implements AsyncIterable<T> {
         private readonly getItems: (page: any) => any[] = getItemsDefault,
     ) {}
 
-    public async *[Symbol.asyncIterator](): AsyncIterator<T> {
-        const firstPage = this.firstPage;
-        yield *this.getItems(firstPage).map(this.transformItem);
+    public async* [Symbol.asyncIterator](): AsyncIterator<T> {
+        const { firstPage } = this;
+        yield* this.getItems(firstPage).map(this.transformItem);
 
         const api = this.api as unknown as IPrimeApiInternal;
         let pagination: IPaginationLink | undefined = firstPage.paginationLink;
@@ -43,7 +43,7 @@ export class Paginated<T> implements AsyncIterable<T> {
             debug("fetch next page @", pagination);
 
             const { resource } = await api.swiftApiRequest(
-                "/cdp/mobile/getDataByTransform/v1/" + pagination.requestContext.transform,
+                `/cdp/mobile/getDataByTransform/v1/${pagination.requestContext.transform}`,
                 pagination.requestContext.requestParameters,
             );
             pagination = resource.paginationLink;

@@ -5,8 +5,8 @@ export interface IScanOpts {
 }
 
 export default async function scanForDevices(opts: IScanOpts) {
-    // tslint:disable no-console
-    const timeout = opts.timeout;
+    /* eslint-disable no-console */
+    const { timeout } = opts;
     console.log("Scanning...");
 
     for await (const device of discover({ timeout })) {

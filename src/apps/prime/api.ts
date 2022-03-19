@@ -1,5 +1,4 @@
 import _debug from "debug";
-const debug = _debug("babbling:PrimeApp:api");
 
 import crypto from "crypto";
 import os from "os";
@@ -15,7 +14,17 @@ import { toArray } from "../../async";
 
 import { IFirstPage, Paginated } from "./api/paginated";
 import { IPrimeApiOpts, IPrimeOpts } from "./config";
-import { AvailabilityType, IAvailability, ISearchOpts, ISearchResult } from "./model";
+import {
+    AvailabilityType, IAvailability, ISearchOpts, ISearchResult,
+} from "./model";
+import {
+    cleanTitle, parseWatchlistItem, parseWatchNextItem, seasonNumberFromTitle,
+} from "./api/parsing";
+import { IEpisode, IWatchNextItem } from "./api/types";
+
+export { IEpisode };
+
+const debug = _debug("babbling:PrimeApp:api");
 
 // ======= constants ======================================
 
@@ -32,7 +41,38 @@ const SOFTWARE_VERSION = "2";
 
 const DEFAULT_QUEUE_LENGTH = 10;
 
+const playableAvailability = new Set([
+    AvailabilityType.FREE_WITH_ADS,
+    AvailabilityType.OTHER_SUBSCRIPTION,
+    AvailabilityType.OWNED,
+    AvailabilityType.PRIME,
+]);
+
 // ======= utils ==========================================
+
+function createSaltedKey(key: string, salt: crypto.BinaryLike) {
+    return crypto.pbkdf2Sync(
+        key,
+        salt,
+        1000, // iterations
+        16, // key length (in bytes, vs Java's bits)
+        "SHA1", // hash
+    );
+}
+
+function getIpAddress() {
+    const ifaces = os.networkInterfaces();
+    for (const ifaceName of Object.keys(ifaces)) {
+        const list = ifaces[ifaceName];
+        if (!list) continue;
+
+        for (const iface of list) {
+            if (!iface.internal && iface.family === "IPv4") {
+                return iface.address;
+            }
+        }
+    }
+}
 
 export async function generateFrcCookies(
     deviceId: string,
@@ -88,39 +128,50 @@ export async function generateFrcCookies(
     return toBase64Encode.toString("base64");
 }
 
-function createSaltedKey(key: string, salt: crypto.BinaryLike) {
-    return crypto.pbkdf2Sync(
-        key,
-        salt,
-        1000, // iterations
-        16, // key length (in bytes, vs Java's bits)
-        "SHA1", // hash
-    );
+function isPlayableNow(availability: IAvailability[]) {
+    for (const a of availability) {
+        if (playableAvailability.has(a.type)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+const watchNextCarouselTitles = new Set([
+    "Watch Next", // Old, but just in case
+    "Continue Watching",
+]);
+
+function isWatchNextCarousel(carousel: any) {
+    if (carousel.refreshIdentifier === "watchNextCarousel") {
+        return true;
+    }
+    return watchNextCarouselTitles.has(carousel.title);
+}
+
+function isNextUpCollection(c: any): boolean {
+    if (c.debugAttributes && c.debugAttributes.includes("ATVWatchNext")) {
+        return true;
+    }
+
+    if (c.itemTypeToActionMap && c.itemTypeToActionMap.titleCard) {
+        return c.itemTypeToActionMap.titleCard.includes((action: any) => action.parameters && action.parameters.listType === "AIV:NextUp");
+    }
+
+    return false;
+}
+
+function hasFinished(info: IWatchNextItem) {
+    if (!info.watchedSeconds) return false;
+    if (info.watchedSeconds >= info.completedAfter) return true;
+
+    // amazon's completedAfter numbers can be bogus, especially
+    // if the item has ads at the end. screw that.
+    return (info.watchedSeconds / info.completedAfter) > 0.91;
 }
 
 // ======= internal types =================================
-
-export interface IEpisode {
-    episodeNumber: number;
-    seasonId: string;
-    seasonNumber: number;
-    title: string;
-    titleId: string;
-
-    completedAfter: number;
-    runtimeSeconds: number;
-    watchedSeconds: number;
-}
-
-interface IWatchNextItem {
-    title: string;
-    titleId: string;
-
-    completedAfter: number;
-    resumeTitleId?: string;
-    runtimeSeconds: number;
-    watchedSeconds: number;
-}
 
 type PromiseType<T extends Promise<any>> = T extends Promise<infer R> ? R : never;
 export type ITitleInfo = PromiseType<ReturnType<PrimeApi["getTitleInfo"]>>;
@@ -142,7 +193,7 @@ export class PrimeApi {
     private readonly deviceNameBase = "User\u2019s Babbling";
 
     private accessToken: string | null = null;
-    private accessTokenExpiresAt: number = -1;
+    private accessTokenExpiresAt = -1;
 
     constructor(options: IPrimeApiOpts = {}) {
         this.opts = options;
@@ -206,15 +257,13 @@ export class PrimeApi {
         debug("login successful = ", success);
         debug("cookies = ", success.tokens.website_cookies);
         return {
-            cookies: success.tokens.website_cookies.map((c: any) => {
-                return `${c.Name}=${c.Value}`;
-            }).join("; "),
+            cookies: success.tokens.website_cookies.map((c: any) => `${c.Name}=${c.Value}`).join("; "),
             refreshToken: success.tokens.bearer.refresh_token,
         };
     }
 
     public async generatePreAuthorizedLinkCode(refreshToken: string) {
-        debug(`generating pre-authorized link code...`);
+        debug("generating pre-authorized link code...");
         const body = {
             auth_data: {
                 access_token: refreshToken,
@@ -238,13 +287,11 @@ export class PrimeApi {
         return response.code;
     }
 
-    public async *search(
+    public async* search(
         title: string,
         searchOpts: ISearchOpts = {},
     ): AsyncIterable<ISearchResult> {
-        const opts: ISearchOpts = Object.assign({
-            onlyPlayable: true,
-        }, searchOpts);
+        const opts: ISearchOpts = { onlyPlayable: true, ...searchOpts };
 
         // ensure we only fetch this once for both requests
         await this.getAccessToken();
@@ -254,7 +301,7 @@ export class PrimeApi {
             toArray(this.searchWithWatchlist(title, opts)),
         ]);
 
-        const watchlistById: {[id: string]: ISearchResult}  = {};
+        const watchlistById: { [id: string]: ISearchResult } = {};
         for (const item of withWatchlist) {
             watchlistById[item.id] = item;
         }
@@ -270,8 +317,8 @@ export class PrimeApi {
                 continue;
             }
 
-            const purchasable = itemWithWatchlist.availability.filter(a =>
-                !playableAvailability.has(a.type));
+            const purchasable = itemWithWatchlist.availability
+                .filter(a => !playableAvailability.has(a.type));
 
             const compositeAvailability = item.availability.concat(purchasable);
             if (!compositeAvailability.length) {
@@ -279,17 +326,18 @@ export class PrimeApi {
                 continue;
             }
 
-            yield Object.assign({}, itemWithWatchlist, item, {
+            yield ({
+                ...itemWithWatchlist,
+                ...item,
                 availability: compositeAvailability,
-                isPurchased: compositeAvailability.find(a =>
-                    a.type === AvailabilityType.OWNED,
-                ) !== undefined,
+                isPurchased: compositeAvailability
+                    .find(a => a.type === AvailabilityType.OWNED) !== undefined,
             });
         }
     }
 
     public async guessResumeInfo(titleId: string): Promise<IResumeInfo | undefined> {
-        const [ titleInfo, watchNext ] = await Promise.all([
+        const [titleInfo, watchNext] = await Promise.all([
             this.getTitleInfo(titleId),
             this.watchNextItems(),
         ]);
@@ -310,7 +358,7 @@ export class PrimeApi {
         for await (const info of watchNext) {
             debug(
                 "Check:", info.titleId, ": ", info.title,
-                "(given:", titleId, ")"
+                "(given:", titleId, ")",
             );
             if (
                 info.titleId === titleId
@@ -363,8 +411,7 @@ export class PrimeApi {
                     return c;
                 }
             },
-            p => p.collections,
-        );
+            p => p.collections);
 
         const info: {
             watchNext?: IFirstPage,
@@ -385,7 +432,7 @@ export class PrimeApi {
      * like watchUrl, id while adding cover art (and, at least for now,
      * lacking pagination)
      */
-    public async *nextUpItems() {
+    public async* nextUpItems() {
         const { landingPage } = await this.swiftApiRequest(
             "/cdp/discovery/GetLandingPage",
             {
@@ -443,9 +490,7 @@ export class PrimeApi {
         }
 
         if (resource.seasons) {
-            info.seasonIds = resource.seasons.map((s: any) =>
-                s.titleId,
-            );
+            info.seasonIds = resource.seasons.map((s: any) => s.titleId);
             info.seasonIdSet = new Set<string>(info.seasonIds);
         }
 
@@ -465,7 +510,8 @@ export class PrimeApi {
             }));
             const selected = episodes.filter((e: any) => e.isSelected);
             if (selected.length) {
-                info.selectedEpisode = selected[0];
+                const [firstSelected] = selected;
+                info.selectedEpisode = firstSelected;
             }
 
             info.episodes = episodes;
@@ -530,8 +576,7 @@ export class PrimeApi {
             return;
         }
 
-        const upNextIndex = titleInfo.episodes.findIndex(ep =>
-            ep.titleId === upNext.titleId);
+        const upNextIndex = titleInfo.episodes.findIndex(ep => ep.titleId === upNext.titleId);
         if (upNextIndex === -1) {
             debug(`Couldn't find ${upNext.titleId} in episodes; drop queue`);
             return;
@@ -591,7 +636,7 @@ export class PrimeApi {
     private async getAccessToken() {
         const existing = this.accessToken;
         const existingExpires = this.accessTokenExpiresAt;
-        if (existing && Date.now() < existingExpires)  {
+        if (existing && Date.now() < existingExpires) {
             return existing;
         }
 
@@ -621,7 +666,7 @@ export class PrimeApi {
             this.accessTokenExpiresAt = Date.now() + response.expires_in * 1000;
             return this.accessToken;
         } catch (e) {
-            throw new Error("Unable to acquire access token\n" + (e as Error).stack);
+            throw new Error(`Unable to acquire access token\n${(e as Error).stack}`);
         }
     }
 
@@ -629,9 +674,9 @@ export class PrimeApi {
      * This search method has reliable entitlement info, but fails
      * to provide watchlist attachment
      */
-    private async *searchWithEntitlement(
+    private async* searchWithEntitlement(
         title: string,
-        opts: ISearchOpts,
+        _opts: ISearchOpts,
     ) {
         const response = await this.swiftApiRequest(
             "/cdp/mobile/getDataByTransform/v1/dv-ios/search/initial/v2.js",
@@ -639,7 +684,7 @@ export class PrimeApi {
                 phrase: title,
             },
         );
-        const items = response.resource.collections[0].items;
+        const { items } = response.resource.collections[0];
 
         for (const item of items) {
             const availability: IAvailability[] = [];
@@ -682,9 +727,9 @@ export class PrimeApi {
      * This search method has watchlist presence included, but fails
      * to provide "Free with ads" availability
      */
-    private async *searchWithWatchlist(
+    private async* searchWithWatchlist(
         title: string,
-        opts: ISearchOpts,
+        _opts: ISearchOpts,
     ) {
         const items = await this.swiftApiCollectionRequest("/swift/page/search", {
             phrase: title,
@@ -704,7 +749,7 @@ export class PrimeApi {
         }
     }
 
-    private async swiftApiCollectionRequest(path: string, qs: {} = {}) {
+    private async swiftApiCollectionRequest(path: string, qs: Record<string, unknown> = {}) {
         const response = await this.swiftApiRequest(path, qs);
         const widgets = response.page.sections.center.widgets.widgetList;
         for (const w of widgets) {
@@ -716,14 +761,14 @@ export class PrimeApi {
         throw new Error("No collection found");
     }
 
-    private async swiftApiRequest(path: string, qs: {} = {}) {
+    private async swiftApiRequest(path: string, qs: Record<string, unknown> = {}) {
         const accessToken = await this.getAccessToken();
 
         const headers = {
             ...this.generateHeaders(),
             Accept: "application/json",
             Authorization: `Bearer ${accessToken}`,
-        }
+        };
 
         const params = {
             ...qs,
@@ -746,150 +791,4 @@ export class PrimeApi {
             url,
         });
     }
-}
-
-function getIpAddress() {
-    const ifaces = os.networkInterfaces();
-    for (const ifaceName of Object.keys(ifaces)) {
-        const list = ifaces[ifaceName];
-        if (!list) continue;
-
-        for (const iface of list) {
-            if (!iface.internal && iface.family === "IPv4") {
-                return iface.address;
-            }
-        }
-    }
-}
-
-function availabilityOf(item: any): IAvailability[] {
-    const result: IAvailability[] = [];
-    let isPrime = false;
-    if (item.decoratedTitle.computed.simple.PRIME_BADGE && item.analytics.local.isPrimeCustomer === "Y") {
-        // included in active prime subscription
-        result.push({ type: AvailabilityType.PRIME });
-        isPrime = true;
-    }
-
-    if (!item.titleActions) {
-        // quick shortcut
-        return result;
-    }
-
-    if (item.titleActions.isPlayable && item.titleActions.playbackSummary.includes("You purchased")) {
-        // explicitly purchased
-        result.push({ type: AvailabilityType.OWNED });
-    } else if (item.titleActions.isPlayable && !isPrime) {
-        // if not purchased, it's probably included in prime, etc.
-        result.push({ type: AvailabilityType.PRIME });
-    } else if (!item.titleActions.isPlayable) {
-        try {
-            const summary: any = JSON.stringify(item.titleActions.titleSummary);
-            if (summary.type === "purchase" && summary.price) {
-                const type = item.titleActions.titleSummary.includes("Rent")
-                    ? AvailabilityType.RENTABLE
-                    : AvailabilityType.PURCHASABLE;
-                result.push({
-                    price: summary.price,
-                    type,
-                } as any);
-            }
-        } catch (e) {
-            // ignore
-        }
-    }
-
-    return result;
-}
-
-function cleanTitle(title: string) {
-    return title.replace(/( -)? Season \d+/, "")
-        .replace("(4K UHD)", "");
-}
-
-const watchNextCarouselTitles = new Set([
-    "Watch Next", // Old, but just in case
-    "Continue Watching",
-]);
-
-function isWatchNextCarousel(carousel: any) {
-    if (carousel.refreshIdentifier === "watchNextCarousel") {
-        return true;
-    }
-    return watchNextCarouselTitles.has(carousel.title);
-}
-
-const playableAvailability = new Set([
-    AvailabilityType.FREE_WITH_ADS,
-    AvailabilityType.OTHER_SUBSCRIPTION,
-    AvailabilityType.OWNED,
-    AvailabilityType.PRIME,
-]);
-
-function isPlayableNow(availability: IAvailability[]) {
-    for (const a of availability) {
-        if (playableAvailability.has(a.type)) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-function seasonNumberFromTitle(title: string) {
-    const m = title.match(/Season (\d+)/);
-    if (m) return parseInt(m[1], 10);
-    return -1;
-}
-
-function hasFinished(info: IWatchNextItem) {
-    if (!info.watchedSeconds) return false;
-    if (info.watchedSeconds >= info.completedAfter) return true;
-
-    // amazon's completedAfter numbers can be bogus, especially
-    // if the item has ads at the end. screw that.
-    return (info.watchedSeconds / info.completedAfter) > 0.91;
-}
-
-function parseWatchNextItem(item: any): IWatchNextItem {
-    return {
-        title: item.title,
-        titleId: item.titleId,
-
-        completedAfter: item.playAndProgress.completedAfter,
-        resumeTitleId: item.playAndProgress.titleId,
-        runtimeSeconds: item.playAndProgress.runtimeSeconds,
-        watchedSeconds: item.playAndProgress.watchedSeconds,
-    };
-}
-
-function parseWatchlistItem(item: any) {
-    const availability = availabilityOf(item);
-    const id = item.analytics.local.pageTypeId;
-    return {
-        availability,
-        cover: item.decoratedTitle.images.imageUrls.detail_page_cover
-        || item.decoratedTitle.images.imageUrls.detail_page_hero,
-        desc: item.decoratedTitle.catalog.synopsis,
-        id,
-        isInWatchlist: item.decoratedTitle.computed.simple.IS_IN_WATCHLIST,
-        title: cleanTitle(item.decoratedTitle.catalog.title),
-        titleId: item.titleId,
-        type: item.decoratedTitle.catalog.type,
-        watchUrl: `https://www.amazon.com/dp/${id}/?autoplay=1` ,
-    };
-}
-
-function isNextUpCollection(c: any): boolean {
-    if (c.debugAttributes && c.debugAttributes.includes("ATVWatchNext")) {
-        return true;
-    }
-
-    if (c.itemTypeToActionMap && c.itemTypeToActionMap.titleCard) {
-        return c.itemTypeToActionMap.titleCard.includes((action: any) => {
-            return action.parameters && action.parameters.listType === "AIV:NextUp";
-        });
-    }
-
-    return false;
 }

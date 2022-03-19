@@ -1,5 +1,4 @@
 import _debug from "debug";
-const debug = _debug("babbling:player");
 
 import {
     IApp,
@@ -17,9 +16,11 @@ import { interleaveAsyncIterables, mergeAsyncIterables } from "./async";
 import { importConfig } from "./cli/config";
 import { ChromecastDevice } from "./device";
 
+const debug = _debug("babbling:player");
+
 type IAppOf<T> =
-    T extends IPlayerEnabledConstructor<infer TOpt, infer TApp> ? TApp :
-    never;
+    T extends IPlayerEnabledConstructor<any, infer TApp> ? TApp :
+        never;
 
 interface IConfiguredApp<TConstructor extends IPlayerEnabledConstructor<Opts, IApp>> {
     appConstructor: TConstructor;
@@ -29,8 +30,7 @@ interface IConfiguredApp<TConstructor extends IPlayerEnabledConstructor<Opts, IA
 }
 
 export type AppSpecificErrorHandler = (app: string, e: Error) => void;
-const defaultAppSpecificErrorHandler: AppSpecificErrorHandler =
-    (app, e) => { throw e; };
+const defaultAppSpecificErrorHandler: AppSpecificErrorHandler = (app, e) => { throw e; };
 
 function pickAppForUrl(
     apps: Array<IConfiguredApp<IPlayerEnabledConstructor<any, any>>>,
@@ -130,11 +130,11 @@ class Player {
         title: string,
         onError: AppSpecificErrorHandler = defaultAppSpecificErrorHandler,
     ): AsyncIterable<IQueryResult> {
-        const iterables = this.apps.map(async function*(app) {
+        const iterables = this.apps.map(async function* iterable(app) {
             if (!app.channel.queryByTitle) return;
 
             try {
-                yield *app.channel.queryByTitle(title);
+                yield* app.channel.queryByTitle(title);
             } catch (e: any) {
                 onError(app.appConstructor.name, e);
             }
@@ -161,7 +161,7 @@ class Player {
         query: IEpisodeQuery,
         onError: AppSpecificErrorHandler = defaultAppSpecificErrorHandler,
     ): AsyncIterable<IEpisodeQueryResult> {
-        const iterables = this.apps.map(async function*(app) {
+        const iterables = this.apps.map(async function* iterable(app) {
             if (!app.channel.queryEpisodeForTitle) {
                 // fallback to a default implementation if findEpisodeFor
                 // is provided
@@ -175,7 +175,7 @@ class Player {
             }
 
             try {
-                yield *app.channel.queryEpisodeForTitle(title, query);
+                yield* app.channel.queryEpisodeForTitle(title, query);
             } catch (e: any) {
                 onError(app.appConstructor.name, e);
             }
@@ -190,12 +190,14 @@ class Player {
      * can be passed directly to `play`.
      */
     public getRecommendationsMap() {
+        /* eslint-disable no-param-reassign */
         return this.apps.reduce((m, app) => {
             if (!app.channel.queryRecommended) return m;
 
             m[app.appConstructor.name] = app.channel.queryRecommended();
             return m;
-        }, {} as {[app: string]: AsyncIterable<IQueryResult>});
+        }, {} as { [app: string]: AsyncIterable<IQueryResult> });
+        /* eslint-enable no-param-reassign */
     }
 
     /**
@@ -211,10 +213,10 @@ class Player {
         onError: AppSpecificErrorHandler = defaultAppSpecificErrorHandler,
     ) {
         const m = this.getRecommendationsMap();
-        const iterables = Object.keys(m).map(async function*(appName) {
+        const iterables = Object.keys(m).map(async function* iterable(appName) {
             const results = m[appName];
             try {
-                yield *results;
+                yield* results;
             } catch (e: any) {
                 onError(appName, e);
             }
@@ -244,7 +246,6 @@ class Player {
         block: (device: ChromecastDevice) => Promise<void>,
     ) {
         return Promise.all(this.devices.map(async d => {
-
             try {
                 await block(d);
             } finally {
@@ -253,7 +254,6 @@ class Player {
                     d.close();
                 }
             }
-
         }));
     }
 }
@@ -275,14 +275,13 @@ export class PlayerBuilder {
 
     public withApp<TConstructor extends IPlayerEnabledConstructor<Opts, IApp>>(
         appConstructor: TConstructor,
-        ...options: OptionsFor<TConstructor>  // tslint:disable-line
+        ...options: OptionsFor<TConstructor>
     ) {
         const index = this.apps.findIndex(old => old.appConstructor === appConstructor);
         if (index !== -1) {
             // extend existing config, for use with autoInflate();
-            this.apps[index].options = this.apps[index].options.map((old, i) => {
-                return Object.assign({}, old, options[i]);
-            });
+            this.apps[index].options = this.apps[index].options
+                .map((old, i) => ({ ...old, ...options[i] }));
         } else {
             this.apps.push({
                 appConstructor,

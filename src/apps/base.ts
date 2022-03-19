@@ -1,5 +1,4 @@
 import _debug from "debug";
-const debug = _debug("babbling:base");
 
 import {
     ChromecastDevice,
@@ -8,6 +7,8 @@ import {
 } from "stratocaster";
 
 import { IApp } from "../app";
+
+const debug = _debug("babbling:base");
 
 export const MEDIA_NS = "urn:x-cast:com.google.cast.media";
 

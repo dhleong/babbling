@@ -1,5 +1,4 @@
 import _debug from "debug";
-const debug = _debug("babbling:hulu:api");
 
 import request from "request-promise-native";
 
@@ -7,14 +6,15 @@ import { EpisodeResolver } from "../../util/episode-resolver";
 
 import { IHuluOpts } from "./config";
 
+const debug = _debug("babbling:hulu:api");
+
 const DISCOVER_BASE = "https://discover.hulu.com/content/v4";
 
-// tslint:disable
-const ENTITY_DISCOVER_URL = DISCOVER_BASE + "/entity/deeplink?schema=2&referral_host=www.hulu.com";
-const SEARCH_URL = DISCOVER_BASE + "/search/entity?language=en&device_context_id=2&limit=64&include_offsite=true&schema=2&referral_host=www.hulu.com";
-const SERIES_HUB_URL_FORMAT = DISCOVER_BASE + "/hubs/series/%s/?schema=2&referral_host=www.hulu.com";
-const SEASON_HUB_URL_FORMAT = DISCOVER_BASE + "/hubs/series/%s/season/%d?limit=999&schema=9&referral_host=www.hulu.com";
-const RECENT_URL = DISCOVER_BASE + "/hubs/watch-history?schema=9&referral_host=production"
+const ENTITY_DISCOVER_URL = `${DISCOVER_BASE}/entity/deeplink?schema=2&referral_host=www.hulu.com`;
+const SEARCH_URL = `${DISCOVER_BASE}/search/entity?language=en&device_context_id=2&limit=64&include_offsite=true&schema=2&referral_host=www.hulu.com`;
+const SERIES_HUB_URL_FORMAT = `${DISCOVER_BASE}/hubs/series/%s/?schema=2&referral_host=www.hulu.com`;
+const SEASON_HUB_URL_FORMAT = `${DISCOVER_BASE}/hubs/series/%s/season/%d?limit=999&schema=9&referral_host=www.hulu.com`;
+const RECENT_URL = `${DISCOVER_BASE}/hubs/watch-history?schema=9&referral_host=production`;
 
 const USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.121 Safari/537.36";
 
@@ -22,7 +22,6 @@ const CSRF_URL = "https://www.hulu.com/api/3.0/generate_csrf_value?&for_hoth=tru
 const CSRF_COOKIE_NAME = "_tcv";
 
 const CHROMECAST_AUTH_URL = "https://auth.hulu.com/v1/web/chromecast/authenticate";
-// tslint:enable
 
 export const supportedEntityTypes = new Set(["series", "movie", "episode"]);
 
@@ -41,7 +40,6 @@ export interface IHuluEpisode {
 }
 
 export class HuluApi {
-
     public readonly userId: string;
     public readonly profileId: string;
 
@@ -82,10 +80,11 @@ export class HuluApi {
         debug(` -> csrf='${this.csrf}'`);
         const rawResponse = await request.post({
             body: `csrf=${this.csrf}`,
-            headers: Object.assign({
-                "Accept": "application/json",
+            headers: {
+                Accept: "application/json",
                 "Content-Type": "text/plain;charset=UTF-8",
-            }, this.generateHeaders()),
+                ...this.generateHeaders(),
+            },
             url: CHROMECAST_AUTH_URL,
         });
         const json = JSON.parse(rawResponse);
@@ -110,13 +109,15 @@ export class HuluApi {
 
         debug(`loaded entity ${entityId}:`, entity);
 
-        if (entity._type === "series") {
+        const { _type: type } = entity;
+
+        if (type === "series") {
             throw new Error("Use resumeSeries for series");
         }
 
-        if (!supportedEntityTypes.has(entity._type)) {
+        if (!supportedEntityTypes.has(type)) {
             // for example, 'series'
-            throw new Error(`Unsupported entity '${entity.name}' (type '${entity._type}')`);
+            throw new Error(`Unsupported entity '${entity.name}' (type '${type}')`);
         }
 
         return entity;
@@ -132,23 +133,21 @@ export class HuluApi {
             url: SEARCH_URL,
         });
 
-        const { results } = groups.find((it: any) =>
-            it.category === "top results",
-        );
+        const { results } = groups.find((it: any) => it.category === "top results");
 
-        return results.filter((item: any) =>
+        return results.filter((item: any) => {
             // if it's prompting to upsell, we probably can't cast it
-            !item.actions.upsell
+            if (!item.actions.upsell) return false;
 
             // similarly, if we're prompted to "get related" it's not on hulu
-            && !item.actions.get_related,
-        );
+            return !item.actions.get_related;
+        });
     }
 
     public episodeResolver(seriesId: string) {
-        const api = this;
+        const api = this; // eslint-disable-line @typescript-eslint/no-this-alias
         return new EpisodeResolver<IHuluEpisode>({
-            async *episodesInSeason(seasonIndex: number) {
+            async* episodesInSeason(seasonIndex: number) {
                 let page: string | undefined;
                 do {
                     const { items, nextPage } = await api.episodesInSeason(
@@ -171,15 +170,14 @@ export class HuluApi {
     ) {
         debug(`Fetching episodesInSeason for series ${seriesId}`);
 
-        const url = pagination ? pagination
-            : SEASON_HUB_URL_FORMAT.replace("%s", seriesId)
-                .replace("%d", seasonNumber.toString());
+        const url = pagination || SEASON_HUB_URL_FORMAT.replace("%s", seriesId)
+            .replace("%d", seasonNumber.toString());
 
         const json = await request({
             headers: {
-                "Cookie": this.cookies,
-                "Origin": "https://www.hulu.com",
-                "Referer": "https://www.hulu.com/",
+                Cookie: this.cookies,
+                Origin: "https://www.hulu.com",
+                Referer: "https://www.hulu.com/",
                 "User-Agent": USER_AGENT,
             },
             json: true,
@@ -203,9 +201,9 @@ export class HuluApi {
 
         const json = await request({
             headers: {
-                "Cookie": this.cookies,
-                "Origin": "https://www.hulu.com",
-                "Referer": "https://www.hulu.com/",
+                Cookie: this.cookies,
+                Origin: "https://www.hulu.com",
+                Referer: "https://www.hulu.com/",
                 "User-Agent": USER_AGENT,
             },
             json: true,
@@ -213,17 +211,17 @@ export class HuluApi {
         });
 
         if (!(json.details && json.details.vod_items && json.details.vod_items.focus)) {
-            debug(`Full response:`, json);
+            debug("Full response:", json);
             throw new Error(`Unable to find next episode for ${seriesId}`);
         }
 
-        const entity = json.details.vod_items.focus.entity;
+        const { entity } = json.details.vod_items.focus;
         debug(`Next entity for series ${seriesId}:`, entity);
 
         return entity;
     }
 
-    public async *fetchRecent() {
+    public async* fetchRecent() {
         const { components } = await request({
             headers: this.generateHeaders(),
             json: true,
@@ -239,9 +237,9 @@ export class HuluApi {
 
     private generateHeaders() {
         return {
-            "Cookie": this.cookies,
-            "Origin": "https://www.hulu.com",
-            "Referer": "https://www.hulu.com/",
+            Cookie: this.cookies,
+            Origin: "https://www.hulu.com",
+            Referer: "https://www.hulu.com/",
             "User-Agent": USER_AGENT,
         };
     }
@@ -251,13 +249,11 @@ export class HuluApi {
 
         debug("fetch CSRF");
         const response = await request({
-            headers: Object.assign({
-                authority: "www.hulu.com",
-            }, this.generateHeaders()),
+            headers: { authority: "www.hulu.com", ...this.generateHeaders() },
             resolveWithFullResponse: true,
             url: CSRF_URL,
         });
-        debug(`got cookies:`, response.headers["set-cookie"]);
+        debug("got cookies:", response.headers["set-cookie"]);
         debug("body=", response.body);
 
         for (const raw of response.headers["set-cookie"]) {

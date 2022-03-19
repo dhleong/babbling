@@ -1,4 +1,3 @@
-
 import { PrimeApi } from "../../../apps/prime/api";
 import { configInPath } from "../config";
 import { consoleWrite, prompt } from "../util";

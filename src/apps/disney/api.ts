@@ -1,5 +1,4 @@
 import _debug from "debug";
-const debug = _debug("babbling:DisneyApp:api");
 
 import jwt from "jsonwebtoken";
 import request from "request-promise-native";
@@ -8,6 +7,8 @@ import { read, write } from "../../token";
 import { EpisodeResolver } from "../../util/episode-resolver";
 
 import { IDisneyOpts } from "./config";
+
+const debug = _debug("babbling:DisneyApp:api");
 
 const CLIENT_API_KEY_URL = "https://www.disneyplus.com/home";
 const TOKEN_URL = "https://global.edge.bamgrid.com/token";
@@ -79,7 +80,6 @@ export interface ICollection {
 }
 
 export class DisneyApi {
-
     private clientInfo?: { apiKey: string, id: string };
 
     constructor(
@@ -96,7 +96,7 @@ export class DisneyApi {
             return {
                 contentId: data.resume.contentId as string,
                 startTime: data.resume.userMeta.playhead as number,
-            }
+            };
         }
 
         return {
@@ -118,8 +118,8 @@ export class DisneyApi {
         let startTime: number | undefined;
         if (data.episodesWithProgress) {
             debug("episodesWithProgress = ", data.episodesWithProgress);
-            const info = data.episodesWithProgress.find((progress: any) =>
-                progress.contentId === episode.contentId,
+            const info = data.episodesWithProgress.find(
+                (progress: any) => progress.contentId === episode.contentId,
             );
             if (info && info.userMeta) {
                 debug("resume with info=", info);
@@ -179,26 +179,26 @@ export class DisneyApi {
             slug: "home",
         });
 
-        const collections: ICollection[] = containers.filter((container: any) =>
-            // NOTE: these are usually links to eg Marvel collection
-            container.set.contentClass !== "brand",
-        ).map((container: any) => {
-            const { set } = container;
-            const c: ICollection = {
-                id: set.refId,
-                items: set.items,
-                meta: set.meta,
-                title: set.texts[0].content,
-                type: set.refType,
-            };
+        const collections: ICollection[] = containers
+        // NOTE: these are usually links to eg Marvel collection
+            .filter((container: any) => container.set.contentClass !== "brand")
+            .map((container: any) => {
+                const { set } = container;
+                const c: ICollection = {
+                    id: set.refId,
+                    items: set.items,
+                    meta: set.meta,
+                    title: set.texts[0].content,
+                    type: set.refType,
+                };
 
-            if (!c.id && set.setId) {
-                c.id = set.setId;
-                c.type = set.type;
-            }
+                if (!c.id && set.setId) {
+                    c.id = set.setId;
+                    c.type = set.type;
+                }
 
-            return c;
-        });
+                return c;
+            });
 
         return collections;
     }
@@ -223,27 +223,27 @@ export class DisneyApi {
             episodePageSize: 12,
             seriesId: encodedSeriesId,
         });
-        const seasons = response.seasons.seasons;
+        const { seasons } = response.seasons;
 
         debug("loaded seasons for", encodedSeriesId, " = ", seasons);
-        const api = this;
+        const api = this; // eslint-disable-line @typescript-eslint/no-this-alias
         return new EpisodeResolver<IDisneyEpisode>({
-            async *episodesInSeason(seasonIndex: number) {
-                yield *api.getSeasonEpisodeBatchesById(seasons[seasonIndex].seasonId);
+            async* episodesInSeason(seasonIndex: number) {
+                yield* api.getSeasonEpisodeBatchesById(seasons[seasonIndex].seasonId);
             },
         });
     }
 
     public async ensureTokensValid() {
         await this.ensureToken();
-        const [ token, refreshToken ] = await Promise.all([
+        const [token, refreshToken] = await Promise.all([
             read(this.options.token),
             read(this.options.refreshToken),
         ]);
         return { token, refreshToken };
     }
 
-    private async *getSeasonEpisodeBatchesById(seasonId: string) {
+    private async* getSeasonEpisodeBatchesById(seasonId: string) {
         const episodePageSize = 25; // can we bump this?
         let episodePage = 0;
 
@@ -309,7 +309,7 @@ export class DisneyApi {
                 refresh_token: refreshToken,
             },
             headers: {
-                "authorization": `Bearer ${clientInfo.apiKey}`,
+                authorization: `Bearer ${clientInfo.apiKey}`,
                 "x-bamsdk-client-id": clientInfo.id,
                 "x-bamsdk-platform": "macintosh",
                 "x-bamsdk-version": "4.8",
@@ -384,5 +384,4 @@ export class DisneyApi {
 
         return data[graphQlKey];
     }
-
 }

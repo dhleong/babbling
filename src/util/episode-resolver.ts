@@ -36,7 +36,6 @@ export class EpisodeResolver<TEpisode extends IEpisodeBase> {
             }
 
             // no such episode in this season
-            return;
         }
     }
 }

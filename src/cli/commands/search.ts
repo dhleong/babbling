@@ -1,3 +1,5 @@
+/* eslint-disable no-console */
+
 import { IQueryResult } from "../../app";
 import { ChromecastDevice } from "../../device";
 import { PlayerBuilder } from "../../player";
@@ -11,24 +13,12 @@ export interface ISearchByTitleOpts {
 function padLeft(s: string, width: number) {
     if (s.length === width) {
         return s;
-    } else if (s.length > width) {
+    } if (s.length > width) {
         return s.substr(0, width);
     }
 
     const delta = width - s.length;
     return " ".repeat(delta) + s;
-}
-
-export default async function searchByTitle(opts: ISearchByTitleOpts) {
-    // tslint:disable no-console
-
-    const builder = await PlayerBuilder.autoInflate(opts.config);
-    builder.addDevice(new ChromecastDevice("_unused_"));
-    const player = builder.build();
-
-    const results = player.queryByTitle(opts.title);
-
-    await formatQueryResults(results);
 }
 
 export async function formatQueryResults(results: AsyncIterable<IQueryResult>) {
@@ -42,7 +32,7 @@ export async function formatQueryResults(results: AsyncIterable<IQueryResult>) {
             console.log(`    - ${match.url}`);
         }
         if (match.hasAds) {
-            console.log(`    * Includes Advertisements`);
+            console.log("    * Includes Advertisements");
         }
         if (match.desc) {
             console.log(`    ${match.desc}`);
@@ -52,6 +42,16 @@ export async function formatQueryResults(results: AsyncIterable<IQueryResult>) {
     }
 
     if (!found) {
-        consoleWrite(`No results`);
+        consoleWrite("No results");
     }
+}
+
+export default async function searchByTitle(opts: ISearchByTitleOpts) {
+    const builder = await PlayerBuilder.autoInflate(opts.config);
+    builder.addDevice(new ChromecastDevice("_unused_"));
+    const player = builder.build();
+
+    const results = player.queryByTitle(opts.title);
+
+    await formatQueryResults(results);
 }

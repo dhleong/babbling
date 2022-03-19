@@ -1,11 +1,11 @@
 import { IAppConstructor } from "../app";
 
 export interface ICookieSource {
-    query(url: string): AsyncIterable<{name: string, value: string}>;
+    query(url: string): AsyncIterable<{ name: string, value: string }>;
 }
 
 export interface ILocalStorageSource {
-    readAll(url: string): AsyncIterable<{key: string, value: string}>;
+    readAll(url: string): AsyncIterable<{ key: string, value: string }>;
 }
 
 export interface IConfigSource {
@@ -23,6 +23,8 @@ export interface IConfigurableApp<TConfig> extends IAppConstructor<any, any> {
     configurable: IConfigurable<TConfig>;
 }
 
-export function isConfigurable<Opts extends []>(app: IAppConstructor<Opts, any>): app is IConfigurableApp<Opts> {
+export function isConfigurable<Opts extends []>(
+    app: IAppConstructor<Opts, any>,
+): app is IConfigurableApp<Opts> {
     return (app as any).configurable;
 }

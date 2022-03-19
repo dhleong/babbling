@@ -1,18 +1,12 @@
 import _debug from "debug";
-const debug = _debug("babbling:util");
 
 import { IMessage, StratoChannel } from "stratocaster";
 
-export const awaitMessageOfType = (
-    session: StratoChannel, type: string,
-    timeoutMs: number = 5000,
-): Promise<any> => awaitMessageOfTypeFrom(
-    session.receive(), type, timeoutMs,
-);
+const debug = _debug("babbling:util");
 
 export const awaitMessageOfTypeFrom = (
     stream: AsyncIterable<IMessage>, type: string,
-    timeoutMs: number = 5000,
+    timeoutMs = 5000,
 ): Promise<any> => Promise.race([
     new Promise((_, reject) => {
         setTimeout(() => {
@@ -34,3 +28,10 @@ export const awaitMessageOfTypeFrom = (
         throw new Error(`Failed to receive ${type}`);
     })(),
 ]);
+
+export const awaitMessageOfType = (
+    session: StratoChannel, type: string,
+    timeoutMs = 5000,
+): Promise<any> => awaitMessageOfTypeFrom(
+    session.receive(), type, timeoutMs,
+);

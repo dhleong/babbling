@@ -1,5 +1,4 @@
 import _debug from "debug";
-const debug = _debug("babbling:hulu:channel");
 
 import {
     IEpisodeQuery,
@@ -8,8 +7,10 @@ import {
     IQueryResult,
 } from "../../app";
 
-import { HuluApp, IHuluOpts } from ".";
+import type { HuluApp, IHuluOpts } from ".";
 import { HuluApi, supportedEntityTypes } from "./api";
+
+const debug = _debug("babbling:hulu:channel");
 
 const UUID_LENGTH = 36;
 
@@ -18,11 +19,22 @@ function seemsLikeValidUUID(uuid: string) {
 }
 
 function createUrl(type: string, id: string) {
-    return "https://www.hulu.com/" + type + "/" + id;
+    return `https://www.hulu.com/${type}/${id}`;
+}
+
+function pickArtwork(item: any) {
+    if (!item.artwork) return;
+
+    const obj = item.artwork["program.tile"];
+    if (!(obj && obj.path)) return;
+
+    return `${obj.path}&operations=${encodeURIComponent(JSON.stringify([
+        { resize: "600x600|max" },
+        { format: "jpeg" },
+    ]))}`;
 }
 
 export class HuluPlayerChannel implements IPlayerChannel<HuluApp> {
-
     constructor(
         private readonly options: IHuluOpts,
     ) {}
@@ -55,8 +67,12 @@ export class HuluPlayerChannel implements IPlayerChannel<HuluApp> {
         item: IQueryResult,
         query: IEpisodeQuery,
     ): Promise<IEpisodeQueryResult | undefined> {
+        if (item.url == null) {
+            throw new Error(`Missing url for query result: ${item.title}`);
+        }
+
         const api = new HuluApi(this.options);
-        const url = item.url!;
+        const { url } = item;
         const seriesId = url.substring(url.lastIndexOf("/") + 1);
 
         const episode = await api.episodeResolver(seriesId).query(query);
@@ -68,13 +84,11 @@ export class HuluPlayerChannel implements IPlayerChannel<HuluApp> {
             title: episode.name,
             url: createUrl("watch", episode.id),
 
-            playable: async (app: HuluApp) => {
-                return app.play(episode.id, {});
-            },
+            playable: async (app: HuluApp) => app.play(episode.id, {}),
         };
     }
 
-    public async *queryByTitle(
+    public async* queryByTitle(
         title: string,
     ) {
         const results = await new HuluApi(this.options).search(title);
@@ -90,7 +104,7 @@ export class HuluPlayerChannel implements IPlayerChannel<HuluApp> {
                 continue;
             }
 
-            const url = "https://www.hulu.com/" + type + "/" + id;
+            const url = `https://www.hulu.com/${type}/${id}`;
             yield {
                 appName: "HuluApp",
                 desc: item.visuals.body.text,
@@ -107,11 +121,11 @@ export class HuluPlayerChannel implements IPlayerChannel<HuluApp> {
         }
     }
 
-    public async *queryRecommended() {
+    public async* queryRecommended() {
         const results = new HuluApi(this.options).fetchRecent();
         for await (const item of results) {
-            const id = item.id;
-            const type = item._type;
+            const { id } = item;
+            const { _type: type } = item;
             if (!supportedEntityTypes.has(type)) {
                 // skip!
                 continue;
@@ -134,16 +148,4 @@ export class HuluPlayerChannel implements IPlayerChannel<HuluApp> {
             };
         }
     }
-}
-
-function pickArtwork(item: any) {
-    if (!item.artwork) return;
-
-    const obj = item.artwork["program.tile"];
-    if (!(obj && obj.path)) return;
-
-    return obj.path + "&operations=" + encodeURIComponent(JSON.stringify([
-        { resize: "600x600|max" },
-        { format: "jpeg" },
-    ]));
 }
