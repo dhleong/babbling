@@ -26,7 +26,7 @@ export function withKey<T>(args: Argv<T>) {
         choice: ["device"],
         describe: "Config key",
         type: "string",
-    }).demand("key");
+    }).demandOption("key");
 }
 
 export function withValue<T>(args: Argv<T>) {

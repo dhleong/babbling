@@ -37,14 +37,14 @@ try {
 const parser = yargs;
 
 parser.command(
-    "cast <url>", "Cast a video by URL", args => withDevice(withConfig(args)).positional("url", {
+    "cast <url>", "Cast a video by URL", (args: yargs.Argv) => withDevice(withConfig(args)).positional("url", {
         describe: "The URL to play",
         type: "string",
-    }).demand("url"), cast,
+    }).demandOption("url"), cast,
 );
 
 parser.command(
-    "do <cmd> [arg]", "Send a media control command", args => withDevice(withConfig(args)).positional("cmd", {
+    "do <cmd> [arg]", "Send a media control command", (args: yargs.Argv) => withDevice(withConfig(args)).positional("cmd", {
         choices: [
             "next", "prev",
 
@@ -63,14 +63,14 @@ parser.command(
             describe: "The numeric argument to the command (if any)",
             type: "number",
         })
-        .demand("cmd"), mediaControlCommand,
+        .demandOption("cmd"), mediaControlCommand,
 );
 
 parser.command(
-    "find <title>", "Find and Cast by title", args => withDevice(withConfig(args)).positional("title", {
+    "find <title>", "Find and Cast by title", (args: yargs.Argv) => withDevice(withConfig(args)).positional("title", {
         describe: "The title to play",
         type: "string",
-    }).demand("title")
+    }).demandOption("title")
         .option("season", {
             describe: "The season number to play. If `episode` is not provided, plays the first episode of that season.",
             type: "number",
@@ -82,7 +82,7 @@ parser.command(
 );
 
 parser.command(
-    "scan", "Scan for available devices", args => withConfig(args).option("timeout", {
+    "scan", "Scan for available devices", (args: yargs.Argv) => withConfig(args).option("timeout", {
         alias: "t",
         default: 15000,
         type: "number",
@@ -90,14 +90,14 @@ parser.command(
 );
 
 parser.command(
-    "search <title>", "List matching titles", args => withConfig(args).positional("title", {
+    "search <title>", "List matching titles", (args: yargs.Argv) => withConfig(args).positional("title", {
         describe: "The title to search for",
         type: "string",
-    }).demand("title"), searchByTitle,
+    }).demandOption("title"), searchByTitle,
 );
 
 parser.command(
-    "recommend", "List recommendations", args => withConfig(args), getRecommendations,
+    "recommend", "List recommendations", (args: yargs.Argv) => withConfig(args), getRecommendations,
 );
 
 parser.command(
@@ -134,7 +134,7 @@ parser.command(
         .positional("email", {
             describe: "Email address",
             type: "string",
-        }).demand("email"), async argv => {
+        }).demandOption("email"), async argv => {
         await primeLogin(argv, argv.email);
     },
 );
@@ -149,7 +149,7 @@ parser.help()
     .demandCommand(1);
 
 export async function main(args: any[]) {
-    const result = parser.parse(args.slice(2));
+    const result = await parser.parse(args.slice(2));
     if (result.config) {
         // we loaded config, which means yargs handled it
         return;
