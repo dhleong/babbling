@@ -5,7 +5,7 @@ import _debug from "debug";
 import { read, Token, write } from "../../token";
 import { EpisodeContainer } from "../../util/episode-container";
 
-const debug = _debug("babbling:hbogo:api");
+const debug = _debug("babbling:hbo:api");
 
 const CONTENT_URL = "https://comet.api.hbo.com/content";
 const TOKENS_URL = "https://comet.api.hbo.com/tokens";
@@ -57,7 +57,7 @@ export interface IHboEpisode {
     title: string;
 }
 
-export class HboGoApi {
+export class HboApi {
     private refreshToken: string | undefined;
     private refreshTokenExpires = 0;
 

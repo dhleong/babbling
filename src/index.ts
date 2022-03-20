@@ -1,7 +1,7 @@
 export { ChromecastDevice } from "./device";
 export { PlayerBuilder } from "./player";
 export { DisneyApp, IDisneyOpts } from "./apps/disney";
-export { HboGoApp, IHboGoOpts, IHboGoPlayOptions } from "./apps/hbogo";
+export { HboApp, IHboOpts, IHboPlayOptions } from "./apps/hbo";
 export { HuluApp, IHuluOpts } from "./apps/hulu";
 export { PrimeApp, IPrimeOpts } from "./apps/prime";
 export { YoutubeApp, IYoutubeOpts } from "./apps/youtube";
