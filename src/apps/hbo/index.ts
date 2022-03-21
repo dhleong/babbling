@@ -13,7 +13,7 @@ import { HboConfigurable, IHboOpts } from "./config";
 const debug = _debug("babbling:hbo");
 export { IHboOpts } from "./config";
 
-const APP_ID = "144BDEF0";
+const APP_ID = "DD4BFB02";
 const HBO_GO_NS = "urn:x-cast:hbogo";
 
 export interface IHboPlayOptions {
