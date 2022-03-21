@@ -23,7 +23,7 @@ export class HboPlayerChannel implements IPlayerChannel<HboApp> {
     }
 
     public ownsUrl(url: string) {
-        return url.includes("play.hbogo.com");
+        return url.includes("play.hbomax.com");
     }
 
     public async createPlayable(url: string) {
@@ -65,7 +65,7 @@ export class HboPlayerChannel implements IPlayerChannel<HboApp> {
         const episode = await resolver.query(query);
         if (!episode) return;
 
-        const url = `https://play.hbogo.com/${episode.urn}`;
+        const url = `https://play.hbomax.com/${episode.urn}`;
         return {
             appName: "HboApp",
             playable: await this.createPlayable(url),
@@ -85,7 +85,7 @@ export class HboPlayerChannel implements IPlayerChannel<HboApp> {
                 continue;
             }
 
-            const url = `https://play.hbogo.com/${result.urn}`;
+            const url = `https://play.hbomax.com/${result.urn}`;
             yield {
                 appName: "HboApp",
                 playable: await this.createPlayable(url),

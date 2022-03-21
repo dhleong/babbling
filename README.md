@@ -18,7 +18,7 @@ services to a Chromecast device.
 Currently, Babbling supports casting videos from:
 
 - [Youtube][1]
-- [HBO Go][2]
+- [HBO Max][2]
 - [Hulu][3]
 - [Amazon Video][5]
 - [Disney+][6]
@@ -71,7 +71,7 @@ options—but Babbling comes with batteries included to make this simpler
 for you. If you install Babbling globally (`npm i -g babbling`) you'll
 get a command-line tool that can automatically pull all the cookies and
 other auth info needed for each app from the Chrome browser. Just close
-Chrome (the database in which HBO Go stores its data is very insistent
+Chrome (the database in which HBO Max stores its data is very insistent
 on only one app accessing it at a time) and run `babbling auto-auth`.
 That will enable the `autoInflate()` function mentioned above, and
 also allow you to use `babbling cast <url>`!
@@ -191,7 +191,7 @@ Returns an `AsyncIterable` of recommendations as returned from
 interleaved together.
 
 [1]: src/apps/youtube/index.ts
-[2]: src/apps/hbogo/index.ts
+[2]: src/apps/hbo/index.ts
 [3]: src/apps/hulu/index.ts
 [4]: src/player.ts
 [5]: src/apps/prime/index.ts
