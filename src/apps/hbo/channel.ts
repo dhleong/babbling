@@ -7,10 +7,23 @@ import {
 import { EpisodeResolver } from "../../util/episode-resolver";
 
 import type { HboApp, IHboOpts } from ".";
-import { entityTypeFromUrn, HboApi } from "./api";
+import { entityTypeFromUrn, HboApi, unpackUrn } from "./api";
+
+function normalizeUrn(urn: string) {
+    const unpacked = unpackUrn(urn);
+    if (unpacked.type === "page") {
+        return `urn:hbo:${unpacked.pageType}:${unpacked.id}`;
+    }
+    return urn;
+}
 
 function urnFromUrl(url: string) {
-    return url.substring(url.lastIndexOf("/") + 1);
+    const pathIndex = url.lastIndexOf("/");
+    if (pathIndex === 0) {
+        // This is *just* a URN
+        return normalizeUrn(url);
+    }
+    return normalizeUrn(url.substring(pathIndex + 1));
 }
 
 export class HboPlayerChannel implements IPlayerChannel<HboApp> {
@@ -23,11 +36,12 @@ export class HboPlayerChannel implements IPlayerChannel<HboApp> {
     }
 
     public ownsUrl(url: string) {
-        return url.includes("play.hbomax.com");
+        return url.includes("play.hbomax.com") || url.startsWith("urn:hbo:");
     }
 
     public async createPlayable(url: string) {
         const urn = urnFromUrl(url);
+
         try {
             switch (entityTypeFromUrn(urn)) {
                 case "series":

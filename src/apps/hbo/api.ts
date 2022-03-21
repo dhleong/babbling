@@ -38,16 +38,41 @@ export interface ISeriesMarker {
     markerStatus: "START" | "LATEST" | "CONTINUE" | "TOPICAL";
 }
 
-function extractIdFromUrn(urnOrId: string) {
-    const lastColon = urnOrId.lastIndexOf(":");
-    return lastColon === -1
-        ? urnOrId
-        : urnOrId.substring(lastColon + 1);
+type EntityType = "series" | "season" | "episode" | "extra" | "feature";
+
+export function unpackUrn(urn: string) {
+    const [, , entityType, id, , pageType] = urn.split(":");
+    if (entityType == "page") {
+        return {
+            type: "page" as const,
+            id,
+            pageType: pageType as EntityType,
+        };
+    } else {
+        return {
+            type: entityType as EntityType,
+            id,
+        };
+    }
 }
 
-export function entityTypeFromUrn(urn: string) {
-    const [, , entityType] = urn.split(":");
-    return entityType as "series" | "season" | "episode" | "extra" | "feature";
+function extractIdFromUrn(urnOrId: string) {
+    const lastColon = urnOrId.lastIndexOf(":");
+    if (lastColon === -1) {
+        return urnOrId;
+    }
+
+    const { id } = unpackUrn(urnOrId);
+    return id;
+}
+
+export function entityTypeFromUrn(urn: string): EntityType {
+    const unpacked = unpackUrn(urn);
+    if (unpacked.type === "page") {
+        return unpacked.pageType;
+    } else {
+        return unpacked.type;
+    }
 }
 
 export interface IHboEpisode {
@@ -81,7 +106,8 @@ export class HboApi {
         const seriesMarker = markersBySeries[seriesUrn];
         if (!seriesMarker) {
             // TODO we could fetch the series' episodes and pick the first
-            throw new Error("No marker for series");
+            debug("Available markers:", markersBySeries);
+            throw new Error(`No marker for series: ${seriesUrn}`);
         }
 
         // NOTE: I'm not sure what to do with `markerStatus`...
