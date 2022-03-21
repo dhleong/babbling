@@ -66,7 +66,6 @@ export class HboApp extends BaseApp {
 
         debug("Joined media session", s.destination);
 
-        // const hbogo = await this.joinOrRunNamespace(HBO_GO_NS);
         const req: ILoadRequest = {
             autoplay: true,
             customData: {
