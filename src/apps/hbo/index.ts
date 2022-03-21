@@ -3,7 +3,6 @@ import _debug from "debug";
 import { ChromecastDevice } from "stratocaster";
 
 import { BaseApp, MEDIA_NS } from "../base";
-import { awaitMessageOfType } from "../util";
 import { ILoadRequest } from "../../cast";
 
 import { HboApi } from "./api";
@@ -14,7 +13,6 @@ const debug = _debug("babbling:hbo");
 export { IHboOpts } from "./config";
 
 const APP_ID = "DD4BFB02";
-const HBO_GO_NS = "urn:x-cast:hbogo";
 
 export interface IHboPlayOptions {
     /** Eg "ENG" */
@@ -68,7 +66,7 @@ export class HboApp extends BaseApp {
 
         debug("Joined media session", s.destination);
 
-        const hbogo = await this.joinOrRunNamespace(HBO_GO_NS);
+        // const hbogo = await this.joinOrRunNamespace(HBO_GO_NS);
         const req: ILoadRequest = {
             autoplay: true,
             customData: {
@@ -110,14 +108,8 @@ export class HboApp extends BaseApp {
         const ms = await s.send(req as any);
         debug(ms);
 
-        let ps;
-        do {
-            ps = await awaitMessageOfType(hbogo, "PLAYERSTATE");
-            debug(ps);
-        } while (!ps.success);
-
-        if (ps.playerState === "APPLICATION_ERROR") {
-            throw new Error("Error");
+        if (ms.type !== "MEDIA_STATUS") {
+            throw new Error(`Load failed: ${ms}`);
         }
 
         debug("Done!");
