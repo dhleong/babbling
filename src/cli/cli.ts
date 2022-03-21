@@ -144,6 +144,7 @@ parser.command(
 
 createChromecastCommands(parser)
     .help()
+    .recommendCommands()
     .demandCommand(1);
 
 export async function main(args: any[]) {
