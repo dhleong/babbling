@@ -13,7 +13,7 @@ export class HboConfigurable implements IConfigurable<IHboOpts> {
     public async extractConfig(
         source: IConfigSource,
     ) {
-        const stream = source.storage.readAll("https://play.hbogo.com");
+        const stream = source.storage.readAll("https://play.hbomax.com");
         for await (const { key, value } of stream) {
             if (key.includes("LoginInfo.user")) {
                 const entry = JSON.parse(value);
