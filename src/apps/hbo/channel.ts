@@ -79,6 +79,12 @@ export class HboPlayerChannel implements IPlayerChannel<HboApp> {
         title: string,
     ): AsyncIterable<IQueryResult> {
         for await (const result of this.api.search(title)) {
+            if (result.type === "SERIES_EPISODE") {
+                // Don't emit episodes; this method is for
+                // finding series and movies only
+                continue;
+            }
+
             const url = `https://play.hbogo.com/${result.urn}`;
             yield {
                 appName: "HboApp",

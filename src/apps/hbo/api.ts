@@ -144,6 +144,7 @@ export class HboApi {
      */
     public async getSeriesMarkers(): Promise<{ [urn: string]: ISeriesMarker }> {
         const markersResult = await this.fetchContent(["urn:hbo:series-markers:mine"]);
+        debug("markers result=", markersResult);
         return markersResult[0].body.seriesMarkers;
     }
 
@@ -210,6 +211,7 @@ export class HboApi {
 
             yield {
                 title: result.body.titles.full as string,
+                type: result.body.contentType as "FEATURE" | "SERIES" | "SERIES_EPISODE",
                 urn,
             };
         }
