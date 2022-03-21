@@ -3,20 +3,18 @@ import _debug from "debug";
 import { ChromecastDevice } from "stratocaster";
 
 import { BaseApp, MEDIA_NS } from "../base";
-import { awaitMessageOfType } from "../util";
 import { ILoadRequest } from "../../cast";
 
-import { HboGoApi } from "./api";
-import { HboGoPlayerChannel } from "./channel";
-import { HboGoConfigurable, IHboGoOpts } from "./config";
+import { HboApi } from "./api";
+import { HboPlayerChannel } from "./channel";
+import { HboConfigurable, IHboOpts } from "./config";
 
-const debug = _debug("babbling:hbogo");
-export { IHboGoOpts } from "./config";
+const debug = _debug("babbling:hbo");
+export { IHboOpts } from "./config";
 
-const APP_ID = "144BDEF0";
-const HBO_GO_NS = "urn:x-cast:hbogo";
+const APP_ID = "DD4BFB02";
 
-export interface IHboGoPlayOptions {
+export interface IHboPlayOptions {
     /** Eg "ENG" */
     language?: string;
     showSubtitles?: boolean;
@@ -27,22 +25,22 @@ export interface IHboGoPlayOptions {
     startTime?: number;
 }
 
-export class HboGoApp extends BaseApp {
+export class HboApp extends BaseApp {
     public static tokenConfigKeys = ["token"];
-    public static configurable = new HboGoConfigurable();
-    public static createPlayerChannel(options: IHboGoOpts) {
-        return new HboGoPlayerChannel(options);
+    public static configurable = new HboConfigurable();
+    public static createPlayerChannel(options: IHboOpts) {
+        return new HboPlayerChannel(options);
     }
 
-    private readonly api: HboGoApi;
+    private readonly api: HboApi;
 
-    constructor(device: ChromecastDevice, options: IHboGoOpts) {
+    constructor(device: ChromecastDevice, options: IHboOpts) {
         super(device, {
             appId: APP_ID,
             sessionNs: MEDIA_NS,
         });
 
-        this.api = new HboGoApi(options.token);
+        this.api = new HboApi(options.token);
     }
 
     /**
@@ -51,7 +49,7 @@ export class HboGoApp extends BaseApp {
      */
     public async play(
         urn: string,
-        options: IHboGoPlayOptions = {},
+        options: IHboPlayOptions = {},
     ) {
         const {
             deviceId,
@@ -68,7 +66,6 @@ export class HboGoApp extends BaseApp {
 
         debug("Joined media session", s.destination);
 
-        const hbogo = await this.joinOrRunNamespace(HBO_GO_NS);
         const req: ILoadRequest = {
             autoplay: true,
             customData: {
@@ -110,14 +107,8 @@ export class HboGoApp extends BaseApp {
         const ms = await s.send(req as any);
         debug(ms);
 
-        let ps;
-        do {
-            ps = await awaitMessageOfType(hbogo, "PLAYERSTATE");
-            debug(ps);
-        } while (!ps.success);
-
-        if (ps.playerState === "APPLICATION_ERROR") {
-            throw new Error("Error");
+        if (ms.type !== "MEDIA_STATUS") {
+            throw new Error(`Load failed: ${ms}`);
         }
 
         debug("Done!");
