@@ -18,7 +18,7 @@ import { login as youtubeLogin } from "./commands/auth/youtube";
 
 // type-safe conditional import via reference elision
 import * as AuthCommand from "./commands/auth";
-import { IAuthOpts } from "./commands/auth/config";
+import { createChromecastCommands } from "./commands/cc";
 
 let authCommandModule: typeof AuthCommand;
 
@@ -121,10 +121,7 @@ if (canAutoConfigure) {
             // chromagnon is a huge dependency, and installs don't need
             // to require it since it's just for config, so we lazily
             // import the dependency in case it's not available
-            // NOTE: yargs converts the ignore-errors flag to
-            // camelCase, but typescript doesn't know that
-            const opts = argv as unknown as IAuthOpts;
-            await authCommandModule.authenticate(opts);
+            await authCommandModule.authenticate(argv);
         },
     );
 }
@@ -145,17 +142,22 @@ parser.command(
     },
 );
 
-parser.help()
+createChromecastCommands(parser)
+    .help()
+    .recommendCommands()
     .demandCommand(1);
 
 export async function main(args: any[]) {
     const result = await parser.parse(args.slice(2));
-    if (result.config) {
-        // we loaded config, which means yargs handled it
+    if (result.config || result._[0] === "cc") {
+        // We loaded config, which means yargs handled it,
+        // or it was a cc command, in which case... yargs
+        // handled it. Why doesn't yargs handle missing top-level
+        // commands...? No idea!
         return;
     }
 
     parser.showHelp();
-
+    console.log();
     console.log("Unknown command", result._[0]);
 }

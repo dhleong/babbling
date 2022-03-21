@@ -33,3 +33,7 @@ export async function prompt(promptText: string): Promise<string> {
 export function consoleWrite(str: string) {
     console.log(str.trim());
 }
+
+export function printJson(json: unknown) {
+    console.log(JSON.stringify(json, null, 2));
+}
