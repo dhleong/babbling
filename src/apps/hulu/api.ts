@@ -137,7 +137,7 @@ export class HuluApi {
 
         return results.filter((item: any) => {
             // if it's prompting to upsell, we probably can't cast it
-            if (!item.actions.upsell) return false;
+            if (item.actions.upsell) return false;
 
             // similarly, if we're prompted to "get related" it's not on hulu
             return !item.actions.get_related;
