@@ -98,13 +98,8 @@ export class HuluApi {
     public async loadEntityById(entityId: string) {
         debug(`load entity ${entityId}`);
 
-        const { entity } = await request({
-            headers: this.generateHeaders(),
-            json: true,
-            qs: {
-                entity_id: entityId,
-            },
-            url: ENTITY_DISCOVER_URL,
+        const { entity } = await this.getJson(ENTITY_DISCOVER_URL, {
+            entity_id: entityId,
         });
 
         debug(`loaded entity ${entityId}:`, entity);
@@ -124,13 +119,8 @@ export class HuluApi {
     }
 
     public async search(query: string): Promise<any[]> {
-        const { groups } = await request({
-            headers: this.generateHeaders(),
-            json: true,
-            qs: {
-                search_query: query,
-            },
-            url: SEARCH_URL,
+        const { groups } = await this.getJson(SEARCH_URL, {
+            search_query: query,
         });
 
         const { results } = groups.find((it: any) => it.category === "top results");
@@ -172,17 +162,7 @@ export class HuluApi {
 
         const url = pagination || SEASON_HUB_URL_FORMAT.replace("%s", seriesId)
             .replace("%d", seasonNumber.toString());
-
-        const json = await request({
-            headers: {
-                Cookie: this.cookies,
-                Origin: "https://www.hulu.com",
-                Referer: "https://www.hulu.com/",
-                "User-Agent": USER_AGENT,
-            },
-            json: true,
-            url,
-        });
+        const json = await this.getJson(url);
 
         return {
             items: json.items.map((item: any, index: number) => ({
@@ -199,16 +179,9 @@ export class HuluApi {
     public async findNextEntityForSeries(seriesId: string) {
         debug(`Fetching next entity for series ${seriesId}`);
 
-        const json = await request({
-            headers: {
-                Cookie: this.cookies,
-                Origin: "https://www.hulu.com",
-                Referer: "https://www.hulu.com/",
-                "User-Agent": USER_AGENT,
-            },
-            json: true,
-            url: SERIES_HUB_URL_FORMAT.replace("%s", seriesId),
-        });
+        const json = await this.getJson(
+            SERIES_HUB_URL_FORMAT.replace("%s", seriesId),
+        );
 
         if (!(json.details && json.details.vod_items && json.details.vod_items.focus)) {
             debug("Full response:", json);
@@ -222,17 +195,22 @@ export class HuluApi {
     }
 
     public async* fetchRecent() {
-        const { components } = await request({
-            headers: this.generateHeaders(),
-            json: true,
-            url: RECENT_URL,
-        });
+        const { components } = await this.getJson(RECENT_URL);
         if (!(components && components.length)) return;
 
         const { items/* , pagination */ } = components[0];
         for (const item of items) {
             yield item;
         }
+    }
+
+    private getJson(url: string, qs?: Record<string, unknown>) {
+        return request({
+            headers: this.generateHeaders(),
+            json: true,
+            qs,
+            url,
+        });
     }
 
     private generateHeaders() {
