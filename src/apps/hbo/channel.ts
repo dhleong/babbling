@@ -99,7 +99,12 @@ export class HboPlayerChannel implements IPlayerChannel<HboApp> {
                 continue;
             }
 
-            const url = `https://play.hbomax.com/${result.urn}`;
+            // HBO Max may use a slightly different URN structure for the
+            // series / movie page than it emits in the search result
+            const urn = unpackUrn(result.urn);
+            const url = urn.pageType != null
+                ? `https://play.hbomax.com/${result.urn}`
+                : `https://play.hbomax.com/page/urn:hbo:page:${urn.id}:type:${urn.type}`;
             yield {
                 appName: "HboApp",
                 playable: await this.createPlayable(url),

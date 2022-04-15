@@ -225,7 +225,7 @@ export class HboApi {
     }
 
     public async* search(title: string) {
-        const searchUrn = `urn:hbo:search:${encodeURIComponent(title)}`;
+        const searchUrn = `urn:hbo:flexisearch:${encodeURIComponent(title)}`;
         const content = await this.fetchContent([searchUrn]);
 
         // NOTE: the first one just has references to the ids of
