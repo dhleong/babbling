@@ -32,13 +32,23 @@ export async function pickBestMatchForTitle(
 
     let best: IQueryResult | undefined;
     let bestScore = -1;
+    const candidatesPerApp: Partial<Record<string, number>> = {};
 
     let i = 0;
     for await (const item of candidates) {
+        const appCandidatesCount = (candidatesPerApp[item.appName] ?? 0) + 1;
+        if (appCandidatesCount > MAX_CANDIDATES) {
+            debug("Ignoring", item.title, "; ", item.appName, "already has checked >=", appCandidatesCount);
+            continue;
+        }
+        candidatesPerApp[item.appName] = appCandidatesCount;
+
         const distance = leven(
             item.title.toLowerCase(),
             target,
         );
+        debug("distance @", item.title, " = ", distance);
+
         if (distance === 0) {
             // probably a safe bet?
             return item;
