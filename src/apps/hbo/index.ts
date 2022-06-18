@@ -108,7 +108,8 @@ export class HboApp extends BaseApp {
         debug(ms);
 
         if (ms.type !== "MEDIA_STATUS") {
-            throw new Error(`Load failed: ${ms}`);
+            const message = (ms as any).customData?.exception?.message ?? JSON.stringify(ms);
+            throw new Error(`Load of ${urn} failed: ${message}`);
         }
 
         debug("Done!");
