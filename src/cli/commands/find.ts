@@ -1,9 +1,12 @@
+import createDebug from "debug";
 import leven from "leven";
 
 import { IQueryResult } from "../../app";
 import { ChromecastDevice } from "../../device";
 import { PlayerBuilder } from "../../player";
 import { consoleWrite } from "./util";
+
+const debug = createDebug("babbling:cli:find");
 
 export interface IFindByTitleOpts {
     config: string;
@@ -68,7 +71,9 @@ export default async function findByTitle(opts: IFindByTitleOpts) {
     builder.addDevice(new ChromecastDevice(opts.device));
     const player = builder.build();
 
-    const candidates = player.queryByTitle(opts.title);
+    const candidates = player.queryByTitle(opts.title, (app, e) => {
+        debug("Encountered error searching", app, e);
+    });
     const best = await pickBestMatchForTitle(candidates, opts.title);
 
     if (!best) {

@@ -1,9 +1,13 @@
 /* eslint-disable no-console */
 
+import createDebug from "debug";
+
 import { IQueryResult } from "../../app";
 import { ChromecastDevice } from "../../device";
 import { PlayerBuilder } from "../../player";
 import { consoleWrite } from "./util";
+
+const debug = createDebug("babbling:cli:search");
 
 export interface ISearchByTitleOpts {
     config: string;
@@ -14,7 +18,7 @@ function padLeft(s: string, width: number) {
     if (s.length === width) {
         return s;
     } if (s.length > width) {
-        return s.substr(0, width);
+        return s.substring(0, width);
     }
 
     const delta = width - s.length;
@@ -51,7 +55,9 @@ export default async function searchByTitle(opts: ISearchByTitleOpts) {
     builder.addDevice(new ChromecastDevice("_unused_"));
     const player = builder.build();
 
-    const results = player.queryByTitle(opts.title);
+    const results = player.queryByTitle(opts.title, (app, e) => {
+        debug("Encountered error searching", app, e);
+    });
 
     await formatQueryResults(results);
 }
