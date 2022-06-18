@@ -38,6 +38,13 @@ export interface ISeriesMarker {
     markerStatus: "START" | "LATEST" | "CONTINUE" | "TOPICAL";
 }
 
+export interface HboProfile {
+    profileId: string;
+    name: string;
+    isMe: boolean;
+    isPrimary: boolean;
+}
+
 type EntityType = "series" | "season" | "episode" | "extra" | "feature";
 
 export function unpackUrn(urn: string) {
@@ -169,9 +176,9 @@ export class HboApi {
      * are included in this map.
      */
     public async getSeriesMarkers(): Promise<{ [urn: string]: ISeriesMarker }> {
-        const markersResult = await this.fetchContent(["urn:hbo:series-markers:mine"]);
+        const markersResult = await this.fetchContentBody("urn:hbo:series-markers:mine");
         debug("markers result=", markersResult);
-        return markersResult[0].body.seriesMarkers;
+        return markersResult.seriesMarkers;
     }
 
     /**
@@ -258,13 +265,10 @@ export class HboApi {
         }
 
         const data = tokenData.payload.tokenPropertyData;
-        const { clientId, userTkey } = data;
-        const deviceId = data.deviceSerialNumber;
 
         return {
-            clientId,
-            deviceId,
-            userTkey,
+            clientId: data.clientId as string,
+            deviceSerialNumber: data.deviceSerialNumber as string,
         };
     }
 
@@ -274,7 +278,7 @@ export class HboApi {
             return this.refreshToken;
         }
 
-        debug("Loading refresh refreshToken...");
+        debug("Loading fresh refreshToken...");
         return this.loadRefreshToken();
     }
 
@@ -284,6 +288,14 @@ export class HboApi {
             json: true,
             url: CONTENT_URL,
         });
+    }
+
+    private async fetchContentBody(urn: string) {
+        const results = await this.fetchContent([urn]);
+        if (results[0].statusCode !== 200) {
+            throw new Error(`Failed to fetch ${urn}: ${JSON.stringify(results[0])}`);
+        }
+        return results[0].body;
     }
 
     private async request(method: "delete" | "get" | "post", opts: OptionsWithUrl) {
@@ -298,43 +310,42 @@ export class HboApi {
         };
     }
 
+    public async listProfiles(): Promise<HboProfile[]> {
+        const body = await this.fetchContentBody("urn:hbo:profiles:mine");
+        return body.profiles;
+    }
+
     private async loadRefreshToken() {
         // NOTE: I'm not sure if this step is 100% necessary, but
         // it may help to ensure refreshed tokens....
 
         const {
             clientId,
-            deviceId,
+            deviceSerialNumber,
         } = await this.extractTokenInfo();
 
         // this step fetches some sort of session token that is *not*
         // logged in
-        const baseTokens = await request.post({
-            body: {
-                client_id: clientId,
-                client_secret: clientId,
-                deviceSerialNumber: deviceId,
-                grant_type: "client_credentials",
-                scope: "browse video_playback_free",
-            },
-            headers: HBO_HEADERS,
-            json: true,
-            url: TOKENS_URL,
+        debug("Fetching base session tokens...");
+        const baseTokens = await this.postTokensRequest({
+            client_id: clientId,
+            client_secret: clientId,
+            deviceSerialNumber,
+            grant_type: "client_credentials",
+            scope: "browse video_playback_free",
         });
         debug("baseTokens=", baseTokens);
 
         // now we exchange the session token above for an updated
         // refresh token
-        const realTokens = await request.post({
-            body: {
+        const realTokens = await this.postTokensRequest(
+            {
                 grant_type: "refresh_token",
                 refresh_token: this.token,
                 scope: "browse video_playback device",
             },
-            headers: { Authorization: `Bearer ${baseTokens.refresh_token}`, ...HBO_HEADERS },
-            json: true,
-            url: TOKENS_URL,
-        });
+            baseTokens.refresh_token,
+        );
         debug("Real Tokens:", realTokens);
 
         // make sure it worked
@@ -342,15 +353,64 @@ export class HboApi {
             throw new Error("Not logged in...");
         }
 
+        // Attempt to select a profile
+        this.acceptTokens(realTokens, { persist: false }); // Temporarily accept so we can fetch profiles
+        const profiles = await this.listProfiles();
+
+        for (const profile of profiles) {
+            if (profile.isMe) {
+                debug("Loading profile", profile.name);
+                const token = await this.loadProfileToken(profile);
+                if (token != null) {
+                    return token;
+                }
+
+                debug("Did not get a token for profile", profile.name);
+            }
+        }
+
+        debug("No profile isMe; trying default refreshToken");
+        this.acceptTokens(realTokens); // write to disk
+        return this.refreshToken as string;
+    }
+
+    private async acceptTokens(tokens: { refresh_token: string, expires_in: number }, { persist = true }: { persist?: boolean } = {}) {
         // cache this until expired (see: expires_in)
-        this.refreshTokenExpires = Date.now() + realTokens.expires_in;
-        this.refreshToken = realTokens.refresh_token;
+        this.refreshTokenExpires = Date.now() + tokens.expires_in;
+        this.refreshToken = tokens.refresh_token;
 
         // update the token, if possible
-        if (this.refreshToken) {
+        if (this.refreshToken && persist) {
             await write(this.token, this.refreshToken);
         }
 
-        return realTokens.refresh_token;
+        return tokens.refresh_token;
+    }
+
+    private async loadProfileToken(profile: HboProfile) {
+        const profileTokens = await this.postTokensRequest({
+            grant_type: "user_refresh_profile",
+            profile_id: profile.profileId,
+            refresh_token: this.refreshToken,
+        }, read(this.token));
+        if (profileTokens.isUserLoggedIn) {
+            debug("Loaded profile", profile.name);
+            return this.acceptTokens(profileTokens);
+        }
+
+        debug("Failed to load profile token for", profile.name, "; received=", profileTokens);
+    }
+
+    private postTokensRequest(body: unknown, token?: string) {
+        const headers = { Authorization: undefined as string | undefined, ... HBO_HEADERS };
+        if (token != null) {
+            headers.Authorization = `Bearer ${token}`;
+        }
+        return request.post({
+            body,
+            headers,
+            json: true,
+            url: TOKENS_URL,
+        });
     }
 }
