@@ -1,3 +1,5 @@
+import createDebug from "debug";
+
 import {
     IEpisodeQuery,
     IEpisodeQueryResult,
@@ -8,6 +10,8 @@ import { EpisodeResolver } from "../../util/episode-resolver";
 
 import type { HboApp, IHboOpts } from ".";
 import { entityTypeFromUrn, HboApi, unpackUrn } from "./api";
+
+const debug = createDebug("babbling:hbo:channel");
 
 function normalizeUrn(urn: string) {
     const unpacked = unpackUrn(urn);
@@ -45,7 +49,10 @@ export class HboPlayerChannel implements IPlayerChannel<HboApp> {
         try {
             switch (entityTypeFromUrn(urn)) {
                 case "series":
-                    return async (app: HboApp) => app.resumeSeries(urn);
+                    return async (app: HboApp) => {
+                        debug("Resume series @", url);
+                        return app.resumeSeries(urn);
+                    };
 
                 case "episode":
                 case "extra":

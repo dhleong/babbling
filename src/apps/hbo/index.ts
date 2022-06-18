@@ -15,8 +15,8 @@ export { IHboOpts } from "./config";
 const APP_ID = "DD4BFB02";
 
 export interface IHboPlayOptions {
-    /** Eg "ENG" */
-    language?: string;
+    /** Eg "en-US" */
+    locale?: string;
     showSubtitles?: boolean;
 
     /**
@@ -52,8 +52,7 @@ export class HboApp extends BaseApp {
         options: IHboPlayOptions = {},
     ) {
         const {
-            deviceId,
-            userTkey,
+            deviceSerialNumber: senderDeviceSerialNumber,
         } = await this.api.extractTokenInfo();
 
         const [refreshToken, s] = await Promise.all([
@@ -65,39 +64,35 @@ export class HboApp extends BaseApp {
         ]);
 
         debug("Joined media session", s.destination);
+        const locale = options.locale ?? "en-US";
 
         const req: ILoadRequest = {
             autoplay: true,
+            currentTime: options.startTime,
             customData: {
-                algorithm: "adaptive",
                 authToken: {
                     refresh_token: refreshToken,
                 },
-                ccProperties: {
-                    backgroundColor: "#000000",
-                    backgroundOpacity: 0.33,
-                    fontColor: "#FFFFFF",
-                    fontFamily: 4,
-                    fontOpacity: 1,
-                    fontSize: 100,
-                    fontStyle: "",
-                },
 
-                deviceId,
-                displayCC: options.showSubtitles || false,
-                featureTkey: urn,
-                isExtra: urn.includes(":extra:"),
-                isFree: false, // ?
                 isPreview: false, // ?
-                language: options.language || "ENG",
-                position: options.startTime,
-                userTkey,
+                headwaiterOverrides: undefined,
+                preferredAudioTrack: undefined,
+                preferredEditLanguage: locale,
+                preferredTextTrack: options.showSubtitles ? locale : undefined,
+                senderDeviceSerialNumber,
+                senderDeviceLocale: options.locale ?? "en-US",
+                senderDevicePrivacySettings: {
+                    allowFunctionalCookies: true,
+                    allowPerformanceCookies: false,
+                    allowTaretingCookies: false,
+                    disableDataSharing: true,
+                },
 
                 // senderSessionId: "", // what should go here?
             },
             media: {
                 contentId: urn,
-                contentType: "video/mp4",
+                contentType: "application/dash+xml",
                 streamType: "BUFFERED",
             },
             sessionId: s.destination ?? "",
@@ -108,6 +103,8 @@ export class HboApp extends BaseApp {
         debug(ms);
 
         if (ms.type !== "MEDIA_STATUS") {
+            debug("LOAD request=", req);
+
             const message = (ms as any).customData?.exception?.message ?? JSON.stringify(ms);
             throw new Error(`Load of ${urn} failed: ${message}`);
         }
