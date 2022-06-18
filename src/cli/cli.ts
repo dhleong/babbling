@@ -71,6 +71,10 @@ parser.command(
         describe: "The title to play",
         type: "string",
     }).demandOption("title")
+        .option("dry-run", {
+            describe: "If set, will just print out the title that *would* play",
+            type: "boolean",
+        })
         .option("season", {
             describe: "The season number to play. If `episode` is not provided, plays the first episode of that season.",
             type: "number",

@@ -10,6 +10,7 @@ export interface IFindByTitleOpts {
     device: string;
     title: string;
 
+    "dry-run"?: boolean;
     episode?: number;
     season?: number;
 }
@@ -77,7 +78,9 @@ export default async function findByTitle(opts: IFindByTitleOpts) {
     if (opts.season === undefined && opts.episode === undefined) {
         consoleWrite(`Playing ${best.title} via ${best.appName}`);
 
-        await player.play(best);
+        if (!opts["dry-run"]) {
+            await player.play(best);
+        }
         return;
     }
 
@@ -103,5 +106,7 @@ export default async function findByTitle(opts: IFindByTitleOpts) {
     }
     consoleWrite(`Playing ${best.title}: ${label} via ${best.appName}`);
 
-    await player.play(episode);
+    if (!opts["dry-run"]) {
+        await player.play(episode);
+    }
 }
