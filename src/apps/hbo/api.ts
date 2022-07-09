@@ -392,7 +392,7 @@ export class HboApi {
             grant_type: "user_refresh_profile",
             profile_id: profile.profileId,
             refresh_token: this.refreshToken,
-        }, read(this.token));
+        }, this.refreshToken);
         if (profileTokens.isUserLoggedIn) {
             debug("Loaded profile", profile.name);
             return this.acceptTokens(profileTokens);
