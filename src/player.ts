@@ -188,13 +188,29 @@ class Player {
      * Get a map each key is the name of an App and each value is an
      * AsyncIterable representing recommended media from that app. Each result
      * can be passed directly to `play`.
+     *
+     * @param onError Handler for when an app encounters an error. By
+     *                default, the error will just be thrown eagerly,
+     *                but you may prefer to simply log the error and
+     *                allow the other apps to provide their results
      */
-    public getRecommendationsMap() {
+    public getRecommendationsMap(
+        onError: AppSpecificErrorHandler = defaultAppSpecificErrorHandler,
+    ) {
         /* eslint-disable no-param-reassign */
         return this.apps.reduce((m, app) => {
             if (!app.channel.queryRecommended) return m;
 
-            m[app.appConstructor.name] = app.channel.queryRecommended();
+            m[app.appConstructor.name] = {
+                [Symbol.asyncIterator]: async function* () {
+                    try {
+                        yield* app.channel.queryRecommended!();
+                    } catch (e: any) {
+                        onError(app.appConstructor.name, e);
+                    }
+                }
+            }
+
             return m;
         }, {} as { [app: string]: AsyncIterable<IQueryResult> });
         /* eslint-enable no-param-reassign */
@@ -212,17 +228,8 @@ class Player {
     public queryRecommended(
         onError: AppSpecificErrorHandler = defaultAppSpecificErrorHandler,
     ) {
-        const m = this.getRecommendationsMap();
-        const iterables = Object.keys(m).map(async function* iterable(appName) {
-            const results = m[appName];
-            try {
-                yield* results;
-            } catch (e: any) {
-                onError(appName, e);
-            }
-        });
-
-        return interleaveAsyncIterables(iterables);
+        const m = this.getRecommendationsMap(onError);
+        return interleaveAsyncIterables(Object.values(m));
     }
 
     private async playOnEachDevice(
