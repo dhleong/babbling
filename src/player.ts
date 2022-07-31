@@ -199,17 +199,18 @@ class Player {
     ) {
         /* eslint-disable no-param-reassign */
         return this.apps.reduce((m, app) => {
-            if (!app.channel.queryRecommended) return m;
+            const query = app.channel.queryRecommended?.bind(app.channel);
+            if (query == null) return m;
 
             m[app.appConstructor.name] = {
                 [Symbol.asyncIterator]: async function* () {
                     try {
-                        yield* app.channel.queryRecommended!();
+                        yield* query();
                     } catch (e: any) {
                         onError(app.appConstructor.name, e);
                     }
-                }
-            }
+                },
+            };
 
             return m;
         }, {} as { [app: string]: AsyncIterable<IQueryResult> });
