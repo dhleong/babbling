@@ -771,15 +771,16 @@ export class PrimeApi {
         };
 
         const params = {
-            ...qs,
             decorationScheme: "bond-landing-decoration",
             deviceId: this.deviceId,
             deviceTypeId: DEVICE_TYPE,
-            featureScheme: "mobile-android-features-v7",
+            featureScheme: "mobile-android-features-v11.1-hdr",
             firmware: "7.54.3923",
             format: "json",
+            supportsPaymentStatus: "true",
             titleActionScheme: "bond-2",
             version: "mobile-android-v2",
+            ...qs,
         };
 
         const url = this.buildApiUrl(path);

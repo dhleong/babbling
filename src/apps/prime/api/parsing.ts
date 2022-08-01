@@ -2,7 +2,8 @@ import { AvailabilityType, type IAvailability } from "../model";
 import { IWatchNextItem } from "./types";
 
 export function cleanTitle(title: string) {
-    return title.replace(/( -)? Season \d+/, "")
+    // NOTE: These two hyphens look the same but... they're not!
+    return title.replace(/( [-–])? Season \d+/, "")
         .replace("(4K UHD)", "");
 }
 
