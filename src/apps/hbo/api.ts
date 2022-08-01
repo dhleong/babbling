@@ -241,12 +241,12 @@ export class HboApi {
     }
 
     public async* queryContinueWatching() {
-        const urn = `urn:hbo:continue-watching:mine`;
+        const urn = "urn:hbo:continue-watching:mine";
         yield *this.queryPlayables(urn);
     }
 
     public async* queryRecommended() {
-        const urn = `urn:hbo:query:recommended-for-you`;
+        const urn = "urn:hbo:query:recommended-for-you";
         yield *this.queryPlayables(urn);
     }
 
@@ -259,8 +259,8 @@ export class HboApi {
      * Util methods
      */
 
-    private async* queryPlayables(urn: string) {
-        const content = await this.fetchContent([urn]);
+    private async* queryPlayables(queryUrn: string) {
+        const content = await this.fetchContent([queryUrn]);
 
         // NOTE: the first one just has references to the ids of
         // the results, which are resolved after it, so skip it
