@@ -9,9 +9,27 @@ import {
 import { EpisodeResolver } from "../../util/episode-resolver";
 
 import type { HboApp, IHboOpts } from ".";
-import { entityTypeFromUrn, HboApi, unpackUrn } from "./api";
+import { entityTypeFromUrn, HboApi, IHboResult, unpackUrn } from "./api";
 
 const debug = createDebug("babbling:hbo:channel");
+
+const COVER_IMAGE_TEMPLATE_VALUES: Partial<Record<string, string>> = {
+    compression: "medium",
+    size: "1920x1080",
+    protection: "false",
+    scaleDownToFit: "false",
+};
+
+function formatCoverImage(template: string) {
+    // eg: tile: "https://art-gallery.api.hbo.com/images/<id>/tile?v=<v>&size={{size}}&compression={{compression}}&protection={{protection}}&scaleDownToFit={{scaleDownToFit}}&productCode=hboMax&overlayImage=urn:warnermedia:brand:not-in-a-hub:territory:adria"
+    return template.replace(/\{\{([a-zA-Z]+)\}\}/g, (_, key: string) => {
+        const value = COVER_IMAGE_TEMPLATE_VALUES[key];
+        if (value == null) {
+            debug("Unexpected cover image template key", key);
+        }
+        return value ?? "";
+    });
+}
 
 function normalizeUrn(urn: string) {
     const unpacked = unpackUrn(urn);
@@ -99,25 +117,45 @@ export class HboPlayerChannel implements IPlayerChannel<HboApp> {
     public async* queryByTitle(
         title: string,
     ): AsyncIterable<IQueryResult> {
-        for await (const result of this.api.search(title)) {
-            if (result.type === "SERIES_EPISODE") {
+        for await (const item of this.api.search(title)) {
+            if (item.type === "SERIES_EPISODE") {
                 // Don't emit episodes; this method is for
                 // finding series and movies only
                 continue;
             }
 
-            // HBO Max may use a slightly different URN structure for the
-            // series / movie page than it emits in the search result
-            const urn = unpackUrn(result.urn);
-            const url = urn.pageType != null
-                ? `https://play.hbomax.com/${result.urn}`
-                : `https://play.hbomax.com/page/urn:hbo:page:${urn.id}:type:${urn.type}`;
-            yield {
-                appName: "HboApp",
-                playable: await this.createPlayable(url),
-                title: result.title,
-                url,
-            };
+            yield await this.hboToQueryResult(item);
         }
+    }
+
+    public async* queryRecommended() {
+        // NOTE: HBO actually has a "recommended," but the other apps are returning
+        // "continue watching" content here, so until we update the API to have that
+        // as a distinct method, let's stay internally consistent
+        yield *this.yieldPlayables(this.api.queryContinueWatching());
+    }
+
+    private async* yieldPlayables(source: ReturnType<typeof this.api.search>) {
+        for await (const result of source) {
+            yield await this.hboToQueryResult(result);
+        }
+    }
+
+    private async hboToQueryResult(source: IHboResult): Promise<IQueryResult> {
+        // HBO Max may use a slightly different URN structure for the
+        // series / movie page than it emits in the search result
+        const urn = unpackUrn(source.seriesUrn ?? source.urn);
+        const url = urn.pageType != null
+            ? `https://play.hbomax.com/${source.urn}`
+            : `https://play.hbomax.com/page/urn:hbo:page:${urn.id}:type:${urn.type}`;
+        const title = source.seriesTitle ?? source.title;
+
+        return {
+            appName: "HboApp",
+            cover: source.imageTemplate == null ? undefined : formatCoverImage(source.imageTemplate),
+            playable: await this.createPlayable(url),
+            title,
+            url,
+        };
     }
 }
