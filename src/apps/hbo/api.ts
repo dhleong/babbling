@@ -89,6 +89,15 @@ export interface IHboEpisode {
     title: string;
 }
 
+export interface IHboResult {
+    imageTemplate?: string;
+    urn: string;
+    seriesTitle?: string;
+    seriesUrn?: string;
+    title: string;
+    type: "FEATURE" | "SERIES" | "SERIES_EPISODE";
+}
+
 export class HboApi {
     private refreshToken: string | undefined;
     private refreshTokenExpires = 0;
@@ -231,9 +240,27 @@ export class HboApi {
         return [];
     }
 
+    public async* queryContinueWatching() {
+        const urn = `urn:hbo:continue-watching:mine`;
+        yield *this.queryPlayables(urn);
+    }
+
+    public async* queryRecommended() {
+        const urn = `urn:hbo:query:recommended-for-you`;
+        yield *this.queryPlayables(urn);
+    }
+
     public async* search(title: string) {
         const searchUrn = `urn:hbo:flexisearch:${encodeURIComponent(title)}`;
-        const content = await this.fetchContent([searchUrn]);
+        yield *this.queryPlayables(searchUrn);
+    }
+
+    /*
+     * Util methods
+     */
+
+    private async* queryPlayables(urn: string) {
+        const content = await this.fetchContent([urn]);
 
         // NOTE: the first one just has references to the ids of
         // the results, which are resolved after it, so skip it
@@ -242,17 +269,17 @@ export class HboApi {
             const urn: string = result.body.references.viewable;
             if (!urn) continue;
 
-            yield {
-                title: result.body.titles.full as string,
-                type: result.body.contentType as "FEATURE" | "SERIES" | "SERIES_EPISODE",
+            const resolved: IHboResult = {
+                imageTemplate: result.body.images?.tile,
+                seriesTitle: result.body.seriesTitles?.full,
+                seriesUrn: result.body.references.series,
+                title: result.body.titles.full,
+                type: result.body.contentType,
                 urn,
             };
+            yield resolved;
         }
     }
-
-    /*
-     * Util methods
-     */
 
     public async extractTokenInfo() {
         const token = read(this.token).trim();
