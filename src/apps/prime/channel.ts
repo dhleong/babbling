@@ -162,7 +162,7 @@ export class PrimePlayerChannel implements IPlayerChannel<PrimeApp> {
                 title: result.title,
                 titleId: result.titleId,
                 type: result.type,
-                url: `https://www.amazon.com/gp/video/detail/${result.id}`,
+                url: `https://watch.amazon.com/detail?gti=${result.titleId}`,
             };
         }
     }
