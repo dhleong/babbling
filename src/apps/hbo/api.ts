@@ -7,6 +7,7 @@ import { EpisodeContainer } from "../../util/episode-container";
 
 const debug = _debug("babbling:hbo:api");
 
+const CLIENT_CONFIG_URL = "https://sessions.api.hbo.com/sessions/v1/clientConfig";
 const CONTENT_URL = "https://comet.api.hbo.com/content";
 const TOKENS_URL = "https://comet.api.hbo.com/tokens";
 
@@ -14,6 +15,11 @@ export const HBO_HEADERS = {
     Accept: "application/vnd.hbo.v9.full+json",
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.86 Safari/537.36",
     "X-Hbo-Client-Version": "Hadron/21.0.1.176 desktop (DESKTOP)",
+};
+
+const CLIENT_CONFIG_REQUEST = {
+    "contract": "codex:1.1.4.1",
+    "preferredLanguages": ["en-US"],
 };
 
 export interface IMarker {
@@ -101,6 +107,7 @@ export interface IHboResult {
 export class HboApi {
     private refreshToken: string | undefined;
     private refreshTokenExpires = 0;
+    private cachedHeadWaiter: string | undefined;
 
     constructor(
         private token: Token,
@@ -306,7 +313,31 @@ export class HboApi {
         }
 
         debug("Loading fresh refreshToken...");
+        this.cachedHeadWaiter = undefined; // clear cache, just in case
         return this.loadRefreshToken();
+    }
+
+    private async getHeadWaiter(token: string) {
+        const cached = this.cachedHeadWaiter;
+        if (cached != null) {
+            return cached;
+        }
+
+        const headers = { Authorization: `Bearer ${token}`, ... HBO_HEADERS };
+        const { payloadValues } = await request.post({
+            body: CLIENT_CONFIG_REQUEST,
+            headers,
+            json: true,
+            url: CLIENT_CONFIG_URL,
+        });
+
+        const headWaiter =
+            Object.keys(payloadValues)
+                .map(key => key + ":" + payloadValues[key])
+                .join(",");
+
+        this.cachedHeadWaiter = headWaiter;
+        return headWaiter;
     }
 
     private async fetchContent(urns: string[]) {
@@ -331,8 +362,13 @@ export class HboApi {
 
     private async fillRequest(opts: OptionsWithUrl) {
         const token = await this.getRefreshToken();
+        const headWaiter = token != null ? await this.getHeadWaiter(token) : undefined;
         return {
-            headers: { Authorization: `Bearer ${token}`, ...HBO_HEADERS },
+            headers: {
+                Authorization: `Bearer ${token}`,
+                "x-hbo-headwaiter": headWaiter,
+                ...HBO_HEADERS,
+            },
             ...opts,
         };
     }
