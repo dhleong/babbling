@@ -10,6 +10,7 @@ const debug = _debug("babbling:hbo:api");
 const CLIENT_CONFIG_URL = "https://sessions.api.hbo.com/sessions/v1/clientConfig";
 const CONTENT_URL = "https://comet.api.hbo.com/content";
 const TOKENS_URL = "https://comet.api.hbo.com/tokens";
+const EXPRESS_CONTENT_URL_BASE = "https://comet.api.hbo.com/express-content/";
 
 export const HBO_HEADERS = {
     Accept: "application/vnd.hbo.v9.full+json",
@@ -51,7 +52,7 @@ export interface HboProfile {
     isPrimary: boolean;
 }
 
-type EntityType = "series" | "season" | "episode" | "extra" | "feature";
+type EntityType = "series" | "season" | "episode" | "extra" | "feature" | "franchise";
 
 export function unpackUrn(urn: string) {
     const [, , entityType, id, , pageType] = urn.split(":");
@@ -286,6 +287,31 @@ export class HboApi {
             };
             yield resolved;
         }
+    }
+
+    public async resolveFranchiseSeries(franchiseUrn: string) {
+        const unpacked = unpackUrn(franchiseUrn);
+        const urn = `urn:hbo:page:${unpacked.id}:type:series`;
+        const result = await this.request("get", {
+            json: true,
+            url: EXPRESS_CONTENT_URL_BASE + urn,
+            qs: {
+                "api-version": "v9.0",
+                "brand": "HBO MAX",
+                "country-code": "US",
+                "device-code": "desktop",
+                "language": "en-US",
+                "product-code": "hboMax",
+                "profile-type": "adult",
+                "signed-in": "true",
+            },
+        });
+        const reference = result?.[0]?.body?.references?.items?.[0];
+        if (reference == null) {
+            throw new Error(`Unable to resolve series from franchise URN: ${franchiseUrn}`);
+        }
+        const unpackedReference = unpackUrn(reference);
+        return `urn:hbo:series:${unpackedReference.id}`;
     }
 
     public async extractTokenInfo() {

@@ -120,11 +120,11 @@ export class HboApp extends BaseApp {
             const status = m.data.status[0];
             debug("Received:", status);
 
-            if (status.media.contentId !== urn && status.media.entity !== urn && status.playerState === "IDLE") {
+            if (status.media?.contentId !== urn && status.media?.entity !== urn && status.playerState === "IDLE") {
                 throw new Error(`Failed to play ${urn}`);
             }
 
-            if (status.media.contentId !== "" && status.media.contentId !== urn) {
+            if (status.media?.contentId !== "" && status.media?.contentId !== urn) {
                 // Something else must be playing
                 debug("Got MEDIA_STATUS for", status.media);
                 return;
