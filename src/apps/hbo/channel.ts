@@ -66,6 +66,14 @@ export class HboPlayerChannel implements IPlayerChannel<HboApp> {
 
         try {
             switch (entityTypeFromUrn(urn)) {
+                case "franchise":
+                    // Is this always correct?
+                    const seriesUrn = await this.api.resolveFranchiseSeries(urn);
+                    return async (app: HboApp) => {
+                        debug("Resume franchise series @", url);
+                        return app.resumeSeries(seriesUrn);
+                    };
+
                 case "series":
                     return async (app: HboApp) => {
                         debug("Resume series @", url);
@@ -76,6 +84,7 @@ export class HboPlayerChannel implements IPlayerChannel<HboApp> {
                 case "extra":
                 case "feature":
                 case "season":
+                default:
                 // TODO: it may be possible to resume specific episodes or
                 // features (movies)...
                     return async (app: HboApp) => app.play(urn);
