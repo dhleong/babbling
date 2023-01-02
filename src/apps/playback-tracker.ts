@@ -213,12 +213,14 @@ export class PlaybackTracker<TMedia = void> {
                 if (!isJson(m.data)) continue;
 
                 if (m.data.type === "RECEIVER_STATUS") {
-                    const status = m.data as unknown as IReceiverStatus;
+                    const status = m.data.status as unknown as IReceiverStatus;
                     await this.onDeviceStatus(status);
                 } else {
                     await this.onSessionMessage(m.data);
                 }
             }
+
+            debug("observeMessages exited");
         })();
 
         return () => {
