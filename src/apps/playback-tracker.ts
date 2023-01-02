@@ -1,8 +1,10 @@
 import debug_ from "debug";
 
+import AbortController from "abort-controller";
 import {
     StratoChannel, ChromecastDevice, isJson, IReceiverStatus, RECEIVER_NS,
 } from "stratocaster";
+
 import { IMediaStatus, IMediaStatusMessage } from "../cast";
 import { BaseApp, MEDIA_NS } from "./base";
 import { mergeAsyncIterables } from "../async";
@@ -149,9 +151,9 @@ export class PlaybackTracker<TMedia = void> {
         }
 
         // if we get here, our app has been stopped; disconnect
+        debug("App no longer running; shutting down");
         await this.handleClose();
         this.getDevice().close();
-        debug("App no longer running; shutting down");
     };
 
     private onSessionMessage = async (m: any) => {
@@ -201,27 +203,29 @@ export class PlaybackTracker<TMedia = void> {
     }
 
     private observeMessages(channels: StratoChannel[]) {
-        const state = { running: true };
+        const abort = new AbortController();
 
         (async () => {
             const merged = mergeAsyncIterables(
-                channels.map(it => it.receive()),
+                channels.map(it => it.receive({ signal: abort.signal })),
             );
             for await (const m of merged) {
-                if (!state.running) break;
                 if (!isJson(m.data)) continue;
 
                 if (m.data.type === "RECEIVER_STATUS") {
-                    const status = m.data as unknown as IReceiverStatus;
+                    const status = m.data.status as unknown as IReceiverStatus;
                     await this.onDeviceStatus(status);
                 } else {
                     await this.onSessionMessage(m.data);
                 }
             }
+
+            debug("observeMessages exited");
         })();
 
         return () => {
-            state.running = false;
+            debug("Aborting observeMessages");
+            abort.abort();
         };
     }
 }
