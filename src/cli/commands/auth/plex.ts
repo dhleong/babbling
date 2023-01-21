@@ -1,4 +1,5 @@
 import { PlexOauth, IPlexClientDetails } from "plex-oauth";
+import { IPlexOpts } from "../../../apps/plex/config";
 import generateMachineUuid from "../../../util/generateMachineUuid";
 
 import { configInPath } from "../config";
@@ -17,14 +18,15 @@ const clientInformation: IPlexClientDetails = {
 };
 
 export async function login(opts: IAuthOpts) {
+    // We generate a stable UUID based on the machine, to avoid re-auths filling
+    // the user's account with new devices.
+    const clientIdentifier = await generateMachineUuid();
+    clientInformation.clientIdentifier = clientIdentifier;
+
     const oauth = new PlexOauth(clientInformation);
     const [oauthUrl, pinId] = await oauth.requestHostedLoginURL();
     consoleWrite("Open the following URL and login:\n");
     consoleWrite(oauthUrl);
-
-    // We generate a stable UUID based on the machine, to avoid re-auths filling
-    // the user's account with new devices.
-    const clientIdentifier = generateMachineUuid();
 
     const retryDelayMs = 2500;
     const maxRetries = 120; // 5 minutes seems like more than enough time...
@@ -33,7 +35,7 @@ export async function login(opts: IAuthOpts) {
         throw new Error("Auth failed");
     }
 
-    const config = { clientIdentifier, token };
+    const config: IPlexOpts = { clientIdentifier, token };
     await configInPath(opts.config, ["PlexApp"], config);
     consoleWrite("Success!");
 }

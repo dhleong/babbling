@@ -43,6 +43,7 @@
         "chakram-ts": "^1.0.0",
         "debug": "^4.3.4",
         "fs-extra": "^10.0.1",
+        "got": "^12.5.3",
         "jsonwebtoken": "^9.0.0",
         "leven": "^3.1.0",
         "node-machine-id": "^1.1.12",

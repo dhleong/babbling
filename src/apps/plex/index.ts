@@ -32,6 +32,8 @@ export class PlexApp extends BaseApp {
             customData: {
                 offset: opts.startTime,
                 server: {
+                    machineIdentifier: this.options.clientIdentifier,
+                    accessToken: this.options.token,
                     user: { username: this.options.username },
                 },
             },

@@ -3,6 +3,7 @@ import _debug from "debug";
 import request from "request-promise-native";
 
 import { EpisodeResolver } from "../../util/episode-resolver";
+import Expirable from "../../util/expirable";
 
 import { IHuluOpts } from "./config";
 
@@ -46,8 +47,7 @@ export class HuluApi {
     private readonly cookies: string;
 
     // session state:
-    private userToken: string | undefined;
-    private userTokenExpires: number | undefined;
+    private userToken = new Expirable<string>(() => this.fetchUserToken());
     private csrf: string | undefined;
 
     constructor(options: IHuluOpts) {
@@ -65,15 +65,10 @@ export class HuluApi {
     }
 
     public async getUserToken() {
-        if (
-            this.userToken
-            && this.userTokenExpires
-            && Date.now() < this.userTokenExpires
-        ) {
-            // still valid
-            return this.userToken;
-        }
+        return this.userToken.get();
+    }
 
+    private async fetchUserToken() {
         await this.ensureCSRF();
 
         debug("fetch user token");
@@ -90,9 +85,10 @@ export class HuluApi {
         const json = JSON.parse(rawResponse);
         debug("got:", json);
 
-        this.userToken = json.user_token;
-        this.userTokenExpires = Date.now() + json.expires_in * 1000;
-        return json.user_token;
+        return {
+            value: json.user_token as string,
+            expiresInSeconds: json.expires_in as number,
+        };
     }
 
     public async loadEntityById(entityId: string) {
