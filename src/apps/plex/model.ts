@@ -7,6 +7,14 @@ export interface IPlexServer {
     version: string;
 }
 
+export interface IPlexUser {
+    id: number;
+    username: string;
+    subscription: {
+        active: boolean;
+    }
+}
+
 export interface IPlexItem {
     uri: string;
     title: string;

@@ -3,7 +3,7 @@ import request from "request-promise-native";
 
 import { read, Token } from "../../token";
 import Expirable from "../../util/expirable";
-import { IPlexServer, parseItemMetadata } from "./model";
+import { IPlexServer, IPlexUser, parseItemMetadata } from "./model";
 
 const debug = _debug("babbling:plex");
 
@@ -21,6 +21,18 @@ export class PlexApi {
 
     public getServers() {
         return this.servers.get();
+    }
+
+    public async getUser() {
+        const response = await request.get(`${API_BASE}/api/v2/user`, {
+            json: true,
+            headers: {
+                "x-plex-token": read(this.token),
+                "x-plex-client-identifier": this.clientIdentifier,
+            },
+        });
+
+        return response as IPlexUser;
     }
 
     public async getServerForUri(uri: string) {

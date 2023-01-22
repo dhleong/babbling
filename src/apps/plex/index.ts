@@ -24,7 +24,7 @@ export class PlexApp extends BaseApp {
         return new PlexPlayerChannel(options);
     }
 
-    constructor(device: ChromecastDevice, private readonly options: IPlexOpts) {
+    constructor(device: ChromecastDevice, options: IPlexOpts) {
         super(device, {
             appId: APP_ID,
             sessionNs: MEDIA_NS,
@@ -49,9 +49,10 @@ export class PlexApp extends BaseApp {
 
     public async playByUri(uri: string, opts: IPlaybackOptions = {}) {
         const url = new URL(uri);
-        const [s, server] = await Promise.all([
+        const [s, server, user] = await Promise.all([
             this.ensureCastSession(),
             this.api.getServerForUri(uri),
+            this.api.getUser(),
         ]);
 
         const serverURI = new URL(server.uri);
@@ -80,12 +81,12 @@ export class PlexApp extends BaseApp {
                     port: serverURI.port != null ? parseInt(serverURI.port, 10) : undefined,
                     protocol: serverURI.protocol.replace(":", ""),
                     machineIdentifier: server.clientIdentifier,
-                    myPlexSubscription: false, // TODO: Check user
+                    myPlexSubscription: user.subscription.active,
                     isVerifiedHostname: true, // ?
                     transcoderVideo: true,
                     transcoderVideoRemuxOnly: false,
                     transcoderAudio: true,
-                    user: { username: this.options.username ?? "dhleong" },
+                    user: { username: user.username },
                     version: server.version,
                 },
             },

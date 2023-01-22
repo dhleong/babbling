@@ -35,7 +35,10 @@ export async function login(opts: IAuthOpts) {
         throw new Error("Auth failed");
     }
 
-    const config: IPlexOpts = { clientIdentifier, token };
+    const config: IPlexOpts = {
+        clientIdentifier,
+        token,
+    };
     await configInPath(opts.config, ["PlexApp"], config);
     consoleWrite("Success!");
 }
