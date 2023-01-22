@@ -8,9 +8,14 @@ import { PlexApi } from "./api";
 import { PlexPlayerChannel } from "./channel";
 import { IPlexOpts } from "./config";
 
-const debug = _debug("babbling:PlexApp");
+const debug = _debug("babbling:plex");
 
 const APP_ID = "9AC194DC";
+
+export interface IPlaybackOptions {
+    language?: string;
+    startTime?: number;
+}
 
 export class PlexApp extends BaseApp {
     private readonly api: PlexApi;
@@ -28,7 +33,21 @@ export class PlexApp extends BaseApp {
         this.api = new PlexApi(options.token, options.clientIdentifier);
     }
 
-    public async playByUri(uri: string, opts: { language?: string, startTime?: number } = {}) {
+    public async resumeByUri(uri: string, opts: IPlaybackOptions = {}) {
+        try {
+            // Attempt to resolve the "actual" item to play
+            debug("Resolving onDeck for", uri, "...");
+            const onDeck = await this.api.resolveOnDeckForUri(uri);
+            debug("Resolved onDeck:", uri, " -> ", onDeck);
+            return await this.playByUri(onDeck.uri, opts);
+        } catch (e) {
+            // Fallback to whatever was literally provided
+            debug("Error resolving onDeck for", uri, e);
+            return this.playByUri(uri, opts);
+        }
+    }
+
+    public async playByUri(uri: string, opts: IPlaybackOptions = {}) {
         const url = new URL(uri);
         const [s, server] = await Promise.all([
             this.ensureCastSession(),

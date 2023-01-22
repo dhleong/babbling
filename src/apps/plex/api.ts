@@ -40,6 +40,19 @@ export class PlexApi {
         return this.queryMedia("/hubs/continueWatching");
     }
 
+    public async resolveOnDeckForUri(uri: string) {
+        const server = await this.getServerForUri(uri);
+        const response = await request.get(uri.replace(/^plex/, "http"), {
+            json: true,
+            qs: {
+                includeOnDeck: 1,
+            },
+            headers: this.serverRequestHeaders(server),
+        });
+        const metadata = response.MediaContainer.Metadata[0];
+        return parseItemMetadata(server, metadata.OnDeck.Metadata, { resolveRoot: false });
+    }
+
     public search(title: string) {
         return this.queryMedia("/hubs/search", {
             filterHub(hub) {
@@ -50,7 +63,6 @@ export class PlexApi {
             },
         });
     }
-
 
     /**
     * NOTE: `item` should look like eg `/library/metadata/1234`
@@ -67,10 +79,7 @@ export class PlexApi {
                 type: "video",
                 uri: `server://${server.clientIdentifier}/library${item}`,
             },
-            headers: {
-                "x-plex-token": server.accessToken,
-                "x-plex-client-identifier": this.clientIdentifier,
-            },
+            headers: this.serverRequestHeaders(server),
         });
         debug("play queue:", response.MediaContainer);
         return {
@@ -92,10 +101,7 @@ export class PlexApi {
             const response = await request.get(server.uri + path, {
                 json: true,
                 qs,
-                headers: {
-                    "x-plex-token": server.accessToken,
-                    "x-plex-client-identifier": this.clientIdentifier,
-                },
+                headers: this.serverRequestHeaders(server),
             });
             return [server, response] as const;
         }));
@@ -153,5 +159,12 @@ export class PlexApi {
                 return server;
             });
         return { value, expiresInSeconds: SERVERS_CACHE_DURATION_SECONDS };
+    }
+
+    private serverRequestHeaders(server: IPlexServer) {
+        return {
+            "x-plex-token": server.accessToken,
+            "x-plex-client-identifier": this.clientIdentifier,
+        };
     }
 }

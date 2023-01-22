@@ -25,14 +25,22 @@ function buildThumbUrl(server: IPlexServer, path: string) {
     return url.toString();
 }
 
-export function parseItemMetadata(server: IPlexServer, metadata: Record<string, any>): IPlexItem {
-    const key = metadata.key.replace(/\/children$/, "");
+export function parseItemMetadata(
+    server: IPlexServer,
+    metadata: Record<string, any>,
+    { resolveRoot }: { resolveRoot?: boolean } = {},
+): IPlexItem {
+    // NOTE: We use grandparentKey etc if available to canonicalize to the series' ID
+    // (unless resolveRoot is false!)
+    const key = resolveRoot !== false
+        ? metadata.grandparentKey ?? metadata.parentKey ?? metadata.key
+        : metadata.key;
     return {
         lastViewedAt: metadata.lastViewedAt,
         thumb: buildThumbUrl(server, metadata.grandparentArt ?? metadata.parentArt ?? metadata.art),
         title: metadata.title,
-        seriesTitle: metadata.grandparentTitle,
+        seriesTitle: metadata.grandparentTitle ?? metadata.parentTitle,
         type: metadata.type,
-        uri: server.uri.replace("http", "plex") + key,
+        uri: server.uri.replace("http", "plex") + key.replace(/\/children$/, ""),
     };
 }

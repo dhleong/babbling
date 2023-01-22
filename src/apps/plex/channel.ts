@@ -23,8 +23,8 @@ export class PlexPlayerChannel implements IPlayerChannel<PlexApp> {
 
     public async createPlayable(url: string) {
         return async (app: PlexApp, opts: IPlayableOptions) => {
-            debug("playing on plex: ", url);
-            return app.playByUri(url, {
+            debug("resuming on plex: ", url);
+            return app.resumeByUri(url, {
                 // TODO language options?
                 startTime: opts.resume === false ? 0 : undefined,
             });
