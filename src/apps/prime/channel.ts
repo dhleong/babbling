@@ -155,6 +155,7 @@ export class PrimePlayerChannel implements IPlayerChannel<PrimeApp> {
         for await (const result of api.search(title)) {
             yield {
                 appName: "PrimeApp",
+                cover: result.cover,
                 desc: result.desc,
                 hasAds: isAvailableOnlyWithAds(result.availability),
                 isPreferred: result.isInWatchlist || result.isPurchased,

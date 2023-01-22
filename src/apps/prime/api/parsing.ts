@@ -65,7 +65,7 @@ export function parseWatchlistItem(item: any) {
     return {
         availability,
         cover: item.decoratedTitle.images.imageUrls.detail_page_cover
-        || item.decoratedTitle.images.imageUrls.detail_page_hero,
+            ?? item.decoratedTitle.images.imageUrls.detail_page_hero,
         desc: item.decoratedTitle.catalog.synopsis,
         id,
         isInWatchlist: item.decoratedTitle.computed.simple.IS_IN_WATCHLIST,
