@@ -26,12 +26,13 @@ function buildThumbUrl(server: IPlexServer, path: string) {
 }
 
 export function parseItemMetadata(server: IPlexServer, metadata: Record<string, any>): IPlexItem {
+    const key = metadata.key.replace(/\/children$/, "");
     return {
         lastViewedAt: metadata.lastViewedAt,
         thumb: buildThumbUrl(server, metadata.grandparentArt ?? metadata.parentArt ?? metadata.art),
         title: metadata.title,
         seriesTitle: metadata.grandparentTitle,
         type: metadata.type,
-        uri: server.uri.replace("http", "plex") + metadata.key,
+        uri: server.uri.replace("http", "plex") + key,
     };
 }

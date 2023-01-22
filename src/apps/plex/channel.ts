@@ -1,9 +1,10 @@
 import createDebug from "debug";
 
 import { PlexApp } from ".";
-import { IPlayableOptions, IPlayerChannel } from "../../app";
+import { IPlayableOptions, IPlayerChannel, IQueryResult } from "../../app";
 import { PlexApi } from "./api";
 import { IPlexOpts } from "./config";
+import { IPlexItem } from "./model";
 
 const debug = createDebug("babbling:plex:channel");
 
@@ -31,19 +32,27 @@ export class PlexPlayerChannel implements IPlayerChannel<PlexApp> {
     }
 
     public async* queryRecommended() {
-        // NOTE: HBO actually has a "recommended," but the other apps are returning
-        // "continue watching" content here, so until we update the API to have that
-        // as a distinct method, let's stay internally consistent
         const items = await this.api.getContinueWatching();
         for (const item of items) {
-            yield {
-                appName: "PlexApp",
-                cover: item.thumb,
-                playable: await this.createPlayable(item.uri),
-                title: item.seriesTitle ?? item.title,
-                url: item.uri,
-            };
+            yield await this.itemToQueryResult(item);
         }
     }
 
+    public async* queryByTitle(
+        title: string,
+    ): AsyncIterable<IQueryResult> {
+        for (const item of await this.api.search(title)) {
+            yield await this.itemToQueryResult(item);
+        }
+    }
+
+    private async itemToQueryResult(item: IPlexItem): Promise<IQueryResult> {
+        return {
+            appName: "PlexApp",
+            cover: item.thumb,
+            playable: await this.createPlayable(item.uri),
+            title: item.seriesTitle ?? item.title,
+            url: item.uri,
+        };
+    }
 }

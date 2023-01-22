@@ -36,32 +36,21 @@ export class PlexApi {
         throw new Error(`Unknown server for uri: ${uri}`);
     }
 
-    public async getContinueWatching() {
-        const servers = await this.getServers();
-        const requests = await Promise.allSettled(servers.map(async server => {
-            const response = await request.get(server.uri + "/hubs/continueWatching", {
-                json: true,
-                headers: {
-                    "x-plex-token": server.accessToken,
-                    "x-plex-client-identifier": this.clientIdentifier,
-                },
-            });
-            return [server, response];
-        }));
-
-        const items = requests.flatMap(result => {
-            if (result.status !== "fulfilled") {
-                return [];
-            }
-
-            const [server, response] = result.value;
-            return response.MediaContainer.Hub[0].Metadata.map((metadata: any) => [server, metadata]);
-        });
-
-        return items
-            .map(([server, metadata]) => parseItemMetadata(server, metadata))
-            .sort((a, b) => b.lastViewedAt - a.lastViewedAt);
+    public getContinueWatching() {
+        return this.queryMedia("/hubs/continueWatching");
     }
+
+    public search(title: string) {
+        return this.queryMedia("/hubs/search", {
+            filterHub(hub) {
+                return hub.type === "show" || hub.type === "movie";
+            },
+            qs: {
+                query: title,
+            },
+        });
+    }
+
 
     /**
     * NOTE: `item` should look like eg `/library/metadata/1234`
@@ -89,6 +78,48 @@ export class PlexApi {
             selectedItemID: response.MediaContainer.playQueueSelectedItemID,
             selectedItemOffset: response.MediaContainer.playQueueSelectedItemOffset,
         };
+    }
+
+    private async queryMedia(
+        path: string,
+        { qs, filterHub }: {
+            filterHub?: (hub: { type: string }) => boolean,
+            qs?: Record<string, string>,
+        } = {},
+    ) {
+        const servers = await this.getServers();
+        const requests = await Promise.allSettled(servers.map(async server => {
+            const response = await request.get(server.uri + path, {
+                json: true,
+                qs,
+                headers: {
+                    "x-plex-token": server.accessToken,
+                    "x-plex-client-identifier": this.clientIdentifier,
+                },
+            });
+            return [server, response] as const;
+        }));
+
+        const items = requests.flatMap(result => {
+            if (result.status !== "fulfilled") {
+                return [];
+            }
+
+            const [server, response] = result.value;
+
+            let hubs = response.MediaContainer.Hub;
+            if (filterHub != null) {
+                hubs = hubs.filter(filterHub);
+            }
+
+            return hubs.flatMap((hub: any) => {
+                return hub.Metadata?.map((metadata: any) => [server, metadata]) ?? [];
+            });
+        });
+
+        return items
+            .map(([server, metadata]) => parseItemMetadata(server, metadata))
+            .sort((a, b) => b.lastViewedAt - a.lastViewedAt);
     }
 
     private async fetchServers() {
