@@ -3,6 +3,8 @@ export { PlayerBuilder } from "./player";
 export { DisneyApp, IDisneyOpts } from "./apps/disney";
 export { HboApp, IHboOpts, IHboPlayOptions } from "./apps/hbo";
 export { HuluApp, IHuluOpts } from "./apps/hulu";
+export { PlexApp } from "./apps/plex";
+export { IPlexOpts } from "./apps/plex/config";
 export { PrimeApp, IPrimeOpts } from "./apps/prime";
 export { YoutubeApp, IYoutubeOpts } from "./apps/youtube";
 

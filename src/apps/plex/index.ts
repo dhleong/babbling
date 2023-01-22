@@ -5,6 +5,7 @@ import { ILoadRequest, IMedia } from "../../cast";
 
 import { BaseApp } from "../base";
 import { PlexApi } from "./api";
+import { PlexPlayerChannel } from "./channel";
 import { IPlexOpts } from "./config";
 
 const debug = _debug("babbling:PlexApp");
@@ -14,6 +15,10 @@ const APP_ID = "9AC194DC";
 
 export class PlexApp extends BaseApp {
     private readonly api: PlexApi;
+
+    public static createPlayerChannel(options: IPlexOpts) {
+        return new PlexPlayerChannel(options);
+    }
 
     constructor(device: ChromecastDevice, private readonly options: IPlexOpts) {
         super(device, {
