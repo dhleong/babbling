@@ -22,6 +22,7 @@ Currently, Babbling supports casting videos from:
 - [Hulu][3]
 - [Amazon Video][5]
 - [Disney+][6]
+- [Plex][8]
 
 ### Typescript/Javascript
 
@@ -91,6 +92,20 @@ babbling auth:prime <your@amazon-login>
 
 You will be prompted for your password, and, if everything goes well, you
 well then be able to use `babbling cast <url>`, etc., for Amazon videos!
+
+#### Plex
+
+Plex must be authenticated through a browser window. This can be performed
+easily with the Babbling command-line tool:
+
+```
+babbling auth:plex
+```
+
+You will be provided an URL you'll need to open in a browser. If successful,
+you'll be able to use `babbling find <name>` to cast shows and movies from
+any Plex server connected to your account.
+
 
 #### Youtube
 
@@ -197,3 +212,4 @@ interleaved together.
 [5]: src/apps/prime/index.ts
 [6]: src/apps/disney/index.ts
 [7]: https://github.com/yakyak/yakyak
+[8]: https://plex.tv
