@@ -13,6 +13,7 @@ import getRecommendations from "./commands/recommend";
 import scanForDevices from "./commands/scan";
 import searchByTitle from "./commands/search";
 
+import { login as plexLogin } from "./commands/auth/plex";
 import { login as primeLogin } from "./commands/auth/prime";
 import { login as youtubeLogin } from "./commands/auth/youtube";
 
@@ -129,6 +130,12 @@ if (canAutoConfigure) {
         },
     );
 }
+
+parser.command(
+    "auth:plex", "Auth with Plex", args => withConfig(args), async argv => {
+        await plexLogin(argv);
+    },
+);
 
 parser.command(
     "auth:prime <email>", "Auth with prime", args => withConfig(args)
