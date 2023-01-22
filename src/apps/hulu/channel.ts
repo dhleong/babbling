@@ -23,12 +23,17 @@ function createUrl(type: string, id: string) {
 }
 
 function pickArtwork(item: any) {
-    if (!item.artwork) return;
+    const artwork = item.artwork ?? item.visuals?.artwork;
+    if (artwork == null) return;
 
-    const obj = item.artwork["program.tile"];
-    if (!(obj && obj.path)) return;
+    const path = artwork["program.tile"]?.path
+        ?? artwork.horizontal?.image?.path;
 
-    return `${obj.path}&operations=${encodeURIComponent(JSON.stringify([
+    if (path == null) {
+        return;
+    }
+
+    return `${path}&operations=${encodeURIComponent(JSON.stringify([
         { resize: "600x600|max" },
         { format: "jpeg" },
     ]))}`;
@@ -108,6 +113,7 @@ export class HuluPlayerChannel implements IPlayerChannel<HuluApp> {
             yield {
                 appName: "HuluApp",
                 desc: item.visuals.body.text,
+                cover: pickArtwork(item),
                 title: item.metrics_info.entity_name,
                 url,
 
