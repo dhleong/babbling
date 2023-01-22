@@ -1,6 +1,7 @@
 import { PlexOauth, IPlexClientDetails } from "plex-oauth";
 import { IPlexOpts } from "../../../apps/plex/config";
 import generateMachineUuid from "../../../util/generateMachineUuid";
+import getPackageVersion from "../../../util/getPackageVersion";
 
 import { configInPath } from "../config";
 import { consoleWrite } from "../util";
@@ -11,7 +12,7 @@ const clientInformation: IPlexClientDetails = {
     clientIdentifier: "io.github.dhleong.babbling",
     product: "babbling", // Name of your application
     device: "cli", // The type of device your application is running on
-    version: "1.0", // Version of your application
+    version: getPackageVersion(), // Version of your application
     platform: "Web", // Optional - Platform your application runs on - Defaults to 'Web'
     urlencode: true,
 };
