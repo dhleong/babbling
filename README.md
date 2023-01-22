@@ -212,4 +212,4 @@ interleaved together.
 [5]: src/apps/prime/index.ts
 [6]: src/apps/disney/index.ts
 [7]: https://github.com/yakyak/yakyak
-[8]: https://plex.tv
+[8]: src/apps/plex/index.ts
