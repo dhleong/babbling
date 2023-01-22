@@ -11,8 +11,7 @@ const clientInformation: IPlexClientDetails = {
     clientIdentifier: "io.github.dhleong.babbling",
     product: "babbling", // Name of your application
     device: "cli", // The type of device your application is running on
-    version: "1", // Version of your application
-    // forwardUrl: "https://localhost:3000", // Optional - Url to forward back to after signing in.
+    version: "1.0", // Version of your application
     platform: "Web", // Optional - Platform your application runs on - Defaults to 'Web'
     urlencode: true,
 };
