@@ -274,7 +274,7 @@ export class HboApi {
         // the results, which are resolved after it, so skip it
         const results = content.slice(1);
         for (const result of results) {
-            const urn: string = result.body.references.viewable;
+            const urn: string = result.body.references?.viewable;
             if (!urn) continue;
 
             const resolved: IHboResult = {
