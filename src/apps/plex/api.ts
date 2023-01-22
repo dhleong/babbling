@@ -7,7 +7,7 @@ import { IPlexServer, IPlexUser, parseItemMetadata } from "./model";
 
 const debug = _debug("babbling:plex");
 
-const API_BASE = "https://plex.tv";
+const API_BASE = "https://plex.tv/api/v2";
 
 const SERVERS_CACHE_DURATION_SECONDS = 3600;
 
@@ -24,15 +24,7 @@ export class PlexApi {
     }
 
     public async getUser() {
-        const response = await request.get(`${API_BASE}/api/v2/user`, {
-            json: true,
-            headers: {
-                "x-plex-token": read(this.token),
-                "x-plex-client-identifier": this.clientIdentifier,
-            },
-        });
-
-        return response as IPlexUser;
+        return this.apiGet<IPlexUser>("/user");
     }
 
     public async getServerForUri(uri: string) {
@@ -94,6 +86,7 @@ export class PlexApi {
             headers: this.serverRequestHeaders(server),
         });
         debug("play queue:", response.MediaContainer);
+
         return {
             playQueueID: response.MediaContainer.playQueueID,
             selectedItemID: response.MediaContainer.playQueueSelectedItemID,
@@ -141,14 +134,9 @@ export class PlexApi {
     }
 
     private async fetchServers() {
-        const resources = await request.get(`${API_BASE}/api/v2/resources`, {
-            json: true,
+        const resources = await this.apiGet<any>("/resources", {
             qs: {
                 includeHttps: 1,
-            },
-            headers: {
-                "x-plex-token": read(this.token),
-                "x-plex-client-identifier": this.clientIdentifier,
             },
         });
 
@@ -171,6 +159,22 @@ export class PlexApi {
                 return server;
             });
         return { value, expiresInSeconds: SERVERS_CACHE_DURATION_SECONDS };
+    }
+
+    private async apiGet<R>(
+        path: string,
+        { qs }: { qs?: Record<string, unknown> } = {},
+    ): Promise<R> {
+        const response = await request.get(`${API_BASE}${path}`, {
+            json: true,
+            qs,
+            headers: {
+                "x-plex-token": read(this.token),
+                "x-plex-client-identifier": this.clientIdentifier,
+            },
+        });
+
+        return response as R;
     }
 
     private serverRequestHeaders(server: IPlexServer) {
