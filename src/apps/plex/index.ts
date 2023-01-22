@@ -11,7 +11,6 @@ import { IPlexOpts } from "./config";
 const debug = _debug("babbling:PlexApp");
 
 const APP_ID = "9AC194DC";
-// const APP_NS = "urn:x-cast:plex";
 
 export class PlexApp extends BaseApp {
     private readonly api: PlexApi;
