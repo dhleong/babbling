@@ -1,19 +1,15 @@
+import _debug from "debug";
 import request from "request-promise-native";
 
 import { read, Token } from "../../token";
 import Expirable from "../../util/expirable";
+import { IPlexServer, parseItemMetadata } from "./model";
+
+const debug = _debug("babbling:plex");
 
 const API_BASE = "https://plex.tv";
 
 const SERVERS_CACHE_DURATION_SECONDS = 3600;
-
-interface IPlexServer {
-    uri: string;
-    accessToken: string;
-    clientIdentifier: string;
-    name: string;
-    sourceTitle: string;
-}
 
 export class PlexApi {
     private servers = new Expirable<IPlexServer[]>(() => this.fetchServers());
@@ -25,6 +21,74 @@ export class PlexApi {
 
     public getServers() {
         return this.servers.get();
+    }
+
+    public async getServerForUri(uri: string) {
+        const url = new URL(uri);
+        const servers = await this.getServers();
+        for (const server of servers) {
+            if (server.uri.includes(url.hostname)) {
+                return server;
+            }
+        }
+
+        debug("Looking for", url.hostname);
+        throw new Error(`Unknown server for uri: ${uri}`);
+    }
+
+    public async getContinueWatching() {
+        const servers = await this.getServers();
+        const requests = await Promise.allSettled(servers.map(async server => {
+            const response = await request.get(server.uri + "/hubs/continueWatching", {
+                json: true,
+                headers: {
+                    "x-plex-token": server.accessToken,
+                    "x-plex-client-identifier": this.clientIdentifier,
+                },
+            });
+            return [server, response];
+        }));
+
+        const items = requests.flatMap(result => {
+            if (result.status !== "fulfilled") {
+                return [];
+            }
+
+            const [server, response] = result.value;
+            return response.MediaContainer.Hub[0].Metadata.map((metadata: any) => [server, metadata]);
+        });
+
+        return items
+            .map(([server, metadata]) => parseItemMetadata(server, metadata))
+            .sort((a, b) => b.lastViewedAt - a.lastViewedAt);
+    }
+
+    /**
+    * NOTE: `item` should look like eg `/library/metadata/1234`
+    */
+    public async createPlayQueue(server: IPlexServer, item: string) {
+        const response = await request.post(server.uri + "/playQueues", {
+            json: true,
+            qs: {
+                continuous: 1,
+                includeChapters: 1,
+                includeRelated: 0,
+                repeat: 0,
+                shuffle: 0,
+                type: "video",
+                uri: `server://${server.clientIdentifier}/library${item}`,
+            },
+            headers: {
+                "x-plex-token": server.accessToken,
+                "x-plex-client-identifier": this.clientIdentifier,
+            },
+        });
+        debug("play queue:", response.MediaContainer);
+        return {
+            playQueueID: response.MediaContainer.playQueueID,
+            selectedItemID: response.MediaContainer.playQueueSelectedItemID,
+            selectedItemOffset: response.MediaContainer.playQueueSelectedItemOffset,
+        };
     }
 
     private async fetchServers() {
@@ -46,12 +110,14 @@ export class PlexApi {
                     .connections
                     .filter((connection: any) => connection.address === resource.publicAddress)[0];
 
+                debug("found server:", resource);
                 const server: IPlexServer = {
                     accessToken: resource.accessToken,
                     clientIdentifier: resource.clientIdentifier,
                     name: resource.name,
                     sourceTitle: resource.sourceTitle,
                     uri: (publicConnection ?? resource.connections[0]).uri,
+                    version: resource.productVersion,
                 };
                 return server;
             });

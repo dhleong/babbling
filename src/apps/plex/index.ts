@@ -4,6 +4,7 @@ import { ChromecastDevice, MEDIA_NS } from "stratocaster";
 import { ILoadRequest, IMedia } from "../../cast";
 
 import { BaseApp } from "../base";
+import { PlexApi } from "./api";
 import { IPlexOpts } from "./config";
 
 const debug = _debug("babbling:PlexApp");
@@ -12,29 +13,57 @@ const APP_ID = "9AC194DC";
 // const APP_NS = "urn:x-cast:plex";
 
 export class PlexApp extends BaseApp {
+    private readonly api: PlexApi;
+
     constructor(device: ChromecastDevice, private readonly options: IPlexOpts) {
         super(device, {
             appId: APP_ID,
             sessionNs: MEDIA_NS,
         });
+
+        this.api = new PlexApi(options.token, options.clientIdentifier);
     }
 
-    public async play(entityId: string, opts: { language?: string, startTime?: number } = {}) {
-        const [s] = await Promise.all([
+    public async playByUri(uri: string, opts: { language?: string, startTime?: number } = {}) {
+        const url = new URL(uri);
+        const [s, server] = await Promise.all([
             this.ensureCastSession(),
+            this.api.getServerForUri(uri),
         ]);
 
+        const serverURI = new URL(server.uri);
+
+        const contentId = url.pathname; // strip leading slash
+        const { playQueueID, selectedItemOffset } = await this.api.createPlayQueue(server, contentId);
+
+        const offset = opts.startTime ?? selectedItemOffset;
+
         const media: IMedia = {
-            contentId: entityId,
+            contentId,
             contentType: "video",
             streamType: "BUFFERED",
 
             customData: {
-                offset: opts.startTime,
+                offset,
+                directPlay: true,
+                directStream: true,
+                subtitleSize: 100,
+                audioBoost: 100,
+                containerKey: `/playQueues/${playQueueID}?own=1&window=200`,
+
                 server: {
-                    machineIdentifier: this.options.clientIdentifier,
-                    accessToken: this.options.token,
-                    user: { username: this.options.username },
+                    address: serverURI.hostname,
+                    accessToken: server.accessToken,
+                    port: serverURI.port != null ? parseInt(serverURI.port, 10) : undefined,
+                    protocol: serverURI.protocol.replace(":", ""),
+                    machineIdentifier: server.clientIdentifier,
+                    myPlexSubscription: false, // TODO: Check user
+                    isVerifiedHostname: true, // ?
+                    transcoderVideo: true,
+                    transcoderVideoRemuxOnly: false,
+                    transcoderAudio: true,
+                    user: { username: this.options.username ?? "dhleong" },
+                    version: server.version,
                 },
             },
         };
@@ -46,8 +75,8 @@ export class PlexApp extends BaseApp {
             type: "LOAD",
         };
 
-        if (opts.startTime !== undefined) {
-            request.currentTime = opts.startTime;
+        if (offset !== undefined) {
+            request.currentTime = offset;
         }
 
         // send LOAD request!
