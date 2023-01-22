@@ -7,6 +7,7 @@ import { BaseApp } from "../base";
 import { PlexApi } from "./api";
 import { PlexPlayerChannel } from "./channel";
 import { IPlexOpts } from "./config";
+import { extractMediaKeyFromUri } from "./model";
 
 const debug = _debug("babbling:plex");
 
@@ -48,7 +49,6 @@ export class PlexApp extends BaseApp {
     }
 
     public async playByUri(uri: string, opts: IPlaybackOptions = {}) {
-        const url = new URL(uri);
         const [s, server, user] = await Promise.all([
             this.ensureCastSession(),
             this.api.getServerForUri(uri),
@@ -57,7 +57,7 @@ export class PlexApp extends BaseApp {
 
         const serverURI = new URL(server.uri);
 
-        const contentId = url.pathname; // strip leading slash
+        const contentId = extractMediaKeyFromUri(uri);
         const { playQueueID, selectedItemOffset } = await this.api.createPlayQueue(server, contentId);
 
         const offset = opts.startTime ?? selectedItemOffset;

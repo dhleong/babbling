@@ -50,6 +50,7 @@ export class PlexPlayerChannel implements IPlayerChannel<PlexApp> {
         return {
             appName: "PlexApp",
             cover: item.thumb,
+            desc: item.desc,
             playable: await this.createPlayable(item.uri),
             title: item.seriesTitle ?? item.title,
             url: item.uri,

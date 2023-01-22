@@ -3,7 +3,7 @@ import request from "request-promise-native";
 
 import { read, Token } from "../../token";
 import Expirable from "../../util/expirable";
-import { IPlexServer, IPlexUser, parseItemMetadata } from "./model";
+import { extractMediaKeyFromUri, IPlexServer, IPlexUser, parseItemMetadata } from "./model";
 
 const debug = _debug("babbling:plex");
 
@@ -29,14 +29,20 @@ export class PlexApi {
 
     public async getServerForUri(uri: string) {
         const url = new URL(uri);
+        const match = url.hash.match(/server\/([^/]+)/);
+        if (match == null || match.length < 2) {
+            throw new Error("Invalid media URI; no server identifier");
+        }
+        const machineIdentifier = match[1];
+
         const servers = await this.getServers();
         for (const server of servers) {
-            if (server.uri.includes(url.hostname)) {
+            if (server.clientIdentifier === machineIdentifier) {
                 return server;
             }
         }
 
-        debug("Looking for", url.hostname);
+        debug("Looking for", machineIdentifier);
         throw new Error(`Unknown server for uri: ${uri}`);
     }
 
@@ -46,7 +52,9 @@ export class PlexApi {
 
     public async resolveOnDeckForUri(uri: string) {
         const server = await this.getServerForUri(uri);
-        const response = await request.get(uri.replace(/^plex/, "http"), {
+        const contentId = extractMediaKeyFromUri(uri);
+
+        const response = await request.get(server.uri + contentId, {
             json: true,
             qs: {
                 includeOnDeck: 1,
