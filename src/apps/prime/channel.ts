@@ -35,6 +35,16 @@ function isAvailableOnlyWithAds(availability: IAvailability[]) {
 }
 
 function pickTitleIdFromUrl(url: string) {
+    try {
+        const obj = new URL(url);
+        const gti = obj.searchParams.get("gti");
+        if (gti != null) {
+            return gti;
+        }
+    } catch {
+        // Ignore and fall through
+    }
+
     const m1 = url.match(/video\/detail\/([^/]+)/);
     if (m1) {
         return m1[1];
@@ -163,7 +173,7 @@ export class PrimePlayerChannel implements IPlayerChannel<PrimeApp> {
                 title: result.title,
                 titleId: result.titleId,
                 type: result.type,
-                url: `https://watch.amazon.com/detail?gti=${result.titleId}`,
+                url: this.urlFor(result),
             };
         }
     }
@@ -178,8 +188,12 @@ export class PrimePlayerChannel implements IPlayerChannel<PrimeApp> {
                 playable: playableFromTitleId(result.titleId),
                 title: result.title,
                 titleId: result.titleId,
-                url: `https://watch.amazon.com/detail?gti=${result.titleId}`,
+                url: this.urlFor(result),
             };
         }
+    }
+
+    public urlFor(item: { titleId: string }) {
+        return `https://watch.amazon.com/detail?gti=${item.titleId}`;
     }
 }
