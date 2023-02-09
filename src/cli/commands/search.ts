@@ -3,7 +3,6 @@
 import createDebug from "debug";
 
 import { IQueryResult } from "../../app";
-import { ChromecastDevice } from "../../device";
 import { PlayerBuilder } from "../../player";
 import { consoleWrite } from "./util";
 
@@ -53,8 +52,7 @@ export async function formatQueryResults(results: AsyncIterable<IQueryResult>) {
 
 export default async function searchByTitle(opts: ISearchByTitleOpts) {
     const builder = await PlayerBuilder.autoInflate(opts.config);
-    builder.addDevice(new ChromecastDevice("_unused_"));
-    const player = builder.build();
+    const player = builder.buildQueryOnly();
 
     const results = player.queryByTitle(opts.title, (app, e) => {
         debug("Encountered error searching", app, e);
