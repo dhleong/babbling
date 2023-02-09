@@ -51,9 +51,7 @@ function urnFromUrl(url: string) {
 export class HboPlayerChannel implements IPlayerChannel<HboApp> {
     private api: HboApi;
 
-    constructor(
-        private readonly options: IHboOpts,
-    ) {
+    constructor(private readonly options: IHboOpts) {
         this.api = new HboApi(this.options.token);
     }
 
@@ -68,7 +66,9 @@ export class HboPlayerChannel implements IPlayerChannel<HboApp> {
             switch (entityTypeFromUrn(urn)) {
                 case "franchise":
                     // Is this always correct?
-                    const seriesUrn = await this.api.resolveFranchiseSeries(urn);
+                    const seriesUrn = await this.api.resolveFranchiseSeries(
+                        urn,
+                    );
                     return async (app: HboApp) => {
                         debug("Resume franchise series @", url);
                         return app.resumeSeries(seriesUrn);
@@ -85,8 +85,8 @@ export class HboPlayerChannel implements IPlayerChannel<HboApp> {
                 case "feature":
                 case "season":
                 default:
-                // TODO: it may be possible to resume specific episodes or
-                // features (movies)...
+                    // TODO: it may be possible to resume specific episodes or
+                    // features (movies)...
                     return async (app: HboApp) => app.play(urn);
             }
         } catch (e) {
@@ -123,9 +123,7 @@ export class HboPlayerChannel implements IPlayerChannel<HboApp> {
         };
     }
 
-    public async* queryByTitle(
-        title: string,
-    ): AsyncIterable<IQueryResult> {
+    public async *queryByTitle(title: string): AsyncIterable<IQueryResult> {
         for await (const item of this.api.search(title)) {
             if (item.type === "SERIES_EPISODE") {
                 // Don't emit episodes; this method is for
@@ -137,14 +135,14 @@ export class HboPlayerChannel implements IPlayerChannel<HboApp> {
         }
     }
 
-    public async* queryRecommended() {
+    public async *queryRecommended() {
         // NOTE: HBO actually has a "recommended," but the other apps are returning
         // "continue watching" content here, so until we update the API to have that
         // as a distinct method, let's stay internally consistent
-        yield *this.yieldPlayables(this.api.queryContinueWatching());
+        yield* this.yieldPlayables(this.api.queryContinueWatching());
     }
 
-    private async* yieldPlayables(source: ReturnType<typeof this.api.search>) {
+    private async *yieldPlayables(source: ReturnType<typeof this.api.search>) {
         for await (const result of source) {
             yield await this.hboToQueryResult(result);
         }
@@ -154,14 +152,18 @@ export class HboPlayerChannel implements IPlayerChannel<HboApp> {
         // HBO Max may use a slightly different URN structure for the
         // series / movie page than it emits in the search result
         const urn = unpackUrn(source.seriesUrn ?? source.urn);
-        const url = urn.pageType != null
-            ? `https://play.hbomax.com/${source.urn}`
-            : `https://play.hbomax.com/page/urn:hbo:page:${urn.id}:type:${urn.type}`;
+        const url =
+            urn.pageType != null
+                ? `https://play.hbomax.com/${source.urn}`
+                : `https://play.hbomax.com/page/urn:hbo:page:${urn.id}:type:${urn.type}`;
         const title = source.seriesTitle ?? source.title;
 
         return {
             appName: "HboApp",
-            cover: source.imageTemplate == null ? undefined : formatCoverImage(source.imageTemplate),
+            cover:
+                source.imageTemplate == null
+                    ? undefined
+                    : formatCoverImage(source.imageTemplate),
             playable: await this.createPlayable(url),
             title,
             url,

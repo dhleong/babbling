@@ -58,7 +58,8 @@ export class PlexApp extends BaseApp {
         const serverURI = new URL(server.uri);
 
         const contentId = extractMediaKeyFromUri(uri);
-        const { playQueueID, selectedItemOffset } = await this.api.createPlayQueue(server, contentId);
+        const { playQueueID, selectedItemOffset } =
+            await this.api.createPlayQueue(server, contentId);
 
         const offset = opts.startTime ?? selectedItemOffset;
 
@@ -78,7 +79,10 @@ export class PlexApp extends BaseApp {
                 server: {
                     address: serverURI.hostname,
                     accessToken: server.accessToken,
-                    port: serverURI.port != null ? parseInt(serverURI.port, 10) : undefined,
+                    port:
+                        serverURI.port != null
+                            ? parseInt(serverURI.port, 10)
+                            : undefined,
                     protocol: serverURI.protocol.replace(":", ""),
                     machineIdentifier: server.clientIdentifier,
                     myPlexSubscription: user.subscription.active,

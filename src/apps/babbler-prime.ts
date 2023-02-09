@@ -1,7 +1,11 @@
 import debug_ from "debug";
 
 import {
-    ChakramApi, ContentType, IBaseObj, IEpisode, ISeason,
+    ChakramApi,
+    ContentType,
+    IBaseObj,
+    IEpisode,
+    ISeason,
 } from "chakram-ts";
 import { ChromecastDevice } from "stratocaster";
 
@@ -67,18 +71,14 @@ function cleanTitle(original: string) {
 }
 
 class BabblerPrimeChannel implements IPlayerChannel<BabblerPrimeApp> {
-    constructor(
-        private readonly options: IBabblerPrimeOpts,
-    ) {}
+    constructor(private readonly options: IBabblerPrimeOpts) {}
 
     public ownsUrl(url: string): boolean {
         // TODO other domains
         return url.includes("amazon.com");
     }
 
-    public async createPlayable(
-        url: string,
-    ) {
+    public async createPlayable(url: string) {
         const m = url.match(/video\/detail\/([^/]+)/);
         if (!m) {
             throw new Error(`Unsure how to play ${url}`);
@@ -91,9 +91,7 @@ class BabblerPrimeChannel implements IPlayerChannel<BabblerPrimeApp> {
         return this.playableFromObj(info);
     }
 
-    public async* queryByTitle(
-        title: string,
-    ): AsyncIterable<IQueryResult> {
+    public async *queryByTitle(title: string): AsyncIterable<IQueryResult> {
         const api = new ChakramApi(this.options.cookies);
         for (const result of await api.search(title)) {
             yield {
@@ -109,15 +107,15 @@ class BabblerPrimeChannel implements IPlayerChannel<BabblerPrimeApp> {
         if (info.type === ContentType.SERIES) {
             debug("playable for series", info.id);
             return async (app: BabblerPrimeApp) => app.resumeSeries(info.id);
-        } if (info.type === ContentType.SEASON) {
+        }
+        if (info.type === ContentType.SEASON) {
             // probably they want to resume the series
             const season = info as ISeason;
             if (season.series) {
                 const seriesId = season.series.id;
                 debug("playable for series given season", seriesId);
-                return async (app: BabblerPrimeApp) => app.resumeSeries(
-                    seriesId,
-                );
+                return async (app: BabblerPrimeApp) =>
+                    app.resumeSeries(seriesId);
             }
         }
 
@@ -136,7 +134,9 @@ class BabblerPrimeChannel implements IPlayerChannel<BabblerPrimeApp> {
  * Amazon Prime Video
  */
 export class BabblerPrimeApp extends BabblerBaseApp {
-    public static configurable = new CookiesConfigurable<IBabblerPrimeOpts>("https://www.amazon.com");
+    public static configurable = new CookiesConfigurable<IBabblerPrimeOpts>(
+        "https://www.amazon.com",
+    );
 
     public static createPlayerChannel(options: IBabblerPrimeOpts) {
         return new BabblerPrimeChannel(options);
@@ -144,17 +144,15 @@ export class BabblerPrimeApp extends BabblerBaseApp {
 
     private api: ChakramApi;
 
-    constructor(
-        device: ChromecastDevice,
-        opts: IBabblerPrimeOpts,
-    ) {
+    constructor(device: ChromecastDevice, opts: IBabblerPrimeOpts) {
         super(device, {
             appId: opts.appId,
 
             /* eslint-disable no-bitwise */
-            capabilities: SenderCapabilities.DeferredInfo
-                | SenderCapabilities.QueueNext
-                | SenderCapabilities.QueuePrev,
+            capabilities:
+                SenderCapabilities.DeferredInfo |
+                SenderCapabilities.QueueNext |
+                SenderCapabilities.QueuePrev,
             /* eslint-enable no-bitwise */
 
             daemonOptions: opts,
@@ -168,9 +166,7 @@ export class BabblerPrimeApp extends BabblerBaseApp {
      * Attempt to resume playback of the series with the
      * given ID
      */
-    public async resumeSeries(
-        id: string,
-    ) {
+    public async resumeSeries(id: string) {
         const toResume = await this.api.guessResumeInfo(id);
 
         await this.playTitle(toResume.id, {
@@ -187,7 +183,7 @@ export class BabblerPrimeApp extends BabblerBaseApp {
     public async playTitle(
         id: string,
         opts: {
-            startTime?: number,
+            startTime?: number;
         } = {},
     ) {
         // resolve the ID first; amazon's ID usage is... odd.
@@ -226,15 +222,12 @@ export class BabblerPrimeApp extends BabblerBaseApp {
         return this.api.fetchLicense(url, buffer);
     }
 
-    protected async loadInfoFor(
-        contentId: string,
-    ): Promise<IPlayableInfo> {
+    protected async loadInfoFor(contentId: string): Promise<IPlayableInfo> {
         debug(`load playableInfo for ${contentId}`);
 
-        const {
-            manifests,
-            licenseUrl,
-        } = await this.api.getPlaybackInfo(contentId);
+        const { manifests, licenseUrl } = await this.api.getPlaybackInfo(
+            contentId,
+        );
 
         // pick *some* manifest
         shuffle(manifests);
@@ -265,10 +258,11 @@ export class BabblerPrimeApp extends BabblerBaseApp {
             "after",
             contentId,
             media,
-            (episodes, index) => episodes.slice(
-                index + 1,
-                Math.min(index + 1 + QUEUE_SIZE, episodes.length - 1),
-            ),
+            (episodes, index) =>
+                episodes.slice(
+                    index + 1,
+                    Math.min(index + 1 + QUEUE_SIZE, episodes.length - 1),
+                ),
         );
     }
 
@@ -280,10 +274,11 @@ export class BabblerPrimeApp extends BabblerBaseApp {
             "before",
             contentId,
             media,
-            (episodes, index) => episodes.slice(
-                Math.max(0, index - 1 - QUEUE_SIZE),
-                Math.max(0, index - 1),
-            ),
+            (episodes, index) =>
+                episodes.slice(
+                    Math.max(0, index - 1 - QUEUE_SIZE),
+                    Math.max(0, index - 1),
+                ),
         );
     }
 
@@ -314,9 +309,11 @@ export class BabblerPrimeApp extends BabblerBaseApp {
         debug(`queue ${mode} for`, contentId, media);
 
         const episodes = await this.api.getEpisodes(episode.series.id);
-        const index = episodes.findIndex(ep => ep.id === contentId);
+        const index = episodes.findIndex((ep) => ep.id === contentId);
         if (index === -1) {
-            debug(`couldn't find ${contentId} in episodes of ${episode.series.id}`);
+            debug(
+                `couldn't find ${contentId} in episodes of ${episode.series.id}`,
+            );
             return [];
         }
 

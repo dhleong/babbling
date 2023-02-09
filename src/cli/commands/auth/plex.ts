@@ -30,7 +30,11 @@ export async function login(opts: IAuthOpts) {
 
     const retryDelayMs = 2500;
     const maxRetries = 120; // 5 minutes seems like more than enough time...
-    const token = await oauth.checkForAuthToken(pinId, retryDelayMs, maxRetries);
+    const token = await oauth.checkForAuthToken(
+        pinId,
+        retryDelayMs,
+        maxRetries,
+    );
     if (token == null) {
         throw new Error("Auth failed");
     }

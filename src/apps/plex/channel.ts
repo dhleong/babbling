@@ -11,10 +11,11 @@ const debug = createDebug("babbling:plex:channel");
 export class PlexPlayerChannel implements IPlayerChannel<PlexApp> {
     private api: PlexApi;
 
-    constructor(
-        private readonly options: IPlexOpts,
-    ) {
-        this.api = new PlexApi(this.options.token, this.options.clientIdentifier);
+    constructor(private readonly options: IPlexOpts) {
+        this.api = new PlexApi(
+            this.options.token,
+            this.options.clientIdentifier,
+        );
     }
 
     public ownsUrl(url: string): boolean {
@@ -31,16 +32,14 @@ export class PlexPlayerChannel implements IPlayerChannel<PlexApp> {
         };
     }
 
-    public async* queryRecommended() {
+    public async *queryRecommended() {
         const items = await this.api.getContinueWatching();
         for (const item of items) {
             yield await this.itemToQueryResult(item);
         }
     }
 
-    public async* queryByTitle(
-        title: string,
-    ): AsyncIterable<IQueryResult> {
+    public async *queryByTitle(title: string): AsyncIterable<IQueryResult> {
         for (const item of await this.api.search(title)) {
             yield await this.itemToQueryResult(item);
         }

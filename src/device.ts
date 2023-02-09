@@ -2,9 +2,7 @@ import _debug from "debug";
 
 import { ChromecastDevice as StratoDevice } from "stratocaster";
 
-import {
-    AppFor, IApp, IAppConstructor, OptionsFor, Opts,
-} from "./app";
+import { AppFor, IApp, IAppConstructor, OptionsFor, Opts } from "./app";
 import { MediaControls } from "./controls";
 
 const debug = _debug("babbling:device");
@@ -12,10 +10,7 @@ const debug = _debug("babbling:device");
 export class ChromecastDevice {
     private readonly castorDevice: StratoDevice;
 
-    constructor(
-        public friendlyName: string,
-        timeout = 10000,
-    ) {
+    constructor(public friendlyName: string, timeout = 10000) {
         this.castorDevice = new StratoDevice(friendlyName, {
             searchTimeout: timeout,
         });

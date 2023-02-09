@@ -23,7 +23,10 @@ export class DisneyApp extends BaseApp {
         return new DisneyPlayerChannel(options);
     }
 
-    constructor(device: ChromecastDevice, private readonly options: IDisneyOpts) {
+    constructor(
+        device: ChromecastDevice,
+        private readonly options: IDisneyOpts,
+    ) {
         super(device, {
             appId: APP_ID,
             sessionNs: MEDIA_NS,
@@ -33,8 +36,8 @@ export class DisneyApp extends BaseApp {
     public async playById(
         entityId: string,
         opts: {
-            language?: string,
-            startTime?: number,
+            language?: string;
+            startTime?: number;
         } = {},
     ) {
         const language = opts.language || "en";
@@ -81,10 +84,7 @@ export class DisneyApp extends BaseApp {
         debug("LOAD complete", (ms as any).status[0].media);
     }
 
-    public async playSeriesById(
-        seriesId: string,
-        opts: IPlayableOptions = {},
-    ) {
+    public async playSeriesById(seriesId: string, opts: IPlayableOptions = {}) {
         debug("find resume for series", seriesId);
 
         const api = new DisneyApi(this.options);
@@ -107,15 +107,11 @@ export class DisneyApp extends BaseApp {
         });
     }
 
-    public async playByFamilyId(
-        familyId: string,
-        opts: IPlayableOptions = {},
-    ) {
+    public async playByFamilyId(familyId: string, opts: IPlayableOptions = {}) {
         const api = new DisneyApi(this.options);
-        const {
-            contentId,
-            startTime,
-        } = await api.getResumeForFamilyId(familyId);
+        const { contentId, startTime } = await api.getResumeForFamilyId(
+            familyId,
+        );
 
         if (opts.resume === false) {
             return this.playById(contentId);

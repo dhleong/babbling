@@ -93,7 +93,10 @@ export function createConfigUpdater(
 ) {
     return async (configPath: string, update: (old: any) => any) => {
         await updateConfigWithMethods(
-            doReadConfig, doWriteConfig, configPath, update,
+            doReadConfig,
+            doWriteConfig,
+            configPath,
+            update,
         );
     };
 }
@@ -105,14 +108,14 @@ export async function configInPath(
     objPath: string[],
     value: any,
 ) {
-    await updateConfig(configFilePath, json => {
+    await updateConfig(configFilePath, (json) => {
         setPath(json, objPath, value);
         return json;
     });
 }
 
 export async function unconfig(configPath: string, key: string) {
-    await updateConfig(configPath, json => {
+    await updateConfig(configPath, (json) => {
         // eslint-disable-next-line no-param-reassign
         delete json[key];
         return json;

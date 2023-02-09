@@ -18,11 +18,13 @@ import { ChromecastDevice } from "./device";
 
 const debug = _debug("babbling:player");
 
-type IAppOf<T> =
-    T extends IPlayerEnabledConstructor<any, infer TApp> ? TApp :
-        never;
+type IAppOf<T> = T extends IPlayerEnabledConstructor<any, infer TApp>
+    ? TApp
+    : never;
 
-interface IConfiguredApp<TConstructor extends IPlayerEnabledConstructor<Opts, IApp>> {
+interface IConfiguredApp<
+    TConstructor extends IPlayerEnabledConstructor<Opts, IApp>,
+> {
     appConstructor: TConstructor;
     channel: IPlayerChannel<IAppOf<TConstructor>>;
     options: OptionsFor<TConstructor>;
@@ -30,7 +32,9 @@ interface IConfiguredApp<TConstructor extends IPlayerEnabledConstructor<Opts, IA
 }
 
 export type AppSpecificErrorHandler = (app: string, e: Error) => void;
-const defaultAppSpecificErrorHandler: AppSpecificErrorHandler = (app, e) => { throw e; };
+const defaultAppSpecificErrorHandler: AppSpecificErrorHandler = (app, e) => {
+    throw e;
+};
 
 function pickAppForUrl(
     apps: Array<IConfiguredApp<IPlayerEnabledConstructor<any, any>>>,
@@ -69,7 +73,9 @@ export interface IPlayerOpts {
 
 class Player {
     constructor(
-        private apps: Array<IConfiguredApp<IPlayerEnabledConstructor<any, any>>>,
+        private apps: Array<
+            IConfiguredApp<IPlayerEnabledConstructor<any, any>>
+        >,
         private devices: ChromecastDevice[],
         private opts: IPlayerOpts,
     ) {}
@@ -88,7 +94,10 @@ class Player {
         const configured = findAppNamed(this.apps, result.appName);
 
         return this.playOnEachDevice(
-            configured, result.playable, result.title, opts,
+            configured,
+            result.playable,
+            result.title,
+            opts,
         );
     }
 
@@ -166,8 +175,13 @@ class Player {
                 // fallback to a default implementation if findEpisodeFor
                 // is provided
                 if (app.channel.queryByTitle && app.channel.findEpisodeFor) {
-                    for await (const series of app.channel.queryByTitle(title)) {
-                        const episode = await app.channel.findEpisodeFor(series, query);
+                    for await (const series of app.channel.queryByTitle(
+                        title,
+                    )) {
+                        const episode = await app.channel.findEpisodeFor(
+                            series,
+                            query,
+                        );
                         if (episode) yield episode;
                     }
                 }
@@ -239,7 +253,7 @@ class Player {
         label: string,
         opts: IPlayableOptions,
     ) {
-        return this.withEachDevice(async d => {
+        return this.withEachDevice(async (d) => {
             const app = await d.openApp(
                 configured.appConstructor,
                 ...configured.options,
@@ -253,16 +267,18 @@ class Player {
     private async withEachDevice(
         block: (device: ChromecastDevice) => Promise<void>,
     ) {
-        return Promise.all(this.devices.map(async d => {
-            try {
-                await block(d);
-            } finally {
-                if (this.opts.autoClose !== false) {
-                    debug("auto-close", d.friendlyName);
-                    d.close();
+        return Promise.all(
+            this.devices.map(async (d) => {
+                try {
+                    await block(d);
+                } finally {
+                    if (this.opts.autoClose !== false) {
+                        debug("auto-close", d.friendlyName);
+                        d.close();
+                    }
                 }
-            }
-        }));
+            }),
+        );
     }
 }
 
@@ -285,11 +301,14 @@ export class PlayerBuilder {
         appConstructor: TConstructor,
         ...options: OptionsFor<TConstructor>
     ) {
-        const index = this.apps.findIndex(old => old.appConstructor === appConstructor);
+        const index = this.apps.findIndex(
+            (old) => old.appConstructor === appConstructor,
+        );
         if (index !== -1) {
             // extend existing config, for use with autoInflate();
-            this.apps[index].options = this.apps[index].options
-                .map((old, i) => ({ ...old, ...options[i] }));
+            this.apps[index].options = this.apps[index].options.map(
+                (old, i) => ({ ...old, ...options[i] }),
+            );
         } else {
             this.apps.push({
                 appConstructor,

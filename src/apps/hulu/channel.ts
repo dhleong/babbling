@@ -15,7 +15,9 @@ const debug = _debug("babbling:hulu:channel");
 const UUID_LENGTH = 36;
 
 function seemsLikeValidUUID(uuid: string) {
-    return /^[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}$/.test(uuid);
+    return /^[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}$/.test(
+        uuid,
+    );
 }
 
 function createUrl(type: string, id: string) {
@@ -26,23 +28,20 @@ function pickArtwork(item: any) {
     const artwork = item.artwork ?? item.visuals?.artwork;
     if (artwork == null) return;
 
-    const path = artwork["program.tile"]?.path
-        ?? artwork.horizontal?.image?.path;
+    const path =
+        artwork["program.tile"]?.path ?? artwork.horizontal?.image?.path;
 
     if (path == null) {
         return;
     }
 
-    return `${path}&operations=${encodeURIComponent(JSON.stringify([
-        { resize: "600x600|max" },
-        { format: "jpeg" },
-    ]))}`;
+    return `${path}&operations=${encodeURIComponent(
+        JSON.stringify([{ resize: "600x600|max" }, { format: "jpeg" }]),
+    )}`;
 }
 
 export class HuluPlayerChannel implements IPlayerChannel<HuluApp> {
-    constructor(
-        private readonly options: IHuluOpts,
-    ) {}
+    constructor(private readonly options: IHuluOpts) {}
 
     public ownsUrl(url: string) {
         return url.includes("hulu.com");
@@ -93,9 +92,7 @@ export class HuluPlayerChannel implements IPlayerChannel<HuluApp> {
         };
     }
 
-    public async* queryByTitle(
-        title: string,
-    ) {
+    public async *queryByTitle(title: string) {
         const results = await new HuluApi(this.options).search(title);
         for (const item of results) {
             if (item.actions.upsell) {
@@ -127,7 +124,7 @@ export class HuluPlayerChannel implements IPlayerChannel<HuluApp> {
         }
     }
 
-    public async* queryRecommended() {
+    public async *queryRecommended() {
         const results = new HuluApi(this.options).fetchRecent();
         for await (const item of results) {
             const { id } = item;

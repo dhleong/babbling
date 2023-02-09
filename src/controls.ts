@@ -23,7 +23,10 @@ export class MediaControls {
             const mediaStatus = response as any;
             debug("GOT media status", mediaStatus);
 
-            return new MediaControls(session, mediaStatus.status[0].mediaSessionId);
+            return new MediaControls(
+                session,
+                mediaStatus.status[0].mediaSessionId,
+            );
         } catch (e: any) {
             if (e.message && e.message.includes("namespace")) {
                 throw new Error("No media app running");
@@ -38,15 +41,29 @@ export class MediaControls {
         private mediaSessionId: number,
     ) {}
 
-    public pause() { this.sendSimple("PAUSE"); }
-    public play() { this.sendSimple("PLAY"); }
-    public stop() { this.sendSimple("STOP"); }
+    public pause() {
+        this.sendSimple("PAUSE");
+    }
+    public play() {
+        this.sendSimple("PLAY");
+    }
+    public stop() {
+        this.sendSimple("STOP");
+    }
 
-    public playAgain() { this.sendSimple("PLAY_AGAIN"); }
-    public skipAd() { this.sendSimple("SKIP_AD"); }
+    public playAgain() {
+        this.sendSimple("PLAY_AGAIN");
+    }
+    public skipAd() {
+        this.sendSimple("SKIP_AD");
+    }
 
-    public nextQueueItem() { this.sendSimple("QUEUE_NEXT"); }
-    public prevQueueItem() { this.sendSimple("QUEUE_PREV"); }
+    public nextQueueItem() {
+        this.sendSimple("QUEUE_NEXT");
+    }
+    public prevQueueItem() {
+        this.sendSimple("QUEUE_PREV");
+    }
 
     public seekRelative(relativeSeconds: number) {
         this.sendData({

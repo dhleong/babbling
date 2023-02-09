@@ -2,7 +2,11 @@ import debug_ from "debug";
 
 import AbortController from "abort-controller";
 import {
-    StratoChannel, ChromecastDevice, isJson, IReceiverStatus, RECEIVER_NS,
+    StratoChannel,
+    ChromecastDevice,
+    isJson,
+    IReceiverStatus,
+    RECEIVER_NS,
 } from "stratocaster";
 
 import { IMediaStatus, IMediaStatusMessage } from "../cast";
@@ -99,9 +103,7 @@ export class PlaybackTracker<TMedia = void> {
     }
 
     protected async handleMediaStatus(status: IMediaStatus) {
-        if (
-            this.attachedMediaSessionId === NOT_ATTACHED
-        ) {
+        if (this.attachedMediaSessionId === NOT_ATTACHED) {
             this.attachedMediaSessionId = status.mediaSessionId;
             debug("attached to media session", this.attachedMediaSessionId);
         }
@@ -111,7 +113,10 @@ export class PlaybackTracker<TMedia = void> {
             case "PAUSED":
                 this.playbackStartedAt = -1;
                 this.playbackLastCurrentTime = -1;
-                await this.onPlayerPaused(status.currentTime, this.getCurrentMedia());
+                await this.onPlayerPaused(
+                    status.currentTime,
+                    this.getCurrentMedia(),
+                );
                 break;
 
             case "PLAYING":
@@ -123,17 +128,21 @@ export class PlaybackTracker<TMedia = void> {
                 if (this.attachedMediaSessionId === NOT_ATTACHED) {
                     this.attachedMediaSessionId = status.mediaSessionId;
                     debug(`attached to mediaSession #${status.mediaSessionId}`);
-                } else if (status.mediaSessionId !== this.attachedMediaSessionId) {
-                // if a new mediaSession starts, we can go (and should)
-                // go ahead and hang up
-                    debug(`new mediaSession (${status.mediaSessionId} != ${this.attachedMediaSessionId})`);
+                } else if (
+                    status.mediaSessionId !== this.attachedMediaSessionId
+                ) {
+                    // if a new mediaSession starts, we can go (and should)
+                    // go ahead and hang up
+                    debug(
+                        `new mediaSession (${status.mediaSessionId} != ${this.attachedMediaSessionId})`,
+                    );
                     await this.handleClose();
                     this.getDevice().close();
                 }
                 break;
 
             case "LOADING":
-                // nop
+            // nop
         }
     }
 
@@ -207,7 +216,7 @@ export class PlaybackTracker<TMedia = void> {
 
         (async () => {
             const merged = mergeAsyncIterables(
-                channels.map(it => it.receive({ signal: abort.signal })),
+                channels.map((it) => it.receive({ signal: abort.signal })),
             );
             for await (const m of merged) {
                 if (!isJson(m.data)) continue;

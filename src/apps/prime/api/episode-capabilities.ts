@@ -13,8 +13,8 @@ function mapEpisodes(info: ITitleInfo) {
     }
 
     return info.episodes
-        .filter(raw => raw.episodeNumber >= 1)
-        .map(raw => ({
+        .filter((raw) => raw.episodeNumber >= 1)
+        .map((raw) => ({
             indexInSeason: raw.episodeNumber - 1,
             season: raw.seasonNumber - 1,
             title: raw.title,
@@ -26,13 +26,15 @@ export interface IPrimeEpisode extends IEpisodeBase {
     titleId: string;
 }
 
-export class PrimeEpisodeCapabilities implements IEpisodeCapabilities<IPrimeEpisode> {
+export class PrimeEpisodeCapabilities
+    implements IEpisodeCapabilities<IPrimeEpisode>
+{
     constructor(
         private readonly api: PrimeApi,
         private readonly seriesTitleId: string,
     ) {}
 
-    public async* episodesInSeason(seasonIndex: number) {
+    public async *episodesInSeason(seasonIndex: number) {
         const seasonNumber = seasonIndex + 1;
         const info = await this.api.getTitleInfo(this.seriesTitleId);
         if (!info.series) return;
@@ -41,9 +43,9 @@ export class PrimeEpisodeCapabilities implements IEpisodeCapabilities<IPrimeEpis
 
         // do we already have the right season?
         if (
-            info.episodes
-            && info.episodes.length
-            && info.episodes[0].seasonNumber === seasonNumber
+            info.episodes &&
+            info.episodes.length &&
+            info.episodes[0].seasonNumber === seasonNumber
         ) {
             debug(`already have season ${seasonNumber}`);
             yield mapEpisodes(info);

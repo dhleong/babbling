@@ -87,11 +87,7 @@ async function getMdxScreenId(session: StratoChannel) {
 
 export type VideoFilter = (v: IVideo) => boolean;
 
-export function fillJar(
-    url: string,
-    jar: CookieJar,
-    cookieString: string,
-) {
+export function fillJar(url: string, jar: CookieJar, cookieString: string) {
     for (const part of cookieString.split(";")) {
         const cookie = tough.Cookie.parse(part);
         if (!cookie) throw new Error();
@@ -100,19 +96,17 @@ export function fillJar(
     }
 }
 
-export function pruneCookies(
-    cookiesString: string,
-) {
+export function pruneCookies(cookiesString: string) {
     if (!cookiesString.includes("LOGIN_INFO=")) return;
 
     // NOTE: it seems we don't want to persist this...?
-    return cookiesString.replace(/S=youtube_lounge_remote=[^;]+(;|$)/, "").trim()
+    return cookiesString
+        .replace(/S=youtube_lounge_remote=[^;]+(;|$)/, "")
+        .trim()
         .replace(/;$/, "");
 }
 
-export function extractCookies(
-    jar: CookieJar,
-) {
+export function extractCookies(jar: CookieJar) {
     const newCookies = jar.getCookieString(COOKIES_DOMAIN);
     if (!newCookies || !newCookies.length) return;
     return pruneCookies(newCookies);
@@ -154,17 +148,28 @@ export class YoutubeApp extends BaseApp {
             const rawAccess = options.access ? read(options.access) : undefined;
             const access = rawAccess ? JSON.parse(rawAccess) : undefined;
             debug("using oauth credentials");
-            this.youtubish = cached(new OauthCredentialsManager({
-                refreshToken,
-                access,
-            }, {
-                async persistCredentials(creds) {
-                    await write(options.refreshToken, creds.refreshToken);
-                    if (options.access && creds.access) {
-                        await write(options.access, JSON.stringify(creds.access));
-                    }
-                },
-            }));
+            this.youtubish = cached(
+                new OauthCredentialsManager(
+                    {
+                        refreshToken,
+                        access,
+                    },
+                    {
+                        async persistCredentials(creds) {
+                            await write(
+                                options.refreshToken,
+                                creds.refreshToken,
+                            );
+                            if (options.access && creds.access) {
+                                await write(
+                                    options.access,
+                                    JSON.stringify(creds.access),
+                                );
+                            }
+                        },
+                    },
+                ),
+            );
         } else if (isCookieAuth(options) && options.cookies) {
             const cookies = read(options.cookies);
             if (typeof cookies !== "string") {
@@ -195,18 +200,18 @@ export class YoutubeApp extends BaseApp {
     public async play(
         videoId: string,
         options: {
-            listId?: string,
-            startTime?: number,
+            listId?: string;
+            startTime?: number;
         } = {},
     ) {
         const { listId, startTime } = options;
         let videoIdToRequest = videoId;
 
         if (
-            videoIdToRequest === ""
-            && listId
-            && listId.length
-            && this.youtubish
+            videoIdToRequest === "" &&
+            listId &&
+            listId.length &&
+            this.youtubish
         ) {
             // starting a playlist works best when we actually
             // load the first video in it (if we can)
@@ -244,15 +249,13 @@ export class YoutubeApp extends BaseApp {
     public async playPlaylist(
         id: string,
         options: {
-            filter?: VideoFilter,
+            filter?: VideoFilter;
             index?: number;
         } = {},
     ) {
         debug(`attempting to play playlist ${id} at (index: ${options.index})`);
-        return this.playItemInPlaylist(
-            id,
-            options.filter,
-            playlist => playlist.get(options.index || 0),
+        return this.playItemInPlaylist(id, options.filter, (playlist) =>
+            playlist.get(options.index || 0),
         );
     }
 
@@ -267,22 +270,22 @@ export class YoutubeApp extends BaseApp {
     public async resumePlaylist(
         id: string,
         options: {
-            filter?: VideoFilter,
-            historyDepth?: number,
+            filter?: VideoFilter;
+            historyDepth?: number;
         } = {},
     ) {
         const creds = this.youtubish;
         if (!creds) {
-            throw new Error("Cannot resume playlist without youtubish credentials");
+            throw new Error(
+                "Cannot resume playlist without youtubish credentials",
+            );
         }
 
         const historyDepth = options.historyDepth ?? 1000;
 
         debug("attempting to resume playlist", id);
-        return this.playItemInPlaylist(
-            id,
-            options.filter,
-            playlist => playlist.findMostRecentlyPlayed(
+        return this.playItemInPlaylist(id, options.filter, (playlist) =>
+            playlist.findMostRecentlyPlayed(
                 new WatchHistory(creds),
                 historyDepth,
             ),
@@ -391,10 +394,7 @@ export class YoutubeApp extends BaseApp {
         debug("got sid=", sid, "gsid=", gsessionId);
     }
 
-    private async queueAction(
-        videoId: string,
-        actionKey: Action,
-    ) {
+    private async queueAction(videoId: string, actionKey: Action) {
         // If nothing is playing actions will work but won"t affect the queue.
         // This is for binding existing sessions
         if (!this.inSession) {
@@ -418,9 +418,12 @@ export class YoutubeApp extends BaseApp {
 
     private async sessionRequest(
         url: string,
-        { data, isBind }: {
-            data: any,
-            isBind?: boolean,
+        {
+            data,
+            isBind,
+        }: {
+            data: any;
+            isBind?: boolean;
         },
     ) {
         const qs = {
@@ -453,12 +456,12 @@ export class YoutubeApp extends BaseApp {
             const cookies = await this.getCookies();
 
             // attempt to load cookies if we haven't already
-            if (
-                cookies
-                && !this.jar.getCookies(COOKIES_DOMAIN).length
-            ) {
+            if (cookies && !this.jar.getCookies(COOKIES_DOMAIN).length) {
                 fillJar(COOKIES_DOMAIN, this.jar, cookies);
-                debug("filled jar with", this.jar.getCookies(COOKIES_DOMAIN).length);
+                debug(
+                    "filled jar with",
+                    this.jar.getCookies(COOKIES_DOMAIN).length,
+                );
             }
 
             const response = await request.post({
@@ -484,10 +487,7 @@ export class YoutubeApp extends BaseApp {
             // on a successful request, update cookies
             if (typeof this.cookies !== "string") {
                 const newCookies = extractCookies(this.jar);
-                if (
-                    newCookies
-                    && newCookies !== read(this.cookies)
-                ) {
+                if (newCookies && newCookies !== read(this.cookies)) {
                     debug("updated cookies <- ", newCookies);
                     await write(this.cookies, newCookies);
                 }
@@ -502,8 +502,8 @@ export class YoutubeApp extends BaseApp {
             // If user did a bad request (eg. remove an
             // non-existing video from queue) bind restores the session.
             if (
-                e.response.statusCode === 400
-                || e.response.statusCode === 404
+                e.response.statusCode === 400 ||
+                e.response.statusCode === 404
             ) {
                 await this.bind();
             }
@@ -524,15 +524,16 @@ export class YoutubeApp extends BaseApp {
         //  3. base64("$a,$b") -> token
 
         const cookies = this.jar.getCookies(COOKIES_DOMAIN);
-        const sid = cookies.find(c => c.key === "SID")?.value;
-        const sapisid = cookies.find(c => c.key === "SAPISID")?.value;
+        const sid = cookies.find((c) => c.key === "SID")?.value;
+        const sapisid = cookies.find((c) => c.key === "SAPISID")?.value;
         if (!(sid && sapisid)) return;
 
         const encodedSid = Buffer.from(sid).toString("base64");
         const encodedSapisid = Buffer.from(sapisid).toString("base64");
 
-        const token = Buffer.from(`${encodedSid},${encodedSapisid}`)
-            .toString("base64");
+        const token = Buffer.from(`${encodedSid},${encodedSapisid}`).toString(
+            "base64",
+        );
 
         debug("generated xsrf token:", token);
 
@@ -562,7 +563,9 @@ export class YoutubeApp extends BaseApp {
 
     private playlistById(id: string) {
         if (!this.youtubish) {
-            throw new Error("Cannot resume playlist without youtubish credentials");
+            throw new Error(
+                "Cannot resume playlist without youtubish credentials",
+            );
         }
 
         return new YoutubePlaylist(this.youtubish, id);

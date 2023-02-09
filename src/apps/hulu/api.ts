@@ -17,12 +17,15 @@ const SERIES_HUB_URL_FORMAT = `${DISCOVER_BASE}/hubs/series/%s/?schema=2&referra
 const SEASON_HUB_URL_FORMAT = `${DISCOVER_BASE}/hubs/series/%s/season/%d?limit=999&schema=9&referral_host=www.hulu.com`;
 const RECENT_URL = `${DISCOVER_BASE}/hubs/watch-history?schema=9&referral_host=production`;
 
-const USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.121 Safari/537.36";
+const USER_AGENT =
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.121 Safari/537.36";
 
-const CSRF_URL = "https://www.hulu.com/api/3.0/generate_csrf_value?&for_hoth=true&path=/v1/web/chromecast/authenticate";
+const CSRF_URL =
+    "https://www.hulu.com/api/3.0/generate_csrf_value?&for_hoth=true&path=/v1/web/chromecast/authenticate";
 const CSRF_COOKIE_NAME = "_tcv";
 
-const CHROMECAST_AUTH_URL = "https://auth.hulu.com/v1/web/chromecast/authenticate";
+const CHROMECAST_AUTH_URL =
+    "https://auth.hulu.com/v1/web/chromecast/authenticate";
 
 export const supportedEntityTypes = new Set(["series", "movie", "episode"]);
 
@@ -113,7 +116,9 @@ export class HuluApi {
 
         if (!supportedEntityTypes.has(type)) {
             // for example, 'series'
-            throw new Error(`Unsupported entity '${entity.name}' (type '${type}')`);
+            throw new Error(
+                `Unsupported entity '${entity.name}' (type '${type}')`,
+            );
         }
 
         return entity;
@@ -129,7 +134,9 @@ export class HuluApi {
             url: SEARCH_URL,
         });
 
-        const { results } = groups.find((it: any) => it.category === "top results");
+        const { results } = groups.find(
+            (it: any) => it.category === "top results",
+        );
 
         return results.filter((item: any) => {
             // if it's prompting to upsell, we probably can't cast it
@@ -143,7 +150,7 @@ export class HuluApi {
     public episodeResolver(seriesId: string) {
         const api = this; // eslint-disable-line @typescript-eslint/no-this-alias
         return new EpisodeResolver<IHuluEpisode>({
-            async* episodesInSeason(seasonIndex: number) {
+            async *episodesInSeason(seasonIndex: number) {
                 let page: string | undefined;
                 do {
                     const { items, nextPage } = await api.episodesInSeason(
@@ -166,8 +173,12 @@ export class HuluApi {
     ) {
         debug(`Fetching episodesInSeason for series ${seriesId}`);
 
-        const url = pagination || SEASON_HUB_URL_FORMAT.replace("%s", seriesId)
-            .replace("%d", seasonNumber.toString());
+        const url =
+            pagination ||
+            SEASON_HUB_URL_FORMAT.replace("%s", seriesId).replace(
+                "%d",
+                seasonNumber.toString(),
+            );
 
         const json = await request({
             headers: {
@@ -206,7 +217,13 @@ export class HuluApi {
             url: SERIES_HUB_URL_FORMAT.replace("%s", seriesId),
         });
 
-        if (!(json.details && json.details.vod_items && json.details.vod_items.focus)) {
+        if (
+            !(
+                json.details &&
+                json.details.vod_items &&
+                json.details.vod_items.focus
+            )
+        ) {
             debug("Full response:", json);
             throw new Error(`Unable to find next episode for ${seriesId}`);
         }
@@ -217,7 +234,7 @@ export class HuluApi {
         return entity;
     }
 
-    public async* fetchRecent() {
+    public async *fetchRecent() {
         const { components } = await request({
             headers: this.generateHeaders(),
             json: true,
@@ -225,7 +242,7 @@ export class HuluApi {
         });
         if (!(components && components.length)) return;
 
-        const { items/* , pagination */ } = components[0];
+        const { items /* , pagination */ } = components[0];
         for (const item of items) {
             yield item;
         }
@@ -255,7 +272,10 @@ export class HuluApi {
         for (const raw of response.headers["set-cookie"]) {
             if (!raw.startsWith(CSRF_COOKIE_NAME)) continue;
 
-            const csrf = raw.substring(CSRF_COOKIE_NAME.length + 1, raw.indexOf(";"));
+            const csrf = raw.substring(
+                CSRF_COOKIE_NAME.length + 1,
+                raw.indexOf(";"),
+            );
             this.csrf = csrf;
             debug(`got CSRF token: ${csrf}`);
         }

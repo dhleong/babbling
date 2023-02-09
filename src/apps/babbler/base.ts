@@ -9,7 +9,9 @@ import { PlaybackTracker } from "../playback-tracker";
 import { awaitMessageOfType } from "../util";
 import { BabblerDaemon, RPC } from "./daemon";
 import {
-    IChromecastMetadata, IMediaMetadata, ITvShowChromecastMetadata,
+    IChromecastMetadata,
+    IMediaMetadata,
+    ITvShowChromecastMetadata,
     MetadataType,
     SenderCapabilities,
 } from "./model";
@@ -32,7 +34,7 @@ export interface IBabblerOpts {
 }
 
 function handleErrors<T>(promise: Promise<T>) {
-    return promise.catch(e => {
+    return promise.catch((e) => {
         throw e;
     });
 }
@@ -44,14 +46,15 @@ function formatMetadata(metadata: IMediaMetadata) {
     };
 
     if (metadata.images && metadata.images.length) {
-        formatted.images = metadata.images.map(imageUrl => ({
+        formatted.images = metadata.images.map((imageUrl) => ({
             url: imageUrl,
         }));
     }
 
     if (metadata.seriesTitle) {
         formatted.metadataType = MetadataType.TvShow;
-        (formatted as ITvShowChromecastMetadata).seriesTitle = metadata.seriesTitle;
+        (formatted as ITvShowChromecastMetadata).seriesTitle =
+            metadata.seriesTitle;
     }
 
     return formatted;
@@ -88,10 +91,7 @@ export class BabblerBaseApp<TMedia = unknown> extends BaseApp {
 
     private currentMedia: TMedia | undefined;
 
-    constructor(
-        device: ChromecastDevice,
-        private babblerOpts: IBabblerOpts,
-    ) {
+    constructor(device: ChromecastDevice, private babblerOpts: IBabblerOpts) {
         super(device, { sessionNs: MEDIA_NS, ...babblerOpts });
 
         if (!this.appId) {
@@ -105,7 +105,9 @@ export class BabblerBaseApp<TMedia = unknown> extends BaseApp {
 
         const tracker = new PlaybackTracker<TMedia>(this, {
             getCurrentMedia: () => this.currentMedia,
-            setCurrentMedia: media => { this.currentMedia = media; },
+            setCurrentMedia: (media) => {
+                this.currentMedia = media;
+            },
 
             onPlayerPaused: this.onPlayerPaused.bind(this),
         });
@@ -118,7 +120,8 @@ export class BabblerBaseApp<TMedia = unknown> extends BaseApp {
         const [m, args] = call;
         switch (m) {
             case "loadMedia": {
-                if (args.length < 1) throw new Error("Invalid args to loadMedia");
+                if (args.length < 1)
+                    throw new Error("Invalid args to loadMedia");
 
                 const [options] = args;
                 await this.loadMedia(options);
@@ -164,10 +167,7 @@ export class BabblerBaseApp<TMedia = unknown> extends BaseApp {
                 appOptions: this.babblerOpts.daemonOptions,
                 deviceName: this.device.name,
 
-                rpc: [
-                    "loadMedia",
-                    [item],
-                ],
+                rpc: ["loadMedia", [item]],
             });
         }
 
@@ -218,13 +218,14 @@ export class BabblerBaseApp<TMedia = unknown> extends BaseApp {
      * Called if we're running in daemon mode and the media
      * has been paused, or the player stopped
      */
-    protected async onPlayerPaused(currentTimeSeconds: number, media: TMedia | undefined) {
+    protected async onPlayerPaused(
+        currentTimeSeconds: number,
+        media: TMedia | undefined,
+    ) {
         // nop
     }
 
-    protected async loadInfoFor(
-        contentId: string,
-    ): Promise<IPlayableInfo> {
+    protected async loadInfoFor(contentId: string): Promise<IPlayableInfo> {
         throw new Error("loadInfoFor not implemented");
     }
 
@@ -276,19 +277,17 @@ export class BabblerBaseApp<TMedia = unknown> extends BaseApp {
         });
     }
 
-    private async handleQueueRequest(
-        s: StratoChannel,
-        message: any,
-    ) {
+    private async handleQueueRequest(s: StratoChannel, message: any) {
         const { contentId, mode, requestId } = message;
 
         debug("incoming queue request");
-        const items = mode === "before"
-            ? await this.loadQueueBefore(contentId, this.currentMedia)
-            : await this.loadQueueAfter(contentId, this.currentMedia);
+        const items =
+            mode === "before"
+                ? await this.loadQueueBefore(contentId, this.currentMedia)
+                : await this.loadQueueAfter(contentId, this.currentMedia);
 
         s.send({
-            response: items.map(item => ({
+            response: items.map((item) => ({
                 contentId: item.id,
                 currentTime: item.currentTime,
                 customData: this.createCustomData(item),

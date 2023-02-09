@@ -3,14 +3,16 @@ import { IWatchNextItem } from "./types";
 
 export function cleanTitle(title: string) {
     // NOTE: These two hyphens look the same but... they're not!
-    return title.replace(/( [-–])? Season \d+/, "")
-        .replace("(4K UHD)", "");
+    return title.replace(/( [-–])? Season \d+/, "").replace("(4K UHD)", "");
 }
 
 export function availabilityOf(item: any): IAvailability[] {
     const result: IAvailability[] = [];
     let isPrime = false;
-    if (item.decoratedTitle.computed.simple.PRIME_BADGE && item.analytics.local.isPrimeCustomer === "Y") {
+    if (
+        item.decoratedTitle.computed.simple.PRIME_BADGE &&
+        item.analytics.local.isPrimeCustomer === "Y"
+    ) {
         // included in active prime subscription
         result.push({ type: AvailabilityType.PRIME });
         isPrime = true;
@@ -21,7 +23,10 @@ export function availabilityOf(item: any): IAvailability[] {
         return result;
     }
 
-    if (item.titleActions.isPlayable && item.titleActions.playbackSummary.includes("You purchased")) {
+    if (
+        item.titleActions.isPlayable &&
+        item.titleActions.playbackSummary.includes("You purchased")
+    ) {
         // explicitly purchased
         result.push({ type: AvailabilityType.OWNED });
     } else if (item.titleActions.isPlayable && !isPrime) {
@@ -64,8 +69,9 @@ export function parseWatchlistItem(item: any) {
     const id = item.analytics.local.pageTypeId;
     return {
         availability,
-        cover: item.decoratedTitle.images.imageUrls.detail_page_cover
-            ?? item.decoratedTitle.images.imageUrls.detail_page_hero,
+        cover:
+            item.decoratedTitle.images.imageUrls.detail_page_cover ??
+            item.decoratedTitle.images.imageUrls.detail_page_hero,
         desc: item.decoratedTitle.catalog.synopsis,
         id,
         isInWatchlist: item.decoratedTitle.computed.simple.IS_IN_WATCHLIST,

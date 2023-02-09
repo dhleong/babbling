@@ -8,9 +8,10 @@ import {
 
 chai.should();
 
-const sleep = (millis: number) => new Promise(resolve => {
-    setTimeout(resolve, millis);
-});
+const sleep = (millis: number) =>
+    new Promise((resolve) => {
+        setTimeout(resolve, millis);
+    });
 
 describe("mergeAsyncIterables", () => {
     it("Respects original order", async () => {
@@ -20,7 +21,7 @@ describe("mergeAsyncIterables", () => {
                     yield 0;
                     yield 1;
                     yield 2;
-                }()),
+                })(),
             ]),
         );
 
@@ -34,12 +35,12 @@ describe("mergeAsyncIterables", () => {
                     yield 0;
                     yield 1;
                     yield 2;
-                }()),
+                })(),
                 (async function* generator() {
                     yield 3;
                     yield 4;
                     yield 5;
-                }()),
+                })(),
             ]),
         );
 
@@ -55,7 +56,7 @@ describe("mergeAsyncIterables", () => {
                     yield 1;
                     await sleep(20);
                     yield 2;
-                }()),
+                })(),
                 (async function* generator() {
                     await sleep(6);
                     yield 10;
@@ -63,7 +64,7 @@ describe("mergeAsyncIterables", () => {
                     yield 11;
                     await sleep(12);
                     yield 12;
-                }()),
+                })(),
             ]),
         );
 
@@ -79,7 +80,7 @@ describe("interleaveAsyncIterables", () => {
                     yield 0;
                     yield 1;
                     yield 2;
-                }()),
+                })(),
             ]),
         );
 
@@ -93,12 +94,12 @@ describe("interleaveAsyncIterables", () => {
                     yield 0;
                     yield 2;
                     yield 4;
-                }()),
+                })(),
                 (async function* generator() {
                     yield 1;
                     yield 3;
                     yield 5;
-                }()),
+                })(),
             ]),
         );
 
@@ -114,14 +115,14 @@ describe("interleaveAsyncIterables", () => {
                     yield 2;
                     await sleep(10);
                     yield 4;
-                }()),
+                })(),
                 (async function* generator() {
                     yield 1;
                     await sleep(10);
                     yield 3;
                     await sleep(10);
                     yield 5;
-                }()),
+                })(),
             ]),
         );
 

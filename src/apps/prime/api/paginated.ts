@@ -8,7 +8,7 @@ const debug = _debug("babbling:prime:api:paginated");
 interface IPaginationLink {
     requestContext: {
         transform: string;
-        requestParameters: { [key: string]: string },
+        requestParameters: { [key: string]: string };
     };
 }
 
@@ -28,7 +28,7 @@ export class Paginated<T> implements AsyncIterable<T> {
         private readonly getItems: (page: any) => any[] = getItemsDefault,
     ) {}
 
-    public async* [Symbol.asyncIterator](): AsyncIterator<T> {
+    public async *[Symbol.asyncIterator](): AsyncIterator<T> {
         const { firstPage } = this;
         yield* this.getItems(firstPage).map(this.transformItem);
 

@@ -49,7 +49,9 @@ export type IYoutubeOpts = IYoutubeAuth & {
     deviceName?: string;
 };
 
-export function isCookieAuth(auth: IYoutubeAuth | undefined): auth is IYoutubeCookieAuth {
+export function isCookieAuth(
+    auth: IYoutubeAuth | undefined,
+): auth is IYoutubeCookieAuth {
     if (!auth) return false;
     return (auth as any).cookies;
 }
@@ -59,7 +61,9 @@ export function isOauth(auth: IYoutubeAuth | undefined): auth is IYoutubeOAuth {
     return (auth as any).refreshToken;
 }
 
-export function isYoutubish(auth: IYoutubeAuth | undefined): auth is IYoutubishAuth {
+export function isYoutubish(
+    auth: IYoutubeAuth | undefined,
+): auth is IYoutubishAuth {
     if (!auth) return false;
     return (auth as any).youtubish;
 }
@@ -68,4 +72,6 @@ export function hasAuth(opts: IYoutubeOpts) {
     return isOauth(opts) || isCookieAuth(opts) || isYoutubish(opts);
 }
 
-export const YoutubeConfigurable = new CookiesConfigurable("https://www.youtube.com");
+export const YoutubeConfigurable = new CookiesConfigurable(
+    "https://www.youtube.com",
+);

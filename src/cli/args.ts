@@ -22,11 +22,13 @@ export function withDevice<T>(args: Argv<T>) {
 }
 
 export function withKey<T>(args: Argv<T>) {
-    return args.positional("key", {
-        choice: ["device"],
-        describe: "Config key",
-        type: "string",
-    }).demandOption("key");
+    return args
+        .positional("key", {
+            choice: ["device"],
+            describe: "Config key",
+            type: "string",
+        })
+        .demandOption("key");
 }
 
 export function withValue<T>(args: Argv<T>) {

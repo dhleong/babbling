@@ -23,6 +23,8 @@ export function createChromecastCommands(parser: yargs.Argv) {
                     receiverStatus,
                 )
                 .demandCommand(1),
-        () => { /* nop */ },
+        () => {
+            /* nop */
+        },
     );
 }

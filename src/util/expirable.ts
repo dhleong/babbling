@@ -4,7 +4,12 @@ export default class Expirable<T> {
     private value: T | typeof NO_VALUE = NO_VALUE;
     private valueExpires = 0;
 
-    constructor(private readonly factory: () => Promise<{ value: T, expiresInSeconds: number }>) {}
+    constructor(
+        private readonly factory: () => Promise<{
+            value: T;
+            expiresInSeconds: number;
+        }>,
+    ) {}
 
     public async get(): Promise<T> {
         const { value, valueExpires } = this;
@@ -12,9 +17,9 @@ export default class Expirable<T> {
             return value;
         }
 
-        const { value: newValue,  expiresInSeconds } = await this.factory();
+        const { value: newValue, expiresInSeconds } = await this.factory();
         this.value = newValue;
-        this.valueExpires = Date.now() + (expiresInSeconds * 1000);
+        this.valueExpires = Date.now() + expiresInSeconds * 1000;
         return newValue;
     }
 }

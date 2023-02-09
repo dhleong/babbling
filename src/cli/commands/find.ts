@@ -38,15 +38,19 @@ export async function pickBestMatchForTitle(
     for await (const item of candidates) {
         const appCandidatesCount = (candidatesPerApp[item.appName] ?? 0) + 1;
         if (appCandidatesCount > MAX_CANDIDATES) {
-            debug("Ignoring", item.title, "; ", item.appName, "already has checked >=", appCandidatesCount);
+            debug(
+                "Ignoring",
+                item.title,
+                "; ",
+                item.appName,
+                "already has checked >=",
+                appCandidatesCount,
+            );
             continue;
         }
         candidatesPerApp[item.appName] = appCandidatesCount;
 
-        const distance = leven(
-            item.title.toLowerCase(),
-            target,
-        );
+        const distance = leven(item.title.toLowerCase(), target);
         debug("distance @", item.title, " = ", distance);
 
         if (distance === 0) {
@@ -103,16 +107,16 @@ export default async function findByTitle(opts: IFindByTitleOpts) {
         throw new Error("--episode may not be provided without --season");
     }
 
-    const episodeNumber = opts.episode !== undefined
-        ? opts.episode
-        : 1;
+    const episodeNumber = opts.episode !== undefined ? opts.episode : 1;
     const episode = await player.findEpisodeFor(best, {
         episodeIndex: episodeNumber - 1,
         seasonIndex: opts.season - 1,
     });
 
     if (!episode) {
-        throw new Error(`No matching episode for ${best.title} on ${best.appName}`);
+        throw new Error(
+            `No matching episode for ${best.title} on ${best.appName}`,
+        );
     }
 
     let label = `S${opts.season}E${episodeNumber}`;

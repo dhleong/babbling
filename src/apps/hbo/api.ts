@@ -7,20 +7,22 @@ import { EpisodeContainer } from "../../util/episode-container";
 
 const debug = _debug("babbling:hbo:api");
 
-const CLIENT_CONFIG_URL = "https://sessions.api.hbo.com/sessions/v1/clientConfig";
+const CLIENT_CONFIG_URL =
+    "https://sessions.api.hbo.com/sessions/v1/clientConfig";
 const CONTENT_URL = "https://comet.api.hbo.com/content";
 const TOKENS_URL = "https://comet.api.hbo.com/tokens";
 const EXPRESS_CONTENT_URL_BASE = "https://comet.api.hbo.com/express-content/";
 
 export const HBO_HEADERS = {
     Accept: "application/vnd.hbo.v9.full+json",
-    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.86 Safari/537.36",
+    "User-Agent":
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.86 Safari/537.36",
     "X-Hbo-Client-Version": "Hadron/21.0.1.176 desktop (DESKTOP)",
 };
 
 const CLIENT_CONFIG_REQUEST = {
-    "contract": "codex:1.1.4.1",
-    "preferredLanguages": ["en-US"],
+    contract: "codex:1.1.4.1",
+    preferredLanguages: ["en-US"],
 };
 
 export interface IMarker {
@@ -52,7 +54,13 @@ export interface HboProfile {
     isPrimary: boolean;
 }
 
-type EntityType = "series" | "season" | "episode" | "extra" | "feature" | "franchise";
+type EntityType =
+    | "series"
+    | "season"
+    | "episode"
+    | "extra"
+    | "feature"
+    | "franchise";
 
 export function unpackUrn(urn: string) {
     const [, , entityType, id, , pageType] = urn.split(":");
@@ -110,9 +118,7 @@ export class HboApi {
     private refreshTokenExpires = 0;
     private cachedHeadWaiter: string | undefined;
 
-    constructor(
-        private token: Token,
-    ) {}
+    constructor(private token: Token) {}
 
     public async stopConcurrentStreams() {
         return this.request("delete", {
@@ -168,7 +174,8 @@ export class HboApi {
         for (const item of items) {
             const type = entityTypeFromUrn(item.id);
             if (type !== "season") continue;
-            if (!item.body.references || !item.body.references.episodes) continue;
+            if (!item.body.references || !item.body.references.episodes)
+                continue;
 
             const episodes = item.body.references.episodes as [];
             for (let i = 0; i < episodes.length; ++i) {
@@ -193,7 +200,9 @@ export class HboApi {
      * are included in this map.
      */
     public async getSeriesMarkers(): Promise<{ [urn: string]: ISeriesMarker }> {
-        const markersResult = await this.fetchContentBody("urn:hbo:series-markers:mine");
+        const markersResult = await this.fetchContentBody(
+            "urn:hbo:series-markers:mine",
+        );
         debug("markers result=", markersResult);
         return markersResult.seriesMarkers;
     }
@@ -241,33 +250,34 @@ export class HboApi {
 
         if (Array.isArray(episodeMarkers)) {
             return episodeMarkers;
-        } if (episodeMarkers) {
+        }
+        if (episodeMarkers) {
             return [episodeMarkers];
         }
 
         return [];
     }
 
-    public async* queryContinueWatching() {
+    public async *queryContinueWatching() {
         const urn = "urn:hbo:continue-watching:mine";
-        yield *this.queryPlayables(urn);
+        yield* this.queryPlayables(urn);
     }
 
-    public async* queryRecommended() {
+    public async *queryRecommended() {
         const urn = "urn:hbo:query:recommended-for-you";
-        yield *this.queryPlayables(urn);
+        yield* this.queryPlayables(urn);
     }
 
-    public async* search(title: string) {
+    public async *search(title: string) {
         const searchUrn = `urn:hbo:flexisearch:${encodeURIComponent(title)}`;
-        yield *this.queryPlayables(searchUrn);
+        yield* this.queryPlayables(searchUrn);
     }
 
     /*
      * Util methods
      */
 
-    private async* queryPlayables(queryUrn: string) {
+    private async *queryPlayables(queryUrn: string) {
         const content = await this.fetchContent([queryUrn]);
 
         // NOTE: the first one just has references to the ids of
@@ -297,10 +307,10 @@ export class HboApi {
             url: EXPRESS_CONTENT_URL_BASE + urn,
             qs: {
                 "api-version": "v9.0",
-                "brand": "HBO MAX",
+                brand: "HBO MAX",
                 "country-code": "US",
                 "device-code": "desktop",
-                "language": "en-US",
+                language: "en-US",
                 "product-code": "hboMax",
                 "profile-type": "adult",
                 "signed-in": "true",
@@ -308,7 +318,9 @@ export class HboApi {
         });
         const reference = result?.[0]?.body?.references?.items?.[0];
         if (reference == null) {
-            throw new Error(`Unable to resolve series from franchise URN: ${franchiseUrn}`);
+            throw new Error(
+                `Unable to resolve series from franchise URN: ${franchiseUrn}`,
+            );
         }
         const unpackedReference = unpackUrn(reference);
         return `urn:hbo:series:${unpackedReference.id}`;
@@ -318,7 +330,11 @@ export class HboApi {
         const token = read(this.token).trim();
 
         const tokenData = jwt.decode(token) as any;
-        if (!tokenData || !tokenData.payload || !tokenData.payload.tokenPropertyData) {
+        if (
+            !tokenData ||
+            !tokenData.payload ||
+            !tokenData.payload.tokenPropertyData
+        ) {
             debug("Invalid token:", tokenData);
             debug("From:", this.token);
             throw new Error("Invalid token");
@@ -349,7 +365,7 @@ export class HboApi {
             return cached;
         }
 
-        const headers = { Authorization: `Bearer ${token}`, ... HBO_HEADERS };
+        const headers = { Authorization: `Bearer ${token}`, ...HBO_HEADERS };
         const { payloadValues } = await request.post({
             body: CLIENT_CONFIG_REQUEST,
             headers,
@@ -357,10 +373,9 @@ export class HboApi {
             url: CLIENT_CONFIG_URL,
         });
 
-        const headWaiter =
-            Object.keys(payloadValues)
-                .map(key => key + ":" + payloadValues[key])
-                .join(",");
+        const headWaiter = Object.keys(payloadValues)
+            .map((key) => key + ":" + payloadValues[key])
+            .join(",");
 
         this.cachedHeadWaiter = headWaiter;
         return headWaiter;
@@ -368,7 +383,7 @@ export class HboApi {
 
     private async fetchContent(urns: string[]) {
         return this.request("post", {
-            body: urns.map(urn => ({ id: urn })),
+            body: urns.map((urn) => ({ id: urn })),
             json: true,
             url: CONTENT_URL,
         });
@@ -377,18 +392,24 @@ export class HboApi {
     private async fetchContentBody(urn: string) {
         const results = await this.fetchContent([urn]);
         if (results[0].statusCode !== 200) {
-            throw new Error(`Failed to fetch ${urn}: ${JSON.stringify(results[0])}`);
+            throw new Error(
+                `Failed to fetch ${urn}: ${JSON.stringify(results[0])}`,
+            );
         }
         return results[0].body;
     }
 
-    private async request(method: "delete" | "get" | "post", opts: OptionsWithUrl) {
+    private async request(
+        method: "delete" | "get" | "post",
+        opts: OptionsWithUrl,
+    ) {
         return request[method](await this.fillRequest(opts));
     }
 
     private async fillRequest(opts: OptionsWithUrl) {
         const token = await this.getRefreshToken();
-        const headWaiter = token != null ? await this.getHeadWaiter(token) : undefined;
+        const headWaiter =
+            token != null ? await this.getHeadWaiter(token) : undefined;
         return {
             headers: {
                 Authorization: `Bearer ${token}`,
@@ -408,10 +429,7 @@ export class HboApi {
         // NOTE: I'm not sure if this step is 100% necessary, but
         // it may help to ensure refreshed tokens....
 
-        const {
-            clientId,
-            deviceSerialNumber,
-        } = await this.extractTokenInfo();
+        const { clientId, deviceSerialNumber } = await this.extractTokenInfo();
 
         // this step fetches some sort of session token that is *not*
         // logged in
@@ -463,7 +481,10 @@ export class HboApi {
         return this.refreshToken as string;
     }
 
-    private async acceptTokens(tokens: { refresh_token: string, expires_in: number }, { persist = true }: { persist?: boolean } = {}) {
+    private async acceptTokens(
+        tokens: { refresh_token: string; expires_in: number },
+        { persist = true }: { persist?: boolean } = {},
+    ) {
         // cache this until expired (see: expires_in)
         this.refreshTokenExpires = Date.now() + tokens.expires_in;
         this.refreshToken = tokens.refresh_token;
@@ -477,21 +498,32 @@ export class HboApi {
     }
 
     private async loadProfileToken(profile: HboProfile) {
-        const profileTokens = await this.postTokensRequest({
-            grant_type: "user_refresh_profile",
-            profile_id: profile.profileId,
-            refresh_token: this.refreshToken,
-        }, this.refreshToken);
+        const profileTokens = await this.postTokensRequest(
+            {
+                grant_type: "user_refresh_profile",
+                profile_id: profile.profileId,
+                refresh_token: this.refreshToken,
+            },
+            this.refreshToken,
+        );
         if (profileTokens.isUserLoggedIn) {
             debug("Loaded profile", profile.name);
             return this.acceptTokens(profileTokens);
         }
 
-        debug("Failed to load profile token for", profile.name, "; received=", profileTokens);
+        debug(
+            "Failed to load profile token for",
+            profile.name,
+            "; received=",
+            profileTokens,
+        );
     }
 
     private postTokensRequest(body: unknown, token?: string) {
-        const headers = { Authorization: undefined as string | undefined, ... HBO_HEADERS };
+        const headers = {
+            Authorization: undefined as string | undefined,
+            ...HBO_HEADERS,
+        };
         if (token != null) {
             headers.Authorization = `Bearer ${token}`;
         }

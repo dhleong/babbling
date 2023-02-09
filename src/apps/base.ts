@@ -1,10 +1,6 @@
 import _debug from "debug";
 
-import {
-    ChromecastDevice,
-    StratoApp,
-    StratoChannel,
-} from "stratocaster";
+import { ChromecastDevice, StratoApp, StratoChannel } from "stratocaster";
 
 import { IApp } from "../app";
 
@@ -24,10 +20,7 @@ export abstract class BaseApp implements IApp, IBaseAppProps {
     private app: StratoApp | undefined;
     private session: StratoChannel | undefined;
 
-    constructor(
-        protected device: ChromecastDevice,
-        props: IBaseAppProps,
-    ) {
+    constructor(protected device: ChromecastDevice, props: IBaseAppProps) {
         this.appId = props.appId;
         this.sessionNs = props.sessionNs;
     }
@@ -73,9 +66,7 @@ export abstract class BaseApp implements IApp, IBaseAppProps {
         return this.app;
     }
 
-    private async joinOrRunSession(
-        app: StratoApp, ns: string,
-    ) {
+    private async joinOrRunSession(app: StratoApp, ns: string) {
         debug("Got app", app.id, "opening session....");
 
         const s = await app.channel(ns);

@@ -15,10 +15,16 @@ import { toArray } from "../../async";
 import { IFirstPage, Paginated } from "./api/paginated";
 import { IPrimeApiOpts, IPrimeOpts } from "./config";
 import {
-    AvailabilityType, IAvailability, ISearchOpts, ISearchResult,
+    AvailabilityType,
+    IAvailability,
+    ISearchOpts,
+    ISearchResult,
 } from "./model";
 import {
-    cleanTitle, parseWatchlistItem, parseWatchNextItem, seasonNumberFromTitle,
+    cleanTitle,
+    parseWatchlistItem,
+    parseWatchNextItem,
+    seasonNumberFromTitle,
 } from "./api/parsing";
 import { IEpisode, IWatchNextItem } from "./api/types";
 
@@ -74,16 +80,14 @@ function getIpAddress() {
     }
 }
 
-export async function generateFrcCookies(
-    deviceId: string,
-    language: string,
-) {
+export async function generateFrcCookies(deviceId: string, language: string) {
     const cookies = JSON.stringify({
         ApplicationName: APP_NAME,
         ApplicationVersion: APP_VERSION,
         DeviceLanguage: language,
         DeviceName: "walleye/google/Pixel 2",
-        DeviceOSVersion: "google/walleye/walleye:8.1.0/OPM1.171019.021/4565141:user/release-keys",
+        DeviceOSVersion:
+            "google/walleye/walleye:8.1.0/OPM1.171019.021/4565141:user/release-keys",
         IpAddress: getIpAddress(),
         ScreenHeightPixels: "1920",
         ScreenWidthPixels: "1280",
@@ -156,7 +160,11 @@ function isNextUpCollection(c: any): boolean {
     }
 
     if (c.itemTypeToActionMap && c.itemTypeToActionMap.titleCard) {
-        return c.itemTypeToActionMap.titleCard.includes((action: any) => action.parameters && action.parameters.listType === "AIV:NextUp");
+        return c.itemTypeToActionMap.titleCard.includes(
+            (action: any) =>
+                action.parameters &&
+                action.parameters.listType === "AIV:NextUp",
+        );
     }
 
     return false;
@@ -168,12 +176,14 @@ function hasFinished(info: IWatchNextItem) {
 
     // amazon's completedAfter numbers can be bogus, especially
     // if the item has ads at the end. screw that.
-    return (info.watchedSeconds / info.completedAfter) > 0.91;
+    return info.watchedSeconds / info.completedAfter > 0.91;
 }
 
 // ======= internal types =================================
 
-type PromiseType<T extends Promise<any>> = T extends Promise<infer R> ? R : never;
+type PromiseType<T extends Promise<any>> = T extends Promise<infer R>
+    ? R
+    : never;
 export type ITitleInfo = PromiseType<ReturnType<PrimeApi["getTitleInfo"]>>;
 
 // ======= public interface ===============================
@@ -197,10 +207,9 @@ export class PrimeApi {
 
     constructor(options: IPrimeApiOpts = {}) {
         this.opts = options;
-        this.deviceId = options.deviceId || generateDeviceId(
-            ID_NAMESPACE,
-            os.hostname(),
-        ).substring(0, 32);
+        this.deviceId =
+            options.deviceId ||
+            generateDeviceId(ID_NAMESPACE, os.hostname()).substring(0, 32);
 
         // NOTE: amazon apparently requires an older version of TLS than
         // NodeJS supports on recent versions, so if we want to use
@@ -222,10 +231,7 @@ export class PrimeApi {
                 domain: ".amazon.com",
                 website_cookies: [],
             },
-            requested_extensions: [
-                "device_info",
-                "customer_info",
-            ],
+            requested_extensions: ["device_info", "customer_info"],
             requested_token_type: ["bearer", "mac_dms", "website_cookies"],
         };
 
@@ -257,7 +263,9 @@ export class PrimeApi {
         debug("login successful = ", success);
         debug("cookies = ", success.tokens.website_cookies);
         return {
-            cookies: success.tokens.website_cookies.map((c: any) => `${c.Name}=${c.Value}`).join("; "),
+            cookies: success.tokens.website_cookies
+                .map((c: any) => `${c.Name}=${c.Value}`)
+                .join("; "),
             refreshToken: success.tokens.bearer.refresh_token,
         };
     }
@@ -287,7 +295,7 @@ export class PrimeApi {
         return response.code;
     }
 
-    public async* search(
+    public async *search(
         title: string,
         searchOpts: ISearchOpts = {},
     ): AsyncIterable<ISearchResult> {
@@ -317,8 +325,9 @@ export class PrimeApi {
                 continue;
             }
 
-            const purchasable = itemWithWatchlist.availability
-                .filter(a => !playableAvailability.has(a.type));
+            const purchasable = itemWithWatchlist.availability.filter(
+                (a) => !playableAvailability.has(a.type),
+            );
 
             const compositeAvailability = item.availability.concat(purchasable);
             if (!compositeAvailability.length) {
@@ -326,17 +335,21 @@ export class PrimeApi {
                 continue;
             }
 
-            yield ({
+            yield {
                 ...itemWithWatchlist,
                 ...item,
                 availability: compositeAvailability,
-                isPurchased: compositeAvailability
-                    .find(a => a.type === AvailabilityType.OWNED) !== undefined,
-            });
+                isPurchased:
+                    compositeAvailability.find(
+                        (a) => a.type === AvailabilityType.OWNED,
+                    ) !== undefined,
+            };
         }
     }
 
-    public async guessResumeInfo(titleId: string): Promise<IResumeInfo | undefined> {
+    public async guessResumeInfo(
+        titleId: string,
+    ): Promise<IResumeInfo | undefined> {
         const [titleInfo, watchNext] = await Promise.all([
             this.getTitleInfo(titleId),
             this.watchNextItems(),
@@ -357,15 +370,18 @@ export class PrimeApi {
 
         for await (const info of watchNext) {
             debug(
-                "Check:", info.titleId, ": ", info.title,
-                "(given:", titleId, ")",
+                "Check:",
+                info.titleId,
+                ": ",
+                info.title,
+                "(given:",
+                titleId,
+                ")",
             );
             if (
-                info.titleId === titleId
-                || (
-                    titleInfo.seasonIdSet
-                    && titleInfo.seasonIdSet.has(info.titleId)
-                )
+                info.titleId === titleId ||
+                (titleInfo.seasonIdSet &&
+                    titleInfo.seasonIdSet.has(info.titleId))
             ) {
                 debug(titleInfo.series.title, "found in watchNext:", info);
                 const upNext = await this.resolveNext(info);
@@ -405,16 +421,19 @@ export class PrimeApi {
             "/cdp/mobile/getDataByTransform/v1/dv-ios/home/v1.js",
         );
 
-        const homePaginated = new Paginated(this, resource,
-            c => {
+        const homePaginated = new Paginated(
+            this,
+            resource,
+            (c) => {
                 if (isWatchNextCarousel(c)) {
                     return c;
                 }
             },
-            p => p.collections);
+            (p) => p.collections,
+        );
 
         const info: {
-            watchNext?: IFirstPage,
+            watchNext?: IFirstPage;
         } = {};
 
         for await (const collection of homePaginated) {
@@ -432,7 +451,7 @@ export class PrimeApi {
      * like watchUrl, id while adding cover art (and, at least for now,
      * lacking pagination)
      */
-    public async* nextUpItems() {
+    public async *nextUpItems() {
         const { landingPage } = await this.swiftApiRequest(
             "/cdp/discovery/GetLandingPage",
             {
@@ -440,7 +459,14 @@ export class PrimeApi {
                 version: "mobile-android-v1",
             },
         );
-        if (!(landingPage && landingPage.sections && landingPage.sections.center)) return;
+        if (
+            !(
+                landingPage &&
+                landingPage.sections &&
+                landingPage.sections.center
+            )
+        )
+            return;
 
         const { collections } = landingPage.sections.center;
         if (!(collections && collections.collectionList)) return;
@@ -466,20 +492,20 @@ export class PrimeApi {
         );
 
         const info: {
-            episodes?: IEpisode[],
+            episodes?: IEpisode[];
             movie?: {
-                title: string,
-                titleId: string,
-            },
+                title: string;
+                titleId: string;
+            };
             series?: {
-                title: string,
-                titleId: string,
-            },
-            seasonIds?: string[],
-            seasonIdSet?: Set<string>,
+                title: string;
+                titleId: string;
+            };
+            seasonIds?: string[];
+            seasonIdSet?: Set<string>;
             selectedEpisode?: IEpisode & {
                 isSelected?: boolean;
-            },
+            };
         } = {};
 
         if (resource.show) {
@@ -547,7 +573,9 @@ export class PrimeApi {
         debug("watchNext is already complete; moving on...");
 
         if (seasonTitle.episodes) {
-            const lastIndex = seasonTitle.episodes.findIndex(e => e.titleId === info.resumeTitleId);
+            const lastIndex = seasonTitle.episodes.findIndex(
+                (e) => e.titleId === info.resumeTitleId,
+            );
             if (lastIndex < seasonTitle.episodes.length - 1) {
                 return {
                     ...seasonTitle.episodes[lastIndex + 1],
@@ -576,7 +604,9 @@ export class PrimeApi {
             return;
         }
 
-        const upNextIndex = titleInfo.episodes.findIndex(ep => ep.titleId === upNext.titleId);
+        const upNextIndex = titleInfo.episodes.findIndex(
+            (ep) => ep.titleId === upNext.titleId,
+        );
         if (upNextIndex === -1) {
             debug(`Couldn't find ${upNext.titleId} in episodes; drop queue`);
             return;
@@ -666,7 +696,9 @@ export class PrimeApi {
             this.accessTokenExpiresAt = Date.now() + response.expires_in * 1000;
             return this.accessToken;
         } catch (e) {
-            throw new Error(`Unable to acquire access token\n${(e as Error).stack}`);
+            throw new Error(
+                `Unable to acquire access token\n${(e as Error).stack}`,
+            );
         }
     }
 
@@ -674,10 +706,7 @@ export class PrimeApi {
      * This search method has reliable entitlement info, but fails
      * to provide watchlist attachment
      */
-    private async* searchWithEntitlement(
-        title: string,
-        _opts: ISearchOpts,
-    ) {
+    private async *searchWithEntitlement(title: string, _opts: ISearchOpts) {
         const response = await this.swiftApiRequest(
             "/cdp/mobile/getDataByTransform/v1/dv-ios/search/initial/v2.js",
             {
@@ -696,15 +725,17 @@ export class PrimeApi {
                 } else if (item.entitlement.message === "Purchased") {
                     availability.push({ type: AvailabilityType.OWNED });
                 } else {
-                    availability.push({ type: AvailabilityType.OTHER_SUBSCRIPTION });
+                    availability.push({
+                        type: AvailabilityType.OTHER_SUBSCRIPTION,
+                    });
                 }
             }
 
             const itemTitle = item.title;
             const type: ContentType = item.contentType.toUpperCase();
             if (
-                type === ContentType.SEASON
-                    && seasonNumberFromTitle(itemTitle) > 1
+                type === ContentType.SEASON &&
+                seasonNumberFromTitle(itemTitle) > 1
             ) {
                 // only include the first season of an item
                 continue;
@@ -727,19 +758,19 @@ export class PrimeApi {
      * This search method has watchlist presence included, but fails
      * to provide "Free with ads" availability
      */
-    private async* searchWithWatchlist(
-        title: string,
-        _opts: ISearchOpts,
-    ) {
-        const items = await this.swiftApiCollectionRequest("/swift/page/search", {
-            phrase: title,
-        });
+    private async *searchWithWatchlist(title: string, _opts: ISearchOpts) {
+        const items = await this.swiftApiCollectionRequest(
+            "/swift/page/search",
+            {
+                phrase: title,
+            },
+        );
 
         for (const item of items) {
             const { type } = item.decoratedTitle.catalog;
             if (
-                type === ContentType.SEASON
-                    && item.decoratedTitle.catalog.seasonNumber > 1
+                type === ContentType.SEASON &&
+                item.decoratedTitle.catalog.seasonNumber > 1
             ) {
                 // only include the first season of an item
                 continue;
@@ -749,7 +780,10 @@ export class PrimeApi {
         }
     }
 
-    private async swiftApiCollectionRequest(path: string, qs: Record<string, unknown> = {}) {
+    private async swiftApiCollectionRequest(
+        path: string,
+        qs: Record<string, unknown> = {},
+    ) {
         const response = await this.swiftApiRequest(path, qs);
         const widgets = response.page.sections.center.widgets.widgetList;
         for (const w of widgets) {
@@ -761,7 +795,10 @@ export class PrimeApi {
         throw new Error("No collection found");
     }
 
-    private async swiftApiRequest(path: string, qs: Record<string, unknown> = {}) {
+    private async swiftApiRequest(
+        path: string,
+        qs: Record<string, unknown> = {},
+    ) {
         const accessToken = await this.getAccessToken();
 
         const headers = {
