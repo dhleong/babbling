@@ -184,7 +184,7 @@ export class PrimePlayerChannel implements IPlayerChannel<PrimeApp> {
         }
     }
 
-    public async *queryRecommended(): AsyncIterable<
+    public async *queryRecent(): AsyncIterable<
         IQueryResult & { titleId: string }
     > {
         const api = new PrimeApi(this.options);
@@ -199,6 +199,12 @@ export class PrimePlayerChannel implements IPlayerChannel<PrimeApp> {
                 url: this.urlFor(result),
             };
         }
+    }
+
+    public async *queryRecommended(): AsyncIterable<
+        IQueryResult & { titleId: string }
+    > {
+        yield* this.queryRecent();
     }
 
     public urlFor(item: { titleId: string }) {

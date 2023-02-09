@@ -124,7 +124,7 @@ export class HuluPlayerChannel implements IPlayerChannel<HuluApp> {
         }
     }
 
-    public async *queryRecommended() {
+    public async *queryRecent() {
         const results = new HuluApi(this.options).fetchRecent();
         for await (const item of results) {
             const { id } = item;
@@ -150,5 +150,9 @@ export class HuluPlayerChannel implements IPlayerChannel<HuluApp> {
                 },
             };
         }
+    }
+
+    public async *queryRecommended() {
+        yield* this.queryRecent();
     }
 }

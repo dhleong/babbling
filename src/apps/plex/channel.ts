@@ -32,11 +32,15 @@ export class PlexPlayerChannel implements IPlayerChannel<PlexApp> {
         };
     }
 
-    public async *queryRecommended() {
+    public async *queryRecent() {
         const items = await this.api.getContinueWatching();
         for (const item of items) {
             yield await this.itemToQueryResult(item);
         }
+    }
+
+    public async *queryRecommended() {
+        yield* this.queryRecent();
     }
 
     public async *queryByTitle(title: string): AsyncIterable<IQueryResult> {
