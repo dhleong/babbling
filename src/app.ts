@@ -146,10 +146,15 @@ export interface IPlayerChannel<TSelf extends IApp> {
 
     /**
      * Search for {@see Player.play}'able media per the source
-     * apps' recommendations. Could be (but not necessarily)
-     * based on recency
+     * apps' recommendations.
      */
     queryRecommended?(): AsyncIterable<IQueryResult>;
+
+    /**
+     * Search for {@see Player.play}'able media per the source
+     * apps' recently viewed media.
+     */
+    queryRecent?(): AsyncIterable<IQueryResult>;
 }
 
 export interface IPlayerEnabledConstructor<
