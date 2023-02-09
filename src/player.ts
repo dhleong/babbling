@@ -85,7 +85,9 @@ export class Player {
         // constructed in this file and, in general, should only be constructed
         // via PlayerBuilder anyway
         // eslint-disable-next-line @typescript-eslint/no-use-before-define
-        return new PlayerBuilder(this.apps, this.devices, this.opts);
+        return new PlayerBuilder([...this.apps], [...this.devices], {
+            ...this.opts,
+        });
     }
 
     public async playUrl(url: string, opts: IPlayableOptions = {}) {
@@ -361,6 +363,6 @@ export class PlayerBuilder {
             throw new Error("You must have at least one app enabled");
         }
 
-        return new Player(this.apps, this.devices, this.opts);
+        return new Player([...this.apps], [...this.devices], { ...this.opts });
     }
 }
