@@ -20,10 +20,7 @@ const PLAYBACK_URL = "https://www.disneyplus.com/video/";
 const SERIES_URL = "https://www.disneyplus.com/series/";
 const MOVIE_URL = "https://www.disneyplus.com/movies/";
 
-const RECOMMENDATION_SET_TYPES = new Set([
-    "RecommendationSet",
-    "ContinueWatchingSet",
-]);
+type CollectionSetType = "RecommendationSet" | "ContinueWatchingSet";
 
 function getSeriesIdFromUrl(url: string) {
     const m = url.match(/\/series\/[^/]+\/(.+)$/);
@@ -107,11 +104,17 @@ export class DisneyPlayerChannel implements IPlayerChannel<DisneyApp> {
         }
     }
 
+    public async *queryRecent() {
+        yield* this.queryCollectionType("ContinueWatchingSet");
+    }
+
     public async *queryRecommended() {
+        yield* this.queryCollectionType("RecommendationSet");
+    }
+
+    private async *queryCollectionType(type: CollectionSetType) {
         const collections = await this.api.getCollections();
-        const toFetch = collections.filter((coll) =>
-            RECOMMENDATION_SET_TYPES.has(coll.type),
-        );
+        const toFetch = collections.filter((coll) => coll.type === type);
 
         yield* mergeAsyncIterables(
             toFetch.map((coll) => this.collectionIterable(coll)),
