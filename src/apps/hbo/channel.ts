@@ -135,11 +135,12 @@ export class HboPlayerChannel implements IPlayerChannel<HboApp> {
         }
     }
 
-    public async *queryRecommended() {
-        // NOTE: HBO actually has a "recommended," but the other apps are returning
-        // "continue watching" content here, so until we update the API to have that
-        // as a distinct method, let's stay internally consistent
+    public async *queryRecent() {
         yield* this.yieldPlayables(this.api.queryContinueWatching());
+    }
+
+    public async *queryRecommended() {
+        yield* this.yieldPlayables(this.api.queryRecommended());
     }
 
     private async *yieldPlayables(source: ReturnType<typeof this.api.search>) {
