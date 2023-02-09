@@ -3,9 +3,7 @@ import _debug from "debug";
 import os from "os";
 import pathlib from "path";
 
-import {
-    IApp, IPlayerEnabledConstructor, Opts,
-} from "../app";
+import { IApp, IPlayerEnabledConstructor, Opts } from "../app";
 import { BabblerBaseApp } from "../apps/babbler/base";
 import { IWritableToken } from "../token";
 import { configInPath, readConfig } from "./commands/config";
@@ -21,7 +19,10 @@ export const DEFAULT_CONFIG_PATH = pathlib.join(
     ".config/babbling/auto-config.json",
 );
 
-type ConfigPair<TOpts extends Opts> = [IPlayerEnabledConstructor<TOpts, IApp>, Opts];
+type ConfigPair<TOpts extends Opts> = [
+    IPlayerEnabledConstructor<TOpts, IApp>,
+    Opts,
+];
 
 class AppConfigToken implements IWritableToken {
     constructor(
@@ -55,18 +56,15 @@ class AppConfigToken implements IWritableToken {
     }
 }
 
-export async function* importConfigFromJson(
-    configPath: string,
-    config: any,
-) {
+export async function* importConfigFromJson(configPath: string, config: any) {
     for await (const app of getAppConstructors()) {
         const appConfig = config[app.name];
         if (!appConfig) continue;
 
         if (
-            app.prototype instanceof BabblerBaseApp
-            && config.babbler
-            && !appConfig.appId
+            app.prototype instanceof BabblerBaseApp &&
+            config.babbler &&
+            !appConfig.appId
         ) {
             appConfig.appId = config.babbler;
         }

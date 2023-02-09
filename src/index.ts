@@ -13,4 +13,7 @@ export * from "./cast";
 export { BaseApp } from "./apps/base";
 export { BabblerBaseApp } from "./apps/babbler/base";
 export { awaitMessageOfType } from "./apps/util";
-export { IPlaybackTrackerEvents, PlaybackTracker } from "./apps/playback-tracker";
+export {
+    IPlaybackTrackerEvents,
+    PlaybackTracker,
+} from "./apps/playback-tracker";

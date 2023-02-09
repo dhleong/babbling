@@ -22,16 +22,22 @@ import { AvailabilityType, IAvailability, ISearchResult } from "./model";
 const debug = _debug("babbling:PrimeApp:player");
 
 function isAvailableOnlyWithAds(availability: IAvailability[]) {
-    const canPlayWithAds = availability.findIndex(
-        a => a.type === AvailabilityType.FREE_WITH_ADS,
-    ) !== -1;
+    const canPlayWithAds =
+        availability.findIndex(
+            (a) => a.type === AvailabilityType.FREE_WITH_ADS,
+        ) !== -1;
     if (!canPlayWithAds) return false;
 
     // we can play with ads, so it's *only* available with ads iff we don't find
     // another availability type
-    return availability.findIndex(a => a.type === AvailabilityType.PRIME
-            || a.type === AvailabilityType.OTHER_SUBSCRIPTION
-            || a.type === AvailabilityType.OWNED) === -1;
+    return (
+        availability.findIndex(
+            (a) =>
+                a.type === AvailabilityType.PRIME ||
+                a.type === AvailabilityType.OTHER_SUBSCRIPTION ||
+                a.type === AvailabilityType.OWNED,
+        ) === -1
+    );
 }
 
 function pickTitleIdFromUrl(url: string) {
@@ -72,7 +78,8 @@ function playableForMovieById(id: string) {
 }
 
 function playableFromTitleId(titleId: string) {
-    return async (app: PrimeApp, _opts: IPlayableOptions) => app.resumeSeriesByTitleId(titleId);
+    return async (app: PrimeApp, _opts: IPlayableOptions) =>
+        app.resumeSeriesByTitleId(titleId);
 }
 
 function playableFromSearchResult(result: ISearchResult) {
@@ -90,9 +97,7 @@ interface IPrimeResultExtras {
 }
 
 export class PrimePlayerChannel implements IPlayerChannel<PrimeApp> {
-    constructor(
-        private readonly options: IPrimeOpts,
-    ) {}
+    constructor(private readonly options: IPrimeOpts) {}
 
     public ownsUrl(url: string): boolean {
         // TODO other domains
@@ -111,7 +116,8 @@ export class PrimePlayerChannel implements IPlayerChannel<PrimeApp> {
 
         if (titleIdInfo.series) {
             return playableFromTitleId(titleIdInfo.series.titleId);
-        } if (titleIdInfo.movie) {
+        }
+        if (titleIdInfo.movie) {
             return playableForMovieById(titleIdInfo.movie.titleId);
         }
 
@@ -129,8 +135,8 @@ export class PrimePlayerChannel implements IPlayerChannel<PrimeApp> {
 
         const extras = item as unknown as IPrimeResultExtras;
         if (
-            extras.type !== ContentType.SERIES
-            && extras.type !== ContentType.SEASON
+            extras.type !== ContentType.SERIES &&
+            extras.type !== ContentType.SEASON
         ) {
             // shortcut out; it definitely does not have episodes
             return;
@@ -158,7 +164,7 @@ export class PrimePlayerChannel implements IPlayerChannel<PrimeApp> {
         };
     }
 
-    public async* queryByTitle(
+    public async *queryByTitle(
         title: string,
     ): AsyncIterable<IQueryResult & IPrimeResultExtras> {
         const api = new PrimeApi(this.options);
@@ -178,7 +184,9 @@ export class PrimePlayerChannel implements IPlayerChannel<PrimeApp> {
         }
     }
 
-    public async* queryRecommended(): AsyncIterable<IQueryResult & { titleId: string }> {
+    public async *queryRecommended(): AsyncIterable<
+        IQueryResult & { titleId: string }
+    > {
         const api = new PrimeApi(this.options);
         for await (const result of api.nextUpItems()) {
             yield {

@@ -13,7 +13,8 @@ const debug = _debug("babbling:DisneyApp:api");
 const CLIENT_API_KEY_URL = "https://www.disneyplus.com/home";
 const TOKEN_URL = "https://global.edge.bamgrid.com/token";
 
-const GRAPHQL_URL_BASE = "https://search-api-disney.svcs.dssott.com/svc/search/v2/graphql/persisted/query/core/";
+const GRAPHQL_URL_BASE =
+    "https://search-api-disney.svcs.dssott.com/svc/search/v2/graphql/persisted/query/core/";
 const SEARCH_KEY = "disneysearch";
 const RESUME_SERIES_KEY = "ContinueWatchingSeries";
 
@@ -21,31 +22,36 @@ const MIN_TOKEN_VALIDITY_MS = 5 * 60_000;
 
 export interface ISearchHit {
     images: Array<{
-        purpose: string,
-        url: string,
+        purpose: string;
+        url: string;
     }>;
 
     mediaRights: {
-        downloadBlocked: true,
-        rewind: true,
+        downloadBlocked: true;
+        rewind: true;
     };
 
     milestones: Array<{
-        id: "95985aab-01a8-4ad0-948a-ed7c86b2a026",
+        id: "95985aab-01a8-4ad0-948a-ed7c86b2a026";
         milestoneTime: Array<{
-            startMillis: number,
-            type: "offset",
+            startMillis: number;
+            type: "offset";
         }>;
-        milestoneType: "up_next" | "intro_start" | "intro_end" | "recap_start" | "recap_end",
+        milestoneType:
+            | "up_next"
+            | "intro_start"
+            | "intro_end"
+            | "recap_start"
+            | "recap_end";
     }>;
 
     texts: Array<{
-        content: string,
-        field: "description" | "title",
-        language: string,
-        sourceEntity: "series" | "program",
-        targetEntity: "series" | "program",
-        type: "brief" | "full" | "medium" | "slug" | "sort",
+        content: string;
+        field: "description" | "title";
+        language: string;
+        sourceEntity: "series" | "program";
+        targetEntity: "series" | "program";
+        type: "brief" | "full" | "medium" | "slug" | "sort";
     }>;
 
     family?: {
@@ -72,19 +78,21 @@ export interface IDisneyEpisode extends ISearchHit {
 }
 
 export interface ICollection {
-    meta: { hits: number, offset: number, page_size: number };
+    meta: { hits: number; offset: number; page_size: number };
     id: string;
     items?: ISearchHit[];
     title: string;
-    type: "BecauseYouSet" | "ContinueWatchingSet" | "CuratedSet" | "RecommendationSet"; // others?
+    type:
+        | "BecauseYouSet"
+        | "ContinueWatchingSet"
+        | "CuratedSet"
+        | "RecommendationSet"; // others?
 }
 
 export class DisneyApi {
-    private clientInfo?: { apiKey: string, id: string };
+    private clientInfo?: { apiKey: string; id: string };
 
-    constructor(
-        private readonly options: IDisneyOpts,
-    ) {}
+    constructor(private readonly options: IDisneyOpts) {}
 
     public async getResumeForFamilyId(familyId: string) {
         const data = await this.request("ContinueWatchingVideo", {
@@ -160,9 +168,7 @@ export class DisneyApi {
         };
     }
 
-    public async search(
-        query: string,
-    ) {
+    public async search(query: string) {
         debug(`search: ${query}`);
 
         const disneysearch = await this.request(SEARCH_KEY, {
@@ -170,7 +176,9 @@ export class DisneyApi {
             q: query,
         });
 
-        return disneysearch.hits.map((obj: any) => obj.hit as ISearchHit) as ISearchHit[];
+        return disneysearch.hits.map(
+            (obj: any) => obj.hit as ISearchHit,
+        ) as ISearchHit[];
     }
 
     public async getCollections() {
@@ -180,7 +188,7 @@ export class DisneyApi {
         });
 
         const collections: ICollection[] = containers
-        // NOTE: these are usually links to eg Marvel collection
+            // NOTE: these are usually links to eg Marvel collection
             .filter((container: any) => container.set.contentClass !== "brand")
             .map((container: any) => {
                 const { set } = container;
@@ -228,8 +236,10 @@ export class DisneyApi {
         debug("loaded seasons for", encodedSeriesId, " = ", seasons);
         const api = this; // eslint-disable-line @typescript-eslint/no-this-alias
         return new EpisodeResolver<IDisneyEpisode>({
-            async* episodesInSeason(seasonIndex: number) {
-                yield* api.getSeasonEpisodeBatchesById(seasons[seasonIndex].seasonId);
+            async *episodesInSeason(seasonIndex: number) {
+                yield* api.getSeasonEpisodeBatchesById(
+                    seasons[seasonIndex].seasonId,
+                );
             },
         });
     }
@@ -243,7 +253,7 @@ export class DisneyApi {
         return { token, refreshToken };
     }
 
-    private async* getSeasonEpisodeBatchesById(seasonId: string) {
+    private async *getSeasonEpisodeBatchesById(seasonId: string) {
         const episodePageSize = 25; // can we bump this?
         let episodePage = 0;
 
@@ -360,10 +370,7 @@ export class DisneyApi {
         return result;
     }
 
-    private async request(
-        graphQlKey: string,
-        variablesMap: any,
-    ) {
+    private async request(graphQlKey: string, variablesMap: any) {
         const token = await this.ensureToken();
 
         const variables = JSON.stringify({

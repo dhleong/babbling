@@ -26,7 +26,9 @@ function eabIdFromEntity(entity: any) {
 }
 
 export class HuluApp extends BaseApp {
-    public static configurable = new CookiesConfigurable<IHuluOpts>("https://www.hulu.com");
+    public static configurable = new CookiesConfigurable<IHuluOpts>(
+        "https://www.hulu.com",
+    );
     public static createPlayerChannel(options: IHuluOpts) {
         return new HuluPlayerChannel(options);
     }
@@ -54,8 +56,10 @@ export class HuluApp extends BaseApp {
      */
     public async play(
         videoId: string,
-        { startTime }: {
-            startTime?: number,
+        {
+            startTime,
+        }: {
+            startTime?: number;
         },
     ) {
         const extraData = {} as any;
@@ -63,26 +67,20 @@ export class HuluApp extends BaseApp {
             extraData.offset_msec = startTime * 1000;
         }
 
-        return this.playEntity(
-            this.api.loadEntityById(videoId),
-            extraData,
-        );
+        return this.playEntity(this.api.loadEntityById(videoId), extraData);
     }
 
     /**
      * Attempt to play the "next" episode for the given series.
      */
     public async resumeSeries(seriesId: string) {
-        return this.playEntity(
-            this.api.findNextEntityForSeries(seriesId),
-            {},
-        );
+        return this.playEntity(this.api.findNextEntityForSeries(seriesId), {});
     }
 
     private async playEntity(
         entityPromise: Promise<any>,
         extraData: {
-            offset_msec?: number,
+            offset_msec?: number;
         },
     ) {
         const [userToken, s, entity] = await Promise.all([
@@ -131,7 +129,11 @@ export class HuluApp extends BaseApp {
             if (m.data.event_type !== "playback_update") continue;
 
             const { playback_state: playbackState } = m.data.data as any;
-            if (playbackState && playbackState.length && playbackState[0] === "PLAYING") {
+            if (
+                playbackState &&
+                playbackState.length &&
+                playbackState[0] === "PLAYING"
+            ) {
                 debug(m.data.data);
                 break;
             }

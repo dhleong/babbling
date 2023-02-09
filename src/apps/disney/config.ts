@@ -7,9 +7,7 @@ export interface IDisneyOpts {
 }
 
 export class DisneyConfigurable implements IConfigurable<IDisneyOpts> {
-    public async extractConfig(
-        source: IConfigSource,
-    ) {
+    public async extractConfig(source: IConfigSource) {
         const stream = source.storage.readAll("https://www.disneyplus.com");
         for await (const { key, value } of stream) {
             if (key.startsWith("__bam_sdk_access--disney-svod")) {

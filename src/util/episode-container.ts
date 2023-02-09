@@ -28,8 +28,8 @@ export class EpisodeContainer<TEpisode extends IEpisodeBase> {
 
     public get(query: IEpisodeQuery) {
         if (
-            query.seasonIndex !== undefined
-            && query.episodeIndex !== undefined
+            query.seasonIndex !== undefined &&
+            query.episodeIndex !== undefined
         ) {
             return this.byIndices(query.seasonIndex, query.episodeIndex);
         }

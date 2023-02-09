@@ -3,7 +3,12 @@ import request from "request-promise-native";
 
 import { read, Token } from "../../token";
 import Expirable from "../../util/expirable";
-import { extractMediaKeyFromUri, IPlexServer, IPlexUser, parseItemMetadata } from "./model";
+import {
+    extractMediaKeyFromUri,
+    IPlexServer,
+    IPlexUser,
+    parseItemMetadata,
+} from "./model";
 
 const debug = _debug("babbling:plex");
 
@@ -62,7 +67,9 @@ export class PlexApi {
             headers: this.serverRequestHeaders(server),
         });
         const metadata = response.MediaContainer.Metadata[0];
-        return parseItemMetadata(server, metadata.OnDeck.Metadata, { resolveRoot: false });
+        return parseItemMetadata(server, metadata.OnDeck.Metadata, {
+            resolveRoot: false,
+        });
     }
 
     public search(title: string) {
@@ -77,8 +84,8 @@ export class PlexApi {
     }
 
     /**
-    * NOTE: `item` should look like eg `/library/metadata/1234`
-    */
+     * NOTE: `item` should look like eg `/library/metadata/1234`
+     */
     public async createPlayQueue(server: IPlexServer, item: string) {
         const response = await request.post(server.uri + "/playQueues", {
             json: true,
@@ -98,28 +105,34 @@ export class PlexApi {
         return {
             playQueueID: response.MediaContainer.playQueueID,
             selectedItemID: response.MediaContainer.playQueueSelectedItemID,
-            selectedItemOffset: response.MediaContainer.playQueueSelectedItemOffset,
+            selectedItemOffset:
+                response.MediaContainer.playQueueSelectedItemOffset,
         };
     }
 
     private async queryMedia(
         path: string,
-        { qs, filterHub }: {
-            filterHub?: (hub: { type: string }) => boolean,
-            qs?: Record<string, string>,
+        {
+            qs,
+            filterHub,
+        }: {
+            filterHub?: (hub: { type: string }) => boolean;
+            qs?: Record<string, string>;
         } = {},
     ) {
         const servers = await this.getServers();
-        const requests = await Promise.allSettled(servers.map(async server => {
-            const response = await request.get(server.uri + path, {
-                json: true,
-                qs,
-                headers: this.serverRequestHeaders(server),
-            });
-            return [server, response] as const;
-        }));
+        const requests = await Promise.allSettled(
+            servers.map(async (server) => {
+                const response = await request.get(server.uri + path, {
+                    json: true,
+                    qs,
+                    headers: this.serverRequestHeaders(server),
+                });
+                return [server, response] as const;
+            }),
+        );
 
-        const items = requests.flatMap(result => {
+        const items = requests.flatMap((result) => {
             if (result.status !== "fulfilled") {
                 return [];
             }
@@ -132,7 +145,10 @@ export class PlexApi {
             }
 
             return hubs.flatMap((hub: any) => {
-                return hub.Metadata?.map((metadata: any) => [server, metadata]) ?? [];
+                return (
+                    hub.Metadata?.map((metadata: any) => [server, metadata]) ??
+                    []
+                );
             });
         });
 
@@ -151,9 +167,10 @@ export class PlexApi {
         const value = resources
             .filter((resource: any) => resource.provides.includes("server"))
             .map((resource: any) => {
-                const publicConnection = resource
-                    .connections
-                    .filter((connection: any) => connection.address === resource.publicAddress)[0];
+                const publicConnection = resource.connections.filter(
+                    (connection: any) =>
+                        connection.address === resource.publicAddress,
+                )[0];
 
                 debug("found server:", resource);
                 const server: IPlexServer = {

@@ -60,7 +60,7 @@ function installQueue(
     initialTitleId: string,
 ) {
     let startIndex = queue.indexOf(initialTitleId);
-    const items = queue.map(id => ({
+    const items = queue.map((id) => ({
         customData: request.customData,
         media: titleIdToCastMedia(id),
     }));
@@ -109,15 +109,17 @@ export class PrimeApp extends BaseApp {
 
     public async play(
         titleId: string,
-        { queue, startTime }: {
-            queue?: string[],
-            startTime?: number,
+        {
+            queue,
+            startTime,
+        }: {
+            queue?: string[];
+            startTime?: number;
         },
     ) {
         debug("play: join", AUTH_NS);
         const session = await this.joinOrRunNamespace(AUTH_NS);
-        const resp = await castRequest(session,
-            this.message("AmIRegistered"));
+        const resp = await castRequest(session, this.message("AmIRegistered"));
         debug("registered=", resp);
 
         if (resp.error && resp.error.code === "NotRegistered") {
@@ -159,9 +161,7 @@ export class PrimeApp extends BaseApp {
     /**
      * Attempt to resume playback of the series with the given ID
      */
-    public async resumeSeries(
-        id: string,
-    ) {
+    public async resumeSeries(id: string) {
         const toResume = await this.chakram.guessResumeInfo(id);
 
         await this.play(toResume.id, {
@@ -172,9 +172,7 @@ export class PrimeApp extends BaseApp {
     /**
      * Attempt to resume playback of the series with the given ID
      */
-    public async resumeSeriesByTitleId(
-        titleId: string,
-    ) {
+    public async resumeSeriesByTitleId(titleId: string) {
         const toResume = await this.api.guessResumeInfo(titleId);
         if (toResume) {
             debug("resume: ", toResume);
@@ -231,26 +229,31 @@ export class PrimeApp extends BaseApp {
     private async register(session: StratoChannel) {
         debug("register with id", this.api.deviceId);
 
-        const preAuthorizedLinkCode = await this.api.generatePreAuthorizedLinkCode(
-            this.refreshToken,
+        const preAuthorizedLinkCode =
+            await this.api.generatePreAuthorizedLinkCode(this.refreshToken);
+
+        await checkedRequest(
+            session,
+            this.message("Register", {
+                marketplaceId: this.marketplaceId,
+
+                preAuthorizedLinkCode,
+            }),
         );
-
-        await checkedRequest(session, this.message("Register", {
-            marketplaceId: this.marketplaceId,
-
-            preAuthorizedLinkCode,
-        }));
 
         debug("applying settings");
         await this.applySettings(session);
     }
 
     private async applySettings(session: StratoChannel) {
-        await checkedRequest(session, this.message("ApplySettings", {
-            settings: {
-                autoplayNextEpisode: true,
-                locale: this.api.getLanguage(),
-            },
-        }));
+        await checkedRequest(
+            session,
+            this.message("ApplySettings", {
+                settings: {
+                    autoplayNextEpisode: true,
+                    locale: this.api.getLanguage(),
+                },
+            }),
+        );
     }
 }

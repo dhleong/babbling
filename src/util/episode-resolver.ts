@@ -12,9 +12,7 @@ export interface IEpisodeCapabilities<TEpisode extends IEpisodeBase> {
 }
 
 export class EpisodeResolver<TEpisode extends IEpisodeBase> {
-    constructor(
-        private capabilities: IEpisodeCapabilities<TEpisode>,
-    ) {}
+    constructor(private capabilities: IEpisodeCapabilities<TEpisode>) {}
 
     public async query(query: IEpisodeQuery) {
         if (this.capabilities.container) {
@@ -23,10 +21,12 @@ export class EpisodeResolver<TEpisode extends IEpisodeBase> {
         }
 
         if (
-            query.seasonIndex !== undefined
-            && this.capabilities.episodesInSeason
+            query.seasonIndex !== undefined &&
+            this.capabilities.episodesInSeason
         ) {
-            const batches = this.capabilities.episodesInSeason(query.seasonIndex);
+            const batches = this.capabilities.episodesInSeason(
+                query.seasonIndex,
+            );
             let offset = 0;
             for await (const batch of batches) {
                 if (query.episodeIndex - offset < batch.length) {

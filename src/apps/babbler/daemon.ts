@@ -11,7 +11,7 @@ const debug = debug_("babbling:daemon");
 const DAEMON_ENV = "IS_BABBLER_DAEMON";
 
 export type RPCMethod = "loadMedia";
-export type RPC = [ RPCMethod, any[] ]; // TODO type safety on args?
+export type RPC = [RPCMethod, any[]]; // TODO type safety on args?
 
 export interface IDaemonOptions {
     deviceName: string;
@@ -49,7 +49,7 @@ export class BabblerDaemon {
                 proc.disconnect();
                 resolve();
             });
-            proc.on("error", e => reject(e));
+            proc.on("error", (e) => reject(e));
             debug("waiting for child");
         });
     }
@@ -61,10 +61,10 @@ export class BabblerDaemon {
         debug("found", appCtor.name);
 
         const device = new ChromecastDevice(this.opts.deviceName);
-        const app = await device.openApp(
+        const app = (await device.openApp(
             appCtor,
             this.opts.appOptions,
-        ) as BabblerBaseApp;
+        )) as BabblerBaseApp;
 
         await app.runDaemon();
         debug("daemon init completed");
@@ -91,7 +91,7 @@ function runDaemon() {
     if (!process.send) throw new Error();
     debug("daemon started; waiting for opts...");
 
-    process.on("message", message => {
+    process.on("message", (message) => {
         // satisfy the compiler that it still exists:
         if (!process.send) throw new Error();
         process.send("running");

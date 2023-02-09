@@ -17,7 +17,9 @@
         "build": "tsc -p .",
         "check": "npm run lint && npm run build && npm run test",
         "clean": "rm -rf dist",
-        "lint": "eslint . --cache --ext .ts",
+        "lint:es": "eslint . --cache --ext .ts",
+        "lint:prettier": "prettier --check .",
+        "lint": "npm run lint:prettier && npm run lint:es",
         "prepublishOnly": "npm run check",
         "test": "mocha -r ts-node/register 'test/**/*-test.ts'"
     },
@@ -74,7 +76,9 @@
         "eslint-config-airbnb-typescript": "^16.1.1",
         "eslint-config-prettier": "^8.3.0",
         "eslint-plugin-import": "^2.22.1",
+        "eslint-plugin-prettier": "^4.0.0",
         "mocha": "^9.2.2",
+        "prettier": "^2.6.2",
         "ts-mockito": "^2.6.1",
         "ts-node": "^10.7.0",
         "typescript": "^4.6.2"

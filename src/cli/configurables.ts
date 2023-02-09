@@ -18,7 +18,9 @@ async function cookieString(c: ICookieSource, url: string) {
     return str;
 }
 
-export class CookiesConfigurable<T extends ICookieConfig> implements IConfigurable<T> {
+export class CookiesConfigurable<T extends ICookieConfig>
+    implements IConfigurable<T>
+{
     constructor(private url: string) {}
 
     public async extractConfig(

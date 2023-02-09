@@ -17,7 +17,8 @@ export interface ISearchByTitleOpts {
 function padLeft(s: string, width: number) {
     if (s.length === width) {
         return s;
-    } if (s.length > width) {
+    }
+    if (s.length > width) {
         return s.substring(0, width);
     }
 

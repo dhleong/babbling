@@ -1,15 +1,9 @@
 import * as chai from "chai";
-import {
-    capture, instance, mock, when,
-} from "ts-mockito";
+import { capture, instance, mock, when } from "ts-mockito";
 
 import request from "request-promise-native";
 
-import {
-    fillJar,
-    pruneCookies,
-    YoutubeApp,
-} from "../../src/apps/youtube";
+import { fillJar, pruneCookies, YoutubeApp } from "../../src/apps/youtube";
 
 import { filterFromSkippedIds } from "../../src/apps/youtube/util";
 
@@ -24,13 +18,15 @@ const videoOf = (id: string) => ({
 
 describe("pruneCookies", () => {
     it("works when cookie is at the beginning", () => {
-        expect(pruneCookies("S=youtube_lounge_remote=1234; LOGIN_INFO=login"))
-            .to.equal("LOGIN_INFO=login");
+        expect(
+            pruneCookies("S=youtube_lounge_remote=1234; LOGIN_INFO=login"),
+        ).to.equal("LOGIN_INFO=login");
     });
 
     it("works when cookie is at the end", () => {
-        expect(pruneCookies("LOGIN_INFO=login; S=youtube_lounge_remote=1234"))
-            .to.equal("LOGIN_INFO=login");
+        expect(
+            pruneCookies("LOGIN_INFO=login; S=youtube_lounge_remote=1234"),
+        ).to.equal("LOGIN_INFO=login");
     });
 });
 
@@ -60,10 +56,7 @@ describe("filterFromSkippedIds", () => {
     });
 
     it("handles a series of skipped ids", () => {
-        const filter = filterFromSkippedIds([
-            "skip-me",
-            "me-too",
-        ]);
+        const filter = filterFromSkippedIds(["skip-me", "me-too"]);
         expect(filter).to.not.be.undefined;
         if (!filter) throw new Error();
 
@@ -77,9 +70,10 @@ describe("YoutubeApp", () => {
     describe("Playable creation", () => {
         it("supports skip query param", async () => {
             const listId = "PL1tiwbzkOjQz7D0l_eLJGAISVtcL7oRu_";
-            const playable = await YoutubeApp.createPlayerChannel().createPlayable(
-                `https://www.youtube.com/playlist?list=${listId}&skip=skip-id`,
-            );
+            const playable =
+                await YoutubeApp.createPlayerChannel().createPlayable(
+                    `https://www.youtube.com/playlist?list=${listId}&skip=skip-id`,
+                );
 
             const App = mock(YoutubeApp);
             when(App.isAuthenticated()).thenReturn(true); // we have creds!
@@ -103,11 +97,12 @@ describe("YoutubeApp", () => {
 
         it("supports multiple skip query params", async () => {
             const listId = "PL1tiwbzkOjQz7D0l_eLJGAISVtcL7oRu_";
-            const playable = await YoutubeApp.createPlayerChannel().createPlayable(
-                `https://www.youtube.com/playlist?list=${listId}`
-                    + "&skip=skip-id1"
-                    + "&skip=skip-id2",
-            );
+            const playable =
+                await YoutubeApp.createPlayerChannel().createPlayable(
+                    `https://www.youtube.com/playlist?list=${listId}` +
+                        "&skip=skip-id1" +
+                        "&skip=skip-id2",
+                );
 
             const App = mock(YoutubeApp);
             when(App.isAuthenticated()).thenReturn(true); // we have creds!

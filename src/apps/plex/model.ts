@@ -16,7 +16,7 @@ export interface IPlexUser {
     username: string;
     subscription: {
         active: boolean;
-    }
+    };
 }
 
 export interface IPlexItem {
@@ -30,7 +30,7 @@ export interface IPlexItem {
 }
 
 function buildThumbUrl(server: IPlexServer, path: string) {
-    const url = new URL(server.uri +  "/photo/:/transcode");
+    const url = new URL(server.uri + "/photo/:/transcode");
     url.searchParams.set("url", path);
     url.searchParams.set("X-Plex-Token", server.accessToken);
     url.searchParams.set("height", "1280");
@@ -45,17 +45,22 @@ export function parseItemMetadata(
 ): IPlexItem {
     // NOTE: We use grandparentKey etc if available to canonicalize to the series' ID
     // (unless resolveRoot is false!)
-    const key = resolveRoot !== false
-        ? metadata.grandparentKey ?? metadata.parentKey ?? metadata.key
-        : metadata.key;
+    const key =
+        resolveRoot !== false
+            ? metadata.grandparentKey ?? metadata.parentKey ?? metadata.key
+            : metadata.key;
 
-    const uri = `https://app.plex.tv/desktop/#!/server/${server.clientIdentifier}/details?` +
+    const uri =
+        `https://app.plex.tv/desktop/#!/server/${server.clientIdentifier}/details?` +
         new URLSearchParams({ key: key.replace(/\/children$/, "") }).toString();
 
     return {
         desc: metadata.summary,
         lastViewedAt: metadata.lastViewedAt,
-        thumb: buildThumbUrl(server, metadata.grandparentArt ?? metadata.parentArt ?? metadata.art),
+        thumb: buildThumbUrl(
+            server,
+            metadata.grandparentArt ?? metadata.parentArt ?? metadata.art,
+        ),
         title: metadata.title,
         seriesTitle: metadata.grandparentTitle ?? metadata.parentTitle,
         type: metadata.type,

@@ -3,9 +3,7 @@ import { IVideo } from "youtubish/dist/model";
 
 import { read, Token, write } from "../../token";
 
-export function filterFromSkippedIds(
-    ids: string | string[] | undefined,
-) {
+export function filterFromSkippedIds(ids: string | string[] | undefined) {
     if (!ids || !ids.length) return;
 
     if (typeof ids === "string") {
@@ -22,9 +20,7 @@ export function filterFromSkippedIds(
 }
 
 export class TokenYoutubishCredsAdapter implements ICredentialsManager {
-    constructor(
-        private token: Token,
-    ) { }
+    constructor(private token: Token) {}
 
     public async get() {
         const cookies = read(this.token);

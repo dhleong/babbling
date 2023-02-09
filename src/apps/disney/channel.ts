@@ -78,9 +78,12 @@ export class DisneyPlayerChannel implements IPlayerChannel<DisneyApp> {
         });
         if (!queryResult) return;
 
-        const seriesTitleObj = episode.texts.find(text => text.field === "title"
-                && text.type === "full"
-                && text.sourceEntity === "series");
+        const seriesTitleObj = episode.texts.find(
+            (text) =>
+                text.field === "title" &&
+                text.type === "full" &&
+                text.sourceEntity === "series",
+        );
         const seriesTitle = seriesTitleObj ? seriesTitleObj.content : "";
 
         return {
@@ -93,9 +96,7 @@ export class DisneyPlayerChannel implements IPlayerChannel<DisneyApp> {
     /**
      * Search for {@see Player.play}'able media by title
      */
-    public async* queryByTitle(
-        title: string,
-    ): AsyncIterable<IQueryResult> {
+    public async *queryByTitle(title: string): AsyncIterable<IQueryResult> {
         const hits = await this.api.search(title);
 
         for (const hit of hits) {
@@ -106,14 +107,18 @@ export class DisneyPlayerChannel implements IPlayerChannel<DisneyApp> {
         }
     }
 
-    public async* queryRecommended() {
+    public async *queryRecommended() {
         const collections = await this.api.getCollections();
-        const toFetch = collections.filter(coll => RECOMMENDATION_SET_TYPES.has(coll.type));
+        const toFetch = collections.filter((coll) =>
+            RECOMMENDATION_SET_TYPES.has(coll.type),
+        );
 
-        yield* mergeAsyncIterables(toFetch.map(coll => this.collectionIterable(coll)));
+        yield* mergeAsyncIterables(
+            toFetch.map((coll) => this.collectionIterable(coll)),
+        );
     }
 
-    private async* collectionIterable(coll: ICollection) {
+    private async *collectionIterable(coll: ICollection) {
         const items = await this.api.loadCollection(coll);
         for (const item of items) {
             const result = this.searchHitToQueryResult(item);
@@ -125,21 +130,27 @@ export class DisneyPlayerChannel implements IPlayerChannel<DisneyApp> {
 
     private searchHitToQueryResult(
         result: ISearchHit,
-        { playEpisodeDirectly }: {
-            playEpisodeDirectly?: boolean,
+        {
+            playEpisodeDirectly,
+        }: {
+            playEpisodeDirectly?: boolean;
         } = {},
     ) {
         const id = result.contentId;
         const isSeries = result.encodedSeriesId;
         const isMovie = !isSeries && result.programType === "movie";
-        const sourceEntity = (isMovie || (isSeries && playEpisodeDirectly))
-            ? "program"
-            : null;
+        const sourceEntity =
+            isMovie || (isSeries && playEpisodeDirectly) ? "program" : null;
 
-        const filteredTexts = result.texts
-            .filter(item => !sourceEntity || item.sourceEntity === sourceEntity);
-        const titleObj = filteredTexts.find(item => item.field === "title" && item.type === "full");
-        const descObj = filteredTexts.find(item => item.field === "description" && item.type === "full");
+        const filteredTexts = result.texts.filter(
+            (item) => !sourceEntity || item.sourceEntity === sourceEntity,
+        );
+        const titleObj = filteredTexts.find(
+            (item) => item.field === "title" && item.type === "full",
+        );
+        const descObj = filteredTexts.find(
+            (item) => item.field === "description" && item.type === "full",
+        );
 
         if (!titleObj) {
             debug("No full title object for", result);
@@ -148,11 +159,19 @@ export class DisneyPlayerChannel implements IPlayerChannel<DisneyApp> {
 
         let url: string;
         if (isSeries && !playEpisodeDirectly) {
-            const slugObj = result.texts.find(item => item.field === "title" && item.type === "slug") ?? {} as any;
+            const slugObj =
+                result.texts.find(
+                    (item) => item.field === "title" && item.type === "slug",
+                ) ?? ({} as any);
             url = `${SERIES_URL + slugObj.content}/${result.encodedSeriesId}`;
         } else if (isMovie && result.family) {
-            const slugObj = result.texts.find(item => item.field === "title" && item.type === "slug") ?? {} as any;
-            url = `${MOVIE_URL + slugObj.content}/${result.family.encodedFamilyId}`;
+            const slugObj =
+                result.texts.find(
+                    (item) => item.field === "title" && item.type === "slug",
+                ) ?? ({} as any);
+            url = `${MOVIE_URL + slugObj.content}/${
+                result.family.encodedFamilyId
+            }`;
         } else {
             debug("non-series result:", result);
             url = PLAYBACK_URL + id;
@@ -181,18 +200,14 @@ export class DisneyPlayerChannel implements IPlayerChannel<DisneyApp> {
 
         const seriesId = getSeriesIdFromUrl(url);
         if (seriesId) {
-            return async (
-                app: DisneyApp,
-                opts: IPlayableOptions,
-            ) => app.playSeriesById(seriesId, opts);
+            return async (app: DisneyApp, opts: IPlayableOptions) =>
+                app.playSeriesById(seriesId, opts);
         }
 
         const movieId = getMovieIdFromUrl(url);
         if (movieId) {
-            return async (
-                app: DisneyApp,
-                opts: IPlayableOptions,
-            ) => app.playByFamilyId(movieId, opts);
+            return async (app: DisneyApp, opts: IPlayableOptions) =>
+                app.playByFamilyId(movieId, opts);
         }
 
         throw new Error(`Unsure how to play ${url}`);

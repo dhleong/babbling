@@ -48,13 +48,9 @@ export class HboApp extends BaseApp {
      * Play a URN that looks like, eg:
      *   urn:hbo:episode:GVU3WpwOjOYNJjhsJAX5-
      */
-    public async play(
-        urn: string,
-        options: IHboPlayOptions = {},
-    ) {
-        const {
-            deviceSerialNumber: senderDeviceSerialNumber,
-        } = await this.api.extractTokenInfo();
+    public async play(urn: string, options: IHboPlayOptions = {}) {
+        const { deviceSerialNumber: senderDeviceSerialNumber } =
+            await this.api.extractTokenInfo();
 
         const [refreshToken, s, mediaSession] = await Promise.all([
             this.api.getRefreshToken(),
@@ -113,18 +109,29 @@ export class HboApp extends BaseApp {
         debug("Awaiting PLAYING media status");
         for await (const m of mediaSession.receive()) {
             if (typeof m.data !== "object" || Buffer.isBuffer(m.data)) continue;
-            if (m.data.type !== "MEDIA_STATUS" || !Array.isArray(m.data.status) || m.data.status.length === 0) {
+            if (
+                m.data.type !== "MEDIA_STATUS" ||
+                !Array.isArray(m.data.status) ||
+                m.data.status.length === 0
+            ) {
                 continue;
             }
 
             const status = m.data.status[0];
             debug("Received:", status);
 
-            if (status.media?.contentId !== urn && status.media?.entity !== urn && status.playerState === "IDLE") {
+            if (
+                status.media?.contentId !== urn &&
+                status.media?.entity !== urn &&
+                status.playerState === "IDLE"
+            ) {
                 throw new Error(`Failed to play ${urn}`);
             }
 
-            if (status.media?.contentId !== "" && status.media?.contentId !== urn) {
+            if (
+                status.media?.contentId !== "" &&
+                status.media?.contentId !== urn
+            ) {
                 // Something else must be playing
                 debug("Got MEDIA_STATUS for", status.media);
                 return;

@@ -3,7 +3,7 @@
 import readline from "readline";
 
 export async function confirm(message?: string): Promise<void> {
-    return new Promise<void>(resolve => {
+    return new Promise<void>((resolve) => {
         if (message) console.log(`${message}\n`);
         console.log("Press any key to continue.");
 
@@ -18,12 +18,12 @@ export async function confirm(message?: string): Promise<void> {
 }
 
 export async function prompt(promptText: string): Promise<string> {
-    return new Promise(resolve => {
+    return new Promise((resolve) => {
         const prompter = readline.createInterface({
             input: process.stdin,
             output: process.stdout,
         });
-        prompter.question(promptText, result => {
+        prompter.question(promptText, (result) => {
             prompter.close();
             resolve(result);
         });

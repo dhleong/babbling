@@ -7,7 +7,7 @@ export async function* mergeAsyncIterables<T>(
 ): AsyncIterable<T> {
     const finished = new Promise<any>(() => null);
 
-    const iterators = iterables.map(it => it[Symbol.asyncIterator]());
+    const iterators = iterables.map((it) => it[Symbol.asyncIterator]());
     let incomplete = iterables.length;
 
     const next = async (iterator: AsyncIterator<T>, index: number) => {
@@ -36,7 +36,7 @@ export async function* interleaveAsyncIterables<T>(
 ): AsyncIterable<T> {
     const finished = new Promise<any>(() => null);
 
-    const iterators = iterables.map(it => it[Symbol.asyncIterator]());
+    const iterators = iterables.map((it) => it[Symbol.asyncIterator]());
     let incomplete = iterables.length;
 
     const next = async (iterator: AsyncIterator<T>, index: number) => {
@@ -75,7 +75,9 @@ export async function toArray<T>(iterable: AsyncIterable<T>) {
     return result;
 }
 
-const nop = () => { /* nop */ };
+const nop = () => {
+    /* nop */
+};
 
 export class Deferred<T> {
     public resolve: (v: T) => void = nop;

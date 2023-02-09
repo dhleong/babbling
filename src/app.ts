@@ -12,13 +12,13 @@ export interface IAppConstructor<TOptions extends Opts, TSelf extends IApp> {
     new (device: ChromecastDevice, ...options: TOptions): TSelf;
 }
 
-export type OptionsFor<T> =
-    T extends IAppConstructor<infer TOpt, any> ? TOpt :
-        never;
+export type OptionsFor<T> = T extends IAppConstructor<infer TOpt, any>
+    ? TOpt
+    : never;
 
-export type AppFor<T> =
-    T extends IAppConstructor<any, infer TSelf> ? TSelf :
-        never;
+export type AppFor<T> = T extends IAppConstructor<any, infer TSelf>
+    ? TSelf
+    : never;
 
 export interface IPlayableOptions {
     /**
@@ -39,7 +39,10 @@ export interface IPlayableOptions {
     resume?: boolean;
 }
 
-export type IPlayable<T extends IApp> = (app: T, opts: IPlayableOptions) => Promise<void>;
+export type IPlayable<T extends IApp> = (
+    app: T,
+    opts: IPlayableOptions,
+) => Promise<void>;
 
 export interface IQueryResult {
     /**
@@ -104,7 +107,6 @@ export type IEpisodeQuery = ISeasonAndEpisodeQuery;
  * interacting with a particular app and its service.
  */
 export interface IPlayerChannel<TSelf extends IApp> {
-
     /**
      * Return true if your app "owns" the given URL. The first
      * app that returns `true` from this method will be elected
@@ -137,7 +139,10 @@ export interface IPlayerChannel<TSelf extends IApp> {
      * Search for {@see Player.play}'able media by title, requesting a specific
      * episode in the matching series
      */
-    queryEpisodeForTitle?(title: string, query: IEpisodeQuery): AsyncIterable<IEpisodeQueryResult>;
+    queryEpisodeForTitle?(
+        title: string,
+        query: IEpisodeQuery,
+    ): AsyncIterable<IEpisodeQueryResult>;
 
     /**
      * Search for {@see Player.play}'able media per the source
@@ -145,16 +150,15 @@ export interface IPlayerChannel<TSelf extends IApp> {
      * based on recency
      */
     queryRecommended?(): AsyncIterable<IQueryResult>;
-
 }
 
-export interface IPlayerEnabledConstructor<TOptions extends Opts, TSelf extends IApp>
-    extends IAppConstructor<TOptions, TSelf> {
-
+export interface IPlayerEnabledConstructor<
+    TOptions extends Opts,
+    TSelf extends IApp,
+> extends IAppConstructor<TOptions, TSelf> {
     /**
      * Create a Channel that can be used to interact with this App
      * and its associated service
      */
     createPlayerChannel(options?: TOptions): IPlayerChannel<TSelf>;
-
 }

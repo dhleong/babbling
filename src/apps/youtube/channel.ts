@@ -11,9 +11,7 @@ import { hasAuth } from "./config";
 const debug = _debug("babbling:youtube:channel");
 
 export class YoutubePlayerChannel implements IPlayerChannel<YoutubeApp> {
-    constructor(
-        private readonly options: IYoutubeOpts,
-    ) {}
+    constructor(private readonly options: IYoutubeOpts) {}
 
     public ownsUrl(url: string) {
         return url.includes("youtube.com") || url.includes("youtu.be");
@@ -46,7 +44,9 @@ export class YoutubePlayerChannel implements IPlayerChannel<YoutubeApp> {
 
             // watch later requires auth
             if (listId === "WL" && !(this.options && hasAuth(this.options))) {
-                throw new Error("Cannot use watch later playlist without cookies or refreshToken");
+                throw new Error(
+                    "Cannot use watch later playlist without cookies or refreshToken",
+                );
             }
 
             if (parsed.query.index) {
@@ -65,10 +65,10 @@ export class YoutubePlayerChannel implements IPlayerChannel<YoutubeApp> {
 
         return async (app: YoutubeApp, opts: IPlayableOptions) => {
             if (
-                opts.resume !== false
-                && app.isAuthenticated()
-                && listId !== ""
-                && videoId === ""
+                opts.resume !== false &&
+                app.isAuthenticated() &&
+                listId !== "" &&
+                videoId === ""
             ) {
                 const filter = filterFromSkippedIds(parsed.query.skip);
                 if (listIndex >= 0) {
