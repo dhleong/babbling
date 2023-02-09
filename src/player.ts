@@ -81,13 +81,13 @@ export class Player {
     ) {}
 
     public buildUpon() {
+        // NOTE: We create and clone a PlayerBuilder to ensure that mutations of
+        // the resulting Builder do not also mutate this object.
         // NOTE: It should be safe to use this here; Player will not be
         // constructed in this file and, in general, should only be constructed
         // via PlayerBuilder anyway
         // eslint-disable-next-line @typescript-eslint/no-use-before-define
-        return new PlayerBuilder([...this.apps], [...this.devices], {
-            ...this.opts,
-        });
+        return new PlayerBuilder(this.apps, this.devices, this.opts).clone();
     }
 
     public async playUrl(url: string, opts: IPlayableOptions = {}) {
@@ -341,6 +341,15 @@ export class PlayerBuilder {
     public configure(opts: IPlayerOpts) {
         this.opts = opts;
         return this;
+    }
+
+    /**
+     * Create a new PlayerBuilder instance with the same initial config as this PlayerBuilder
+     */
+    public clone() {
+        return new PlayerBuilder([...this.apps], [...this.devices], {
+            ...this.opts,
+        });
     }
 
     /**
