@@ -71,7 +71,7 @@ export interface IPlayerOpts {
     autoClose?: boolean;
 }
 
-class Player {
+export class Player {
     constructor(
         private apps: Array<
             IConfiguredApp<IPlayerEnabledConstructor<any, any>>
@@ -79,6 +79,16 @@ class Player {
         private devices: ChromecastDevice[],
         private opts: IPlayerOpts,
     ) {}
+
+    public buildUpon() {
+        // NOTE: We create and clone a PlayerBuilder to ensure that mutations of
+        // the resulting Builder do not also mutate this object.
+        // NOTE: It should be safe to use this here; Player will not be
+        // constructed in this file and, in general, should only be constructed
+        // via PlayerBuilder anyway
+        // eslint-disable-next-line @typescript-eslint/no-use-before-define
+        return new PlayerBuilder(this.apps, this.devices, this.opts).clone();
+    }
 
     public async playUrl(url: string, opts: IPlayableOptions = {}) {
         const configured = pickAppForUrl(this.apps, url);
@@ -282,6 +292,8 @@ class Player {
     }
 }
 
+export type QueryOnlyPlayer = Omit<Player, "play" | "playUrl">;
+
 export class PlayerBuilder {
     public static async autoInflate(configPath?: string) {
         const builder = new PlayerBuilder();
@@ -293,9 +305,11 @@ export class PlayerBuilder {
         return builder;
     }
 
-    private apps: Array<IConfiguredApp<any>> = [];
-    private devices: ChromecastDevice[] = [];
-    private opts: IPlayerOpts = {};
+    constructor(
+        private readonly apps: Array<IConfiguredApp<any>> = [],
+        private readonly devices: ChromecastDevice[] = [],
+        private opts: IPlayerOpts = {},
+    ) {}
 
     public withApp<TConstructor extends IPlayerEnabledConstructor<Opts, IApp>>(
         appConstructor: TConstructor,
@@ -329,15 +343,35 @@ export class PlayerBuilder {
         return this;
     }
 
-    public build() {
-        if (!this.apps.length) {
-            throw new Error("You must have at least one app enabled");
-        }
+    /**
+     * Create a new PlayerBuilder instance with the same initial config as this PlayerBuilder
+     */
+    public clone() {
+        return new PlayerBuilder([...this.apps], [...this.devices], {
+            ...this.opts,
+        });
+    }
 
+    /**
+     * Build a Player instance that does not support playback methods
+     */
+    public buildQueryOnly(): QueryOnlyPlayer {
+        return this.buildInternal();
+    }
+
+    public build() {
         if (!this.devices.length) {
             throw new Error("You must have at least one device");
         }
 
-        return new Player(this.apps, this.devices, this.opts);
+        return this.buildInternal();
+    }
+
+    private buildInternal() {
+        if (!this.apps.length) {
+            throw new Error("You must have at least one app enabled");
+        }
+
+        return new Player([...this.apps], [...this.devices], { ...this.opts });
     }
 }

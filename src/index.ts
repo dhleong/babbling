@@ -1,5 +1,6 @@
 export { ChromecastDevice } from "./device";
 export { PlayerBuilder } from "./player";
+export type { Player, QueryOnlyPlayer } from "./player";
 export { DisneyApp, IDisneyOpts } from "./apps/disney";
 export { HboApp, IHboOpts, IHboPlayOptions } from "./apps/hbo";
 export { HuluApp, IHuluOpts } from "./apps/hulu";
