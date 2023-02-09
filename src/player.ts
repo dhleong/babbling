@@ -36,6 +36,32 @@ const defaultAppSpecificErrorHandler: AppSpecificErrorHandler = (app, e) => {
     throw e;
 };
 
+export interface IQueryOptions {
+    /**
+     * Handler for when an app encounters an error. By default, the error will
+     * just be thrown eagerly, but you may prefer to simply log the error and allow
+     * the other apps to provide their results
+     */
+    onError?: AppSpecificErrorHandler;
+}
+
+type FilledQueryOptions = Required<IQueryOptions>;
+
+type QueryOptions = AppSpecificErrorHandler | IQueryOptions;
+
+function unpackQueryOptions(
+    input: QueryOptions | undefined,
+): FilledQueryOptions {
+    const onError =
+        input == null || typeof input === "function"
+            ? input
+            : (input as FilledQueryOptions).onError;
+
+    return {
+        onError: onError ?? defaultAppSpecificErrorHandler,
+    };
+}
+
 function pickAppForUrl(
     apps: Array<IConfiguredApp<IPlayerEnabledConstructor<any, any>>>,
     url: string,
@@ -140,15 +166,12 @@ export class Player {
      * configured apps. Each result can be passed directly to `play`.
      *
      * @param title The title to search for
-     * @param onError Handler for when an app encounters an error. By
-     *                default, the error will just be thrown eagerly,
-     *                but you may prefer to simply log the error and
-     *                allow the other apps to provide their results
      */
     public queryByTitle(
         title: string,
-        onError: AppSpecificErrorHandler = defaultAppSpecificErrorHandler,
+        options?: QueryOptions,
     ): AsyncIterable<IQueryResult> {
+        const { onError } = unpackQueryOptions(options);
         const iterables = this.apps.map(async function* iterable(app) {
             if (!app.channel.queryByTitle) return;
 
@@ -170,16 +193,13 @@ export class Player {
      *
      * @param title The title to search for
      * @param query A description of the desired episode to play
-     * @param onError Handler for when an app encounters an error. By
-     *                default, the error will just be thrown eagerly,
-     *                but you may prefer to simply log the error and
-     *                allow the other apps to provide their results
      */
     public queryEpisodeForTitle(
         title: string,
         query: IEpisodeQuery,
-        onError: AppSpecificErrorHandler = defaultAppSpecificErrorHandler,
+        options?: QueryOptions,
     ): AsyncIterable<IEpisodeQueryResult> {
+        const { onError } = unpackQueryOptions(options);
         const iterables = this.apps.map(async function* iterable(app) {
             if (!app.channel.queryEpisodeForTitle) {
                 // fallback to a default implementation if findEpisodeFor
@@ -212,15 +232,10 @@ export class Player {
      * Get a map each key is the name of an App and each value is an
      * AsyncIterable representing recommended media from that app. Each result
      * can be passed directly to `play`.
-     *
-     * @param onError Handler for when an app encounters an error. By
-     *                default, the error will just be thrown eagerly,
-     *                but you may prefer to simply log the error and
-     *                allow the other apps to provide their results
      */
-    public getRecommendationsMap(
-        onError: AppSpecificErrorHandler = defaultAppSpecificErrorHandler,
-    ) {
+    public getRecommendationsMap(options?: QueryOptions) {
+        const { onError } = unpackQueryOptions(options);
+
         /* eslint-disable no-param-reassign */
         return this.apps.reduce((m, app) => {
             const query = app.channel.queryRecommended?.bind(app.channel);
@@ -244,16 +259,9 @@ export class Player {
     /**
      * Get an AsyncIterable representing playables from across all
      * configured apps. Each result can be passed directly to `play`.
-     *
-     * @param onError Handler for when an app encounters an error. By
-     *                default, the error will just be thrown eagerly,
-     *                but you may prefer to simply log the error and
-     *                allow the other apps to provide their results
      */
-    public queryRecommended(
-        onError: AppSpecificErrorHandler = defaultAppSpecificErrorHandler,
-    ) {
-        const m = this.getRecommendationsMap(onError);
+    public queryRecommended(options?: QueryOptions) {
+        const m = this.getRecommendationsMap(options);
         return interleaveAsyncIterables(Object.values(m));
     }
 
