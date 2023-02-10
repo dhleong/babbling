@@ -6,6 +6,7 @@ import {
     IPlayableOptions,
     IPlayerChannel,
     IQueryResult,
+    RecommendationType,
 } from "../../app";
 import { mergeAsyncIterables } from "../../async";
 
@@ -20,7 +21,12 @@ const PLAYBACK_URL = "https://www.disneyplus.com/video/";
 const SERIES_URL = "https://www.disneyplus.com/series/";
 const MOVIE_URL = "https://www.disneyplus.com/movies/";
 
-type CollectionSetType = "RecommendationSet" | "ContinueWatchingSet";
+const RECOMMENDATION_SET_TYPES = new Set([
+    "RecommendationSet",
+    "ContinueWatchingSet",
+] as const);
+
+export type CollectionSetType = ICollection["type"];
 
 function getSeriesIdFromUrl(url: string) {
     const m = url.match(/\/series\/[^/]+\/(.+)$/);
@@ -105,16 +111,20 @@ export class DisneyPlayerChannel implements IPlayerChannel<DisneyApp> {
     }
 
     public async *queryRecent() {
-        yield* this.queryCollectionType("ContinueWatchingSet");
+        yield* this.queryCollectionType(new Set(["ContinueWatchingSet"]));
     }
 
     public async *queryRecommended() {
-        yield* this.queryCollectionType("RecommendationSet");
+        yield* this.queryCollectionType(RECOMMENDATION_SET_TYPES);
     }
 
-    private async *queryCollectionType(type: CollectionSetType) {
+    public async *queryRecommendations() {
+        yield* this.queryCollectionType(RECOMMENDATION_SET_TYPES);
+    }
+
+    private async *queryCollectionType(types: Set<CollectionSetType>) {
         const collections = await this.api.getCollections();
-        const toFetch = collections.filter((coll) => coll.type === type);
+        const toFetch = collections.filter((coll) => types.has(coll.type));
 
         yield* mergeAsyncIterables(
             toFetch.map((coll) => this.collectionIterable(coll)),
@@ -126,8 +136,24 @@ export class DisneyPlayerChannel implements IPlayerChannel<DisneyApp> {
         for (const item of items) {
             const result = this.searchHitToQueryResult(item);
             if (result) {
-                yield result;
+                yield { ...result, recommendationType: RecommendationType.New };
             }
+        }
+    }
+
+    private collectionTypeToRecommendationInfo(type: CollectionSetType) {
+        switch (type) {
+            case "BecauseYouSet":
+                return { recommendationType: RecommendationType.Interest };
+
+            case "ContinueWatchingSet":
+                return { recommendationType: RecommendationType.Recent };
+
+            case "CuratedSet":
+                return { RecommendationType: RecommendationType.Curated };
+
+            case "RecommendationSet": // ?
+                return { recommendationType: RecommendationType.Popular };
         }
     }
 

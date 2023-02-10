@@ -5,11 +5,13 @@ import {
     IEpisodeQueryResult,
     IPlayerChannel,
     IQueryResult,
+    RecommendationType,
 } from "../../app";
 import { EpisodeResolver } from "../../util/episode-resolver";
 
 import type { HboApp, IHboOpts } from ".";
 import { entityTypeFromUrn, HboApi, IHboResult, unpackUrn } from "./api";
+import withRecommendationType from "../../util/withRecommendationType";
 
 const debug = createDebug("babbling:hbo:channel");
 
@@ -139,8 +141,16 @@ export class HboPlayerChannel implements IPlayerChannel<HboApp> {
         yield* this.yieldPlayables(this.api.queryContinueWatching());
     }
 
+    public async *queryRecommendations() {
+        yield* withRecommendationType(
+            this.yieldPlayables(this.api.queryRecommended()),
+            RecommendationType.Interest,
+        );
+    }
+
     public async *queryRecommended() {
-        yield* this.yieldPlayables(this.api.queryRecommended());
+        // NOTE: Legacy behavior:
+        yield* this.queryRecent();
     }
 
     private async *yieldPlayables(source: ReturnType<typeof this.api.search>) {

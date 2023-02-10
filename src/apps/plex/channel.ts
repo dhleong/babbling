@@ -1,7 +1,13 @@
 import createDebug from "debug";
 
 import { PlexApp } from ".";
-import { IPlayableOptions, IPlayerChannel, IQueryResult } from "../../app";
+import {
+    IPlayableOptions,
+    IPlayerChannel,
+    IQueryResult,
+    RecommendationType,
+} from "../../app";
+import withRecommendationType from "../../util/withRecommendationType";
 import { PlexApi } from "./api";
 import { IPlexOpts } from "./config";
 import { IPlexItem } from "./model";
@@ -37,7 +43,15 @@ export class PlexPlayerChannel implements IPlayerChannel<PlexApp> {
     }
 
     public async *queryRecommended() {
+        // NOTE: Legacy behavior:
         yield* this.queryRecent();
+    }
+
+    public async *queryRecommendations() {
+        yield* withRecommendationType(
+            this.queryRecent(),
+            RecommendationType.Recent,
+        );
     }
 
     public async *queryByTitle(title: string): AsyncIterable<IQueryResult> {
