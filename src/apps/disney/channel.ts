@@ -6,6 +6,7 @@ import {
     IPlayableOptions,
     IPlayerChannel,
     IQueryResult,
+    IRecommendationQuery,
     RecommendationType,
 } from "../../app";
 import { mergeAsyncIterables } from "../../async";
@@ -14,6 +15,7 @@ import { mergeAsyncIterables } from "../../async";
 // importing it for the type definition
 import type { DisneyApp, IDisneyOpts } from ".";
 import { DisneyApi, ICollection, ISearchHit } from "./api";
+import filterRecommendations from "../../util/filterRecommendations";
 
 const debug = _debug("babbling:DisneyApp:channel");
 
@@ -118,8 +120,11 @@ export class DisneyPlayerChannel implements IPlayerChannel<DisneyApp> {
         yield* this.queryCollectionType(RECOMMENDATION_SET_TYPES);
     }
 
-    public async *queryRecommendations() {
-        yield* this.queryCollectionType(RECOMMENDATION_SET_TYPES);
+    public async *queryRecommendations(query?: IRecommendationQuery) {
+        yield* filterRecommendations(
+            query,
+            this.queryCollectionType(RECOMMENDATION_SET_TYPES),
+        );
     }
 
     private async *queryCollectionType(types: Set<CollectionSetType>) {

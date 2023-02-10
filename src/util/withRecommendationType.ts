@@ -1,8 +1,8 @@
 import { IQueryResult, RecommendationType } from "../app";
 
 export default async function* withRecommendationType<T extends IQueryResult>(
-    items: AsyncIterable<T>,
     recommendationType: RecommendationType,
+    items: AsyncIterable<T>,
 ): AsyncIterable<T & { recommendationType: RecommendationType }> {
     for await (const item of items) {
         yield {

@@ -8,6 +8,7 @@ import {
     IPlayableOptions,
     IPlayerChannel,
     IQueryResult,
+    IRecommendationQuery,
     RecommendationType,
 } from "../../app";
 import { EpisodeResolver } from "../../util/episode-resolver";
@@ -20,6 +21,7 @@ import { PrimeApi } from "./api";
 import { PrimeEpisodeCapabilities } from "./api/episode-capabilities";
 import { AvailabilityType, IAvailability, ISearchResult } from "./model";
 import withRecommendationType from "../../util/withRecommendationType";
+import filterRecommendations from "../../util/filterRecommendations";
 
 const debug = _debug("babbling:PrimeApp:player");
 
@@ -210,10 +212,13 @@ export class PrimePlayerChannel implements IPlayerChannel<PrimeApp> {
         yield* this.queryRecent();
     }
 
-    public async *queryRecommendations() {
-        yield* withRecommendationType(
-            this.queryRecent(),
-            RecommendationType.Recent,
+    public async *queryRecommendations(query?: IRecommendationQuery) {
+        yield* filterRecommendations(
+            query,
+            withRecommendationType(
+                RecommendationType.Recent,
+                this.queryRecent(),
+            ),
         );
     }
 
