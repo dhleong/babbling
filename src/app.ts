@@ -114,7 +114,7 @@ export interface IRecommendation extends IQueryResult {
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface IRecommendationQuery {
-    // TODO
+    excludeTypes?: RecommendationType[];
 }
 
 export interface IEpisodeQueryResult extends IQueryResult {
@@ -191,8 +191,9 @@ export interface IPlayerChannel<TSelf extends IApp> {
      * selected.
      *
      * NOTE: This method is not currently stable; its behavior may change
-     * slightly in point releases, and though changes *should* be non-breaking,
-     * they may be unexpected.
+     * slightly in point releases, and `IRecommendationQuery` may also change.
+     * Requests for the "default" behavior (IE: without any `query` provided)
+     * are unlikely to break, but no specific "default" behavior is guaranteed.
      */
     queryRecommendations?(
         query?: IRecommendationQuery,
