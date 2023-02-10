@@ -138,10 +138,15 @@ export class DisneyPlayerChannel implements IPlayerChannel<DisneyApp> {
 
     private async *collectionIterable(coll: ICollection) {
         const items = await this.api.loadCollection(coll);
+        const info = this.collectionTypeToRecommendationInfo(coll.type);
+
         for (const item of items) {
             const result = this.searchHitToQueryResult(item);
             if (result) {
-                yield { ...result, recommendationType: RecommendationType.New };
+                yield {
+                    ...result,
+                    ...info,
+                };
             }
         }
     }
