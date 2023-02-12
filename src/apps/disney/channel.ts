@@ -160,7 +160,7 @@ export class DisneyPlayerChannel implements IPlayerChannel<DisneyApp> {
                 return { recommendationType: RecommendationType.Recent };
 
             case "CuratedSet":
-                return { RecommendationType: RecommendationType.Curated };
+                return { recommendationType: RecommendationType.Curated };
 
             case "RecommendationSet": // ?
                 return { recommendationType: RecommendationType.Popular };
