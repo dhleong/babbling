@@ -465,8 +465,9 @@ export class PrimeApi {
                 landingPage.sections &&
                 landingPage.sections.center
             )
-        )
+        ) {
             return;
+        }
 
         const { collections } = landingPage.sections.center;
         if (!(collections && collections.collectionList)) return;

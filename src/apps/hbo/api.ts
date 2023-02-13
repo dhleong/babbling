@@ -174,8 +174,9 @@ export class HboApi {
         for (const item of items) {
             const type = entityTypeFromUrn(item.id);
             if (type !== "season") continue;
-            if (!item.body.references || !item.body.references.episodes)
+            if (!item.body.references || !item.body.references.episodes) {
                 continue;
+            }
 
             const episodes = item.body.references.episodes as [];
             for (let i = 0; i < episodes.length; ++i) {

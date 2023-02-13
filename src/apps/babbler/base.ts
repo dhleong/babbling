@@ -120,8 +120,9 @@ export class BabblerBaseApp<TMedia = unknown> extends BaseApp {
         const [m, args] = call;
         switch (m) {
             case "loadMedia": {
-                if (args.length < 1)
+                if (args.length < 1) {
                     throw new Error("Invalid args to loadMedia");
+                }
 
                 const [options] = args;
                 await this.loadMedia(options);
