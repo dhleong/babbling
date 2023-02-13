@@ -95,11 +95,6 @@ function playableFromSearchResult(result: ISearchResult) {
     return playableFromTitleId(result.titleId);
 }
 
-interface IPrimeResultExtras {
-    titleId: string;
-    type: ContentType;
-}
-
 export class PrimePlayerChannel implements IPlayerChannel<PrimeApp> {
     constructor(private readonly options: IPrimeOpts) {}
 
@@ -136,18 +131,24 @@ export class PrimePlayerChannel implements IPlayerChannel<PrimeApp> {
         if (item.appName !== "PrimeApp") {
             throw new Error("Given QueryResult for wrong app");
         }
+        if (item.url == null) {
+            throw new Error(`Missing url for query result: ${item.title}`);
+        }
 
-        const extras = item as unknown as IPrimeResultExtras;
-        if (
-            extras.type !== ContentType.SERIES &&
-            extras.type !== ContentType.SEASON
-        ) {
+        const titleId = pickTitleIdFromUrl(item.url);
+        if (titleId == null) {
+            throw new Error(`Unexpected url for query result: ${item.url}`);
+        }
+
+        const api = new PrimeApi(this.options);
+        const titleIdInfo = await api.getTitleInfo(titleId);
+        debug("titleInfo for ", item.url, " = ", titleIdInfo);
+
+        if (titleIdInfo.series == null) {
             // shortcut out; it definitely does not have episodes
             return;
         }
 
-        const { titleId } = extras;
-        const api = new PrimeApi(this.options);
         const episodes = new EpisodeResolver(
             new PrimeEpisodeCapabilities(api, titleId),
         );
@@ -168,9 +169,7 @@ export class PrimePlayerChannel implements IPlayerChannel<PrimeApp> {
         };
     }
 
-    public async *queryByTitle(
-        title: string,
-    ): AsyncIterable<IQueryResult & IPrimeResultExtras> {
+    public async *queryByTitle(title: string): AsyncIterable<IQueryResult> {
         const api = new PrimeApi(this.options);
         for await (const result of api.search(title)) {
             yield {
@@ -181,16 +180,12 @@ export class PrimePlayerChannel implements IPlayerChannel<PrimeApp> {
                 isPreferred: result.isInWatchlist || result.isPurchased,
                 playable: playableFromSearchResult(result),
                 title: result.title,
-                titleId: result.titleId,
-                type: result.type,
                 url: this.urlFor(result),
             };
         }
     }
 
-    public async *queryRecent(): AsyncIterable<
-        IQueryResult & { titleId: string }
-    > {
+    public async *queryRecent(): AsyncIterable<IQueryResult> {
         const api = new PrimeApi(this.options);
         for await (const result of api.nextUpItems()) {
             yield {
@@ -199,15 +194,12 @@ export class PrimePlayerChannel implements IPlayerChannel<PrimeApp> {
                 desc: result.desc,
                 playable: playableFromTitleId(result.titleId),
                 title: result.title,
-                titleId: result.titleId,
                 url: this.urlFor(result),
             };
         }
     }
 
-    public async *queryRecommended(): AsyncIterable<
-        IQueryResult & { titleId: string }
-    > {
+    public async *queryRecommended(): AsyncIterable<IQueryResult> {
         // NOTE: Legacy behavior:
         yield* this.queryRecent();
     }
