@@ -8,6 +8,8 @@ import {
     IPlayableOptions,
     IPlayerChannel,
     IQueryResult,
+    IRecommendationQuery,
+    RecommendationType,
 } from "../../app";
 import { EpisodeResolver } from "../../util/episode-resolver";
 
@@ -18,6 +20,8 @@ import type { IPrimeOpts, PrimeApp } from ".";
 import { PrimeApi } from "./api";
 import { PrimeEpisodeCapabilities } from "./api/episode-capabilities";
 import { AvailabilityType, IAvailability, ISearchResult } from "./model";
+import withRecommendationType from "../../util/withRecommendationType";
+import filterRecommendations from "../../util/filterRecommendations";
 
 const debug = _debug("babbling:PrimeApp:player");
 
@@ -184,7 +188,7 @@ export class PrimePlayerChannel implements IPlayerChannel<PrimeApp> {
         }
     }
 
-    public async *queryRecommended(): AsyncIterable<
+    public async *queryRecent(): AsyncIterable<
         IQueryResult & { titleId: string }
     > {
         const api = new PrimeApi(this.options);
@@ -199,6 +203,23 @@ export class PrimePlayerChannel implements IPlayerChannel<PrimeApp> {
                 url: this.urlFor(result),
             };
         }
+    }
+
+    public async *queryRecommended(): AsyncIterable<
+        IQueryResult & { titleId: string }
+    > {
+        // NOTE: Legacy behavior:
+        yield* this.queryRecent();
+    }
+
+    public async *queryRecommendations(query?: IRecommendationQuery) {
+        yield* filterRecommendations(
+            query,
+            withRecommendationType(
+                RecommendationType.Recent,
+                this.queryRecent(),
+            ),
+        );
     }
 
     public urlFor(item: { titleId: string }) {

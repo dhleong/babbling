@@ -5,10 +5,14 @@ import {
     IEpisodeQueryResult,
     IPlayerChannel,
     IQueryResult,
+    IRecommendationQuery,
+    RecommendationType,
 } from "../../app";
 
 import type { HuluApp, IHuluOpts } from ".";
 import { HuluApi, supportedEntityTypes } from "./api";
+import withRecommendationType from "../../util/withRecommendationType";
+import filterRecommendations from "../../util/filterRecommendations";
 
 const debug = _debug("babbling:hulu:channel");
 
@@ -124,7 +128,7 @@ export class HuluPlayerChannel implements IPlayerChannel<HuluApp> {
         }
     }
 
-    public async *queryRecommended() {
+    public async *queryRecent() {
         const results = new HuluApi(this.options).fetchRecent();
         for await (const item of results) {
             const { id } = item;
@@ -150,5 +154,20 @@ export class HuluPlayerChannel implements IPlayerChannel<HuluApp> {
                 },
             };
         }
+    }
+
+    public async *queryRecommended() {
+        // NOTE: legacy behavior
+        yield* this.queryRecent();
+    }
+
+    public async *queryRecommendations(query?: IRecommendationQuery) {
+        yield* filterRecommendations(
+            query,
+            withRecommendationType(
+                RecommendationType.Recent,
+                this.queryRecent(),
+            ),
+        );
     }
 }

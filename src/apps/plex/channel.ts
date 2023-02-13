@@ -1,7 +1,15 @@
 import createDebug from "debug";
 
 import { PlexApp } from ".";
-import { IPlayableOptions, IPlayerChannel, IQueryResult } from "../../app";
+import {
+    IPlayableOptions,
+    IPlayerChannel,
+    IQueryResult,
+    IRecommendationQuery,
+    RecommendationType,
+} from "../../app";
+import filterRecommendations from "../../util/filterRecommendations";
+import withRecommendationType from "../../util/withRecommendationType";
 import { PlexApi } from "./api";
 import { IPlexOpts } from "./config";
 import { IPlexItem } from "./model";
@@ -32,15 +40,31 @@ export class PlexPlayerChannel implements IPlayerChannel<PlexApp> {
         };
     }
 
+    public async *queryRecent() {
+        yield* this.yieldQueryResults(this.api.getContinueWatching());
+    }
+
     public async *queryRecommended() {
-        const items = await this.api.getContinueWatching();
-        for (const item of items) {
-            yield await this.itemToQueryResult(item);
-        }
+        // NOTE: Legacy behavior:
+        yield* this.queryRecent();
+    }
+
+    public async *queryRecommendations(query?: IRecommendationQuery) {
+        yield* filterRecommendations(
+            query,
+            withRecommendationType(
+                RecommendationType.Recent,
+                this.queryRecent(),
+            ),
+        );
     }
 
     public async *queryByTitle(title: string): AsyncIterable<IQueryResult> {
-        for (const item of await this.api.search(title)) {
+        yield* this.yieldQueryResults(this.api.search(title));
+    }
+
+    private async *yieldQueryResults(items: Promise<IPlexItem[]>) {
+        for (const item of await items) {
             yield await this.itemToQueryResult(item);
         }
     }

@@ -234,26 +234,9 @@ export class Player {
      * can be passed directly to `play`.
      */
     public getRecommendationsMap(options?: QueryOptions) {
-        const { onError } = unpackQueryOptions(options);
-
-        /* eslint-disable no-param-reassign */
-        return this.apps.reduce((m, app) => {
-            const query = app.channel.queryRecommended?.bind(app.channel);
-            if (query == null) return m;
-
-            m[app.appConstructor.name] = {
-                [Symbol.asyncIterator]: async function* () {
-                    try {
-                        yield* query();
-                    } catch (e: any) {
-                        onError(app.appConstructor.name, e);
-                    }
-                },
-            };
-
-            return m;
-        }, {} as { [app: string]: AsyncIterable<IQueryResult> });
-        /* eslint-enable no-param-reassign */
+        return this.buildQueryMap(options, (app) =>
+            app.channel.queryRecommended?.bind(app.channel),
+        );
     }
 
     /**
@@ -263,6 +246,57 @@ export class Player {
     public queryRecommended(options?: QueryOptions) {
         const m = this.getRecommendationsMap(options);
         return interleaveAsyncIterables(Object.values(m));
+    }
+
+    /**
+     * Get a map each key is the name of an App and each value is an
+     * AsyncIterable representing recently-watched media from that app. Each result
+     * can be passed directly to `play`.
+     */
+    public getRecentsMap(options?: QueryOptions) {
+        return this.buildQueryMap(options, (app) =>
+            app.channel.queryRecommended?.bind(app.channel),
+        );
+    }
+
+    /**
+     * Get an AsyncIterable representing playables from across all
+     * configured apps. Each result can be passed directly to `play`.
+     */
+    public queryRecents(options?: QueryOptions) {
+        const m = this.getRecentsMap(options);
+        return interleaveAsyncIterables(Object.values(m));
+    }
+
+    private buildQueryMap(
+        options: QueryOptions | undefined,
+        getQueryFn: (
+            app: IConfiguredApp<IPlayerEnabledConstructor<any, any>>,
+        ) => (() => AsyncIterable<IQueryResult>) | undefined,
+    ) {
+        const { onError } = unpackQueryOptions(options);
+
+        /* eslint-disable no-param-reassign */
+        return this.apps.reduce((m, app) => {
+            const query = getQueryFn(app);
+            if (query == null) return m;
+
+            m[app.appConstructor.name] = {
+                [Symbol.asyncIterator]: async function* () {
+                    try {
+                        const results = query?.();
+                        if (results != null) {
+                            yield* results;
+                        }
+                    } catch (e: any) {
+                        onError(app.appConstructor.name, e);
+                    }
+                },
+            };
+
+            return m;
+        }, {} as { [app: string]: AsyncIterable<IQueryResult> });
+        /* eslint-enable no-param-reassign */
     }
 
     private async playOnEachDevice(

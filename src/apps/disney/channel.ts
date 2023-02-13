@@ -6,6 +6,8 @@ import {
     IPlayableOptions,
     IPlayerChannel,
     IQueryResult,
+    IRecommendationQuery,
+    RecommendationType,
 } from "../../app";
 import { mergeAsyncIterables } from "../../async";
 
@@ -13,6 +15,7 @@ import { mergeAsyncIterables } from "../../async";
 // importing it for the type definition
 import type { DisneyApp, IDisneyOpts } from ".";
 import { DisneyApi, ICollection, ISearchHit } from "./api";
+import filterRecommendations from "../../util/filterRecommendations";
 
 const debug = _debug("babbling:DisneyApp:channel");
 
@@ -23,7 +26,9 @@ const MOVIE_URL = "https://www.disneyplus.com/movies/";
 const RECOMMENDATION_SET_TYPES = new Set([
     "RecommendationSet",
     "ContinueWatchingSet",
-]);
+] as const);
+
+export type CollectionSetType = ICollection["type"];
 
 function getSeriesIdFromUrl(url: string) {
     const m = url.match(/\/series\/[^/]+\/(.+)$/);
@@ -107,11 +112,24 @@ export class DisneyPlayerChannel implements IPlayerChannel<DisneyApp> {
         }
     }
 
+    public async *queryRecent() {
+        yield* this.queryCollectionType(new Set(["ContinueWatchingSet"]));
+    }
+
     public async *queryRecommended() {
-        const collections = await this.api.getCollections();
-        const toFetch = collections.filter((coll) =>
-            RECOMMENDATION_SET_TYPES.has(coll.type),
+        yield* this.queryCollectionType(RECOMMENDATION_SET_TYPES);
+    }
+
+    public async *queryRecommendations(query?: IRecommendationQuery) {
+        yield* filterRecommendations(
+            query,
+            this.queryCollectionType(RECOMMENDATION_SET_TYPES),
         );
+    }
+
+    private async *queryCollectionType(types: Set<CollectionSetType>) {
+        const collections = await this.api.getCollections();
+        const toFetch = collections.filter((coll) => types.has(coll.type));
 
         yield* mergeAsyncIterables(
             toFetch.map((coll) => this.collectionIterable(coll)),
@@ -120,11 +138,32 @@ export class DisneyPlayerChannel implements IPlayerChannel<DisneyApp> {
 
     private async *collectionIterable(coll: ICollection) {
         const items = await this.api.loadCollection(coll);
+        const info = this.collectionTypeToRecommendationInfo(coll.type);
+
         for (const item of items) {
             const result = this.searchHitToQueryResult(item);
             if (result) {
-                yield result;
+                yield {
+                    ...result,
+                    ...info,
+                };
             }
+        }
+    }
+
+    private collectionTypeToRecommendationInfo(type: CollectionSetType) {
+        switch (type) {
+            case "BecauseYouSet":
+                return { recommendationType: RecommendationType.Interest };
+
+            case "ContinueWatchingSet":
+                return { recommendationType: RecommendationType.Recent };
+
+            case "CuratedSet":
+                return { recommendationType: RecommendationType.Curated };
+
+            case "RecommendationSet": // ?
+                return { recommendationType: RecommendationType.Popular };
         }
     }
 

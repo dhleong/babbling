@@ -85,6 +85,38 @@ export interface IQueryResult {
     isPreferred?: boolean;
 }
 
+export enum RecommendationType {
+    // This item was recently watched
+    Recent = "recent",
+
+    // This item was saved by the user. Sometimes called "queue" or "watch list"
+    Saved = "saved",
+
+    // This item was newly added
+    New = "new",
+
+    // This item is "popular," but not necessarily an interest-based recommendation
+    Popular = "popular",
+
+    // This item was recommended due to perceived similarity to titles or
+    // genres the user has enjoyed.
+    Interest = "interest",
+
+    // This item was a curated recommendation
+    Curated = "curated",
+}
+
+export interface IRecommendation extends IQueryResult {
+    recommendationType: RecommendationType;
+    recommendationCategoryKey?: string;
+    recommendationCategoryTitle?: string;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-empty-interface
+export interface IRecommendationQuery {
+    excludeTypes?: RecommendationType[];
+}
+
 export interface IEpisodeQueryResult extends IQueryResult {
     seriesTitle: string;
 }
@@ -146,10 +178,32 @@ export interface IPlayerChannel<TSelf extends IApp> {
 
     /**
      * Search for {@see Player.play}'able media per the source
-     * apps' recommendations. Could be (but not necessarily)
-     * based on recency
+     * apps' recommendations.
+     * @deprecated Most channels implemented this as `queryRecent`, so the naming
+     * is unhelpful. Use `queryRecent` or `queryRecommendations` instead.
      */
     queryRecommended?(): AsyncIterable<IQueryResult>;
+
+    /**
+     * Search for {@see Player.play}'able media per the source apps'
+     * recommendations. If no `query` is provided (or if the provider doesn't
+     * support `query` filtering) some default set of recommendation types will be
+     * selected.
+     *
+     * NOTE: This method is not currently stable; its behavior may change
+     * slightly in point releases, and `IRecommendationQuery` may also change.
+     * Requests for the "default" behavior (IE: without any `query` provided)
+     * are unlikely to break, but no specific "default" behavior is guaranteed.
+     */
+    queryRecommendations?(
+        query?: IRecommendationQuery,
+    ): AsyncIterable<IRecommendation>;
+
+    /**
+     * Search for {@see Player.play}'able media per the source
+     * apps' recently viewed media.
+     */
+    queryRecent?(): AsyncIterable<IQueryResult>;
 }
 
 export interface IPlayerEnabledConstructor<

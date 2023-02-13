@@ -5,11 +5,15 @@ import {
     IEpisodeQueryResult,
     IPlayerChannel,
     IQueryResult,
+    IRecommendationQuery,
+    RecommendationType,
 } from "../../app";
 import { EpisodeResolver } from "../../util/episode-resolver";
 
 import type { HboApp, IHboOpts } from ".";
 import { entityTypeFromUrn, HboApi, IHboResult, unpackUrn } from "./api";
+import withRecommendationType from "../../util/withRecommendationType";
+import filterRecommendations from "../../util/filterRecommendations";
 
 const debug = createDebug("babbling:hbo:channel");
 
@@ -135,11 +139,23 @@ export class HboPlayerChannel implements IPlayerChannel<HboApp> {
         }
     }
 
-    public async *queryRecommended() {
-        // NOTE: HBO actually has a "recommended," but the other apps are returning
-        // "continue watching" content here, so until we update the API to have that
-        // as a distinct method, let's stay internally consistent
+    public async *queryRecent() {
         yield* this.yieldPlayables(this.api.queryContinueWatching());
+    }
+
+    public async *queryRecommendations(query?: IRecommendationQuery) {
+        yield* filterRecommendations(
+            query,
+            withRecommendationType(
+                RecommendationType.Interest,
+                this.yieldPlayables(this.api.queryRecommended()),
+            ),
+        );
+    }
+
+    public async *queryRecommended() {
+        // NOTE: Legacy behavior:
+        yield* this.queryRecent();
     }
 
     private async *yieldPlayables(source: ReturnType<typeof this.api.search>) {
