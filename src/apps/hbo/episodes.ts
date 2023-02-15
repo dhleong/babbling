@@ -9,7 +9,7 @@ import {
     unpackUrn,
     urlForUrn,
 } from "./api";
-import { createPlayableFromUrn, formatCoverImage } from "./playable";
+import { createPlayableFromUrn } from "./playable";
 
 const debug = createDebug("babbling:hbo:episodes");
 
@@ -26,12 +26,15 @@ export class HboEpisodeListings implements IEpisodeListings {
             items
                 .filter((item) => entityTypeFromUrn(item.id) === "season")
                 .map(async (season) => {
+                    // NOTE: HBO does return URLs for season images, but they
+                    // just resolve to the HBO Max logo
                     debug("season=", season);
                     return {
                         appName: "HboApp",
-                        cover: formatCoverImage(season.body.images?.tile),
                         desc: season.body.summaries?.full,
-                        title: season.body.titles?.full ?? "Season ...",
+                        title:
+                            season.body.titles?.full ??
+                            `Season ${season.body.seasonNumber}`,
                         playable: await createPlayableFromUrn(
                             this.api,
                             season.id,
