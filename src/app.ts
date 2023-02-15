@@ -135,6 +135,18 @@ export interface ISeasonAndEpisodeQuery {
 export type IEpisodeQuery = ISeasonAndEpisodeQuery;
 
 /**
+ * The IEpisodeListings interface describes a helper for listing episodes and
+ * seasons in a Series. Implementations may cache and share data between method
+ * calls for efficiency (especially if the service has a single API call that
+ * returns data to facilitate multiple methods).
+ */
+export interface IEpisodeListings {
+    listSeasons(): Promise<IQueryResult[]>;
+    listEpisodesInCurrentSeason?(): Promise<IQueryResult[]>;
+    listEpisodesInSeason?(season: IQueryResult): Promise<IQueryResult[]>;
+}
+
+/**
  * The IPlayerChannel interface is a high-level, unified means of
  * interacting with a particular app and its service.
  */
@@ -152,6 +164,15 @@ export interface IPlayerChannel<TSelf extends IApp> {
      * the returned Promise should reject.
      */
     createPlayable(url: string): Promise<IPlayable<AppFor<TSelf>>>;
+
+    /**
+     * Create a helper for resolving season/episode listings.
+     * If undefined is returned from this method, the IQueryResult does not
+     * represent a series.
+     */
+    createEpisodeListingsFor?(
+        item: IQueryResult,
+    ): Promise<IEpisodeListings | undefined>;
 
     /**
      * Find a specific {@see Player.play}'able episode for the

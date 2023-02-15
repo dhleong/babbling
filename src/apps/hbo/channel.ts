@@ -11,29 +11,19 @@ import {
 import { EpisodeResolver } from "../../util/episode-resolver";
 
 import type { HboApp, IHboOpts } from ".";
-import { entityTypeFromUrn, HboApi, IHboResult, unpackUrn } from "./api";
+import {
+    entityTypeFromUrn,
+    HboApi,
+    IHboResult,
+    unpackUrn,
+    urlForUrn,
+} from "./api";
 import withRecommendationType from "../../util/withRecommendationType";
 import filterRecommendations from "../../util/filterRecommendations";
+import { HboEpisodeListings } from "./episodes";
+import { createPlayableFromUrn, formatCoverImage } from "./playable";
 
 const debug = createDebug("babbling:hbo:channel");
-
-const COVER_IMAGE_TEMPLATE_VALUES: Partial<Record<string, string>> = {
-    compression: "medium",
-    size: "1920x1080",
-    protection: "false",
-    scaleDownToFit: "false",
-};
-
-function formatCoverImage(template: string) {
-    // eg: tile: "https://art-gallery.api.hbo.com/images/<id>/tile?v=<v>&size={{size}}&compression={{compression}}&protection={{protection}}&scaleDownToFit={{scaleDownToFit}}&productCode=hboMax&overlayImage=urn:warnermedia:brand:not-in-a-hub:territory:adria"
-    return template.replace(/\{\{([a-zA-Z]+)\}\}/g, (_, key: string) => {
-        const value = COVER_IMAGE_TEMPLATE_VALUES[key];
-        if (value == null) {
-            debug("Unexpected cover image template key", key);
-        }
-        return value ?? "";
-    });
-}
 
 function normalizeUrn(urn: string) {
     const unpacked = unpackUrn(urn);
@@ -65,37 +55,20 @@ export class HboPlayerChannel implements IPlayerChannel<HboApp> {
 
     public async createPlayable(url: string) {
         const urn = urnFromUrl(url);
+        return createPlayableFromUrn(this.api, urn);
+    }
 
-        try {
-            switch (entityTypeFromUrn(urn)) {
-                case "franchise":
-                    // Is this always correct?
-                    const seriesUrn = await this.api.resolveFranchiseSeries(
-                        urn,
-                    );
-                    return async (app: HboApp) => {
-                        debug("Resume franchise series @", url);
-                        return app.resumeSeries(seriesUrn);
-                    };
-
-                case "series":
-                    return async (app: HboApp) => {
-                        debug("Resume series @", url);
-                        return app.resumeSeries(urn);
-                    };
-
-                case "episode":
-                case "extra":
-                case "feature":
-                case "season":
-                default:
-                    // TODO: it may be possible to resume specific episodes or
-                    // features (movies)...
-                    return async (app: HboApp) => app.play(urn);
-            }
-        } catch (e) {
-            throw new Error(`'${urn}' doesn't look playable`);
+    public async createEpisodeListingsFor(item: IQueryResult) {
+        if (item.appName !== "HboApp") {
+            throw new Error("Given QueryResult for wrong app");
+        } else if (item.url == null) {
+            throw new Error(`Given query result has no URL: ${item.title}`);
         }
+
+        const urn = urnFromUrl(item.url);
+        if (entityTypeFromUrn(urn) !== "series") return; // cannot have it
+
+        return new HboEpisodeListings(this.api, urn);
     }
 
     public async findEpisodeFor(
@@ -117,6 +90,7 @@ export class HboPlayerChannel implements IPlayerChannel<HboApp> {
         const episode = await resolver.query(query);
         if (!episode) return;
 
+        debug("found episode", query, episode);
         const url = `https://play.hbomax.com/${episode.urn}`;
         return {
             appName: "HboApp",
@@ -129,7 +103,7 @@ export class HboPlayerChannel implements IPlayerChannel<HboApp> {
 
     public async *queryByTitle(title: string): AsyncIterable<IQueryResult> {
         for await (const item of this.api.search(title)) {
-            if (item.type === "SERIES_EPISODE") {
+            if (entityTypeFromUrn(item.urn) === "episode") {
                 // Don't emit episodes; this method is for
                 // finding series and movies only
                 continue;
@@ -168,18 +142,12 @@ export class HboPlayerChannel implements IPlayerChannel<HboApp> {
         // HBO Max may use a slightly different URN structure for the
         // series / movie page than it emits in the search result
         const urn = unpackUrn(source.seriesUrn ?? source.urn);
-        const url =
-            urn.pageType != null
-                ? `https://play.hbomax.com/${source.urn}`
-                : `https://play.hbomax.com/page/urn:hbo:page:${urn.id}:type:${urn.type}`;
+        const url = urlForUrn(urn);
         const title = source.seriesTitle ?? source.title;
 
         return {
             appName: "HboApp",
-            cover:
-                source.imageTemplate == null
-                    ? undefined
-                    : formatCoverImage(source.imageTemplate),
+            cover: formatCoverImage(source.imageTemplate),
             playable: await this.createPlayable(url),
             title,
             url,

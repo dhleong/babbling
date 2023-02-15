@@ -62,6 +62,48 @@ type EntityType =
     | "feature"
     | "franchise";
 
+interface IHboTitles {
+    full: string;
+    short: string;
+    ultraShort: string;
+}
+
+interface IHboRawBody {
+    images?: {
+        tile?: string;
+        tileburnedin?: string;
+        tilezoom?: string;
+    };
+
+    references?: {
+        edits?: string[];
+        episodes?: string[];
+        extras?: string[];
+        next?: string;
+        previews?: string[];
+        season?: string;
+        series?: string;
+        viewable?: string;
+    };
+
+    summaries?: {
+        full: string;
+        short: string;
+    };
+
+    seasonNumber?: number;
+    seriesTitles?: IHboTitles;
+
+    titles?: IHboTitles;
+}
+
+export interface IHboRawItem {
+    id: string;
+    statusCode: number;
+    headers: Partial<Record<string, string>>;
+    body: IHboRawBody;
+}
+
 export function unpackUrn(urn: string) {
     const [, , entityType, id, , pageType] = urn.split(":");
     if (entityType == "page") {
@@ -88,6 +130,12 @@ function extractIdFromUrn(urnOrId: string) {
     return id;
 }
 
+export function urlForUrn(urn: ReturnType<typeof unpackUrn>) {
+    return urn.pageType != null
+        ? `https://play.hbomax.com/urn:hbo:${urn.type}:${urn.id}`
+        : `https://play.hbomax.com/page/urn:hbo:page:${urn.id}:type:${urn.type}`;
+}
+
 export function entityTypeFromUrn(urn: string): EntityType {
     const unpacked = unpackUrn(urn);
     if (unpacked.type === "page") {
@@ -110,7 +158,6 @@ export interface IHboResult {
     seriesTitle?: string;
     seriesUrn?: string;
     title: string;
-    type: "FEATURE" | "SERIES" | "SERIES_EPISODE";
 }
 
 export class HboApi {
@@ -158,6 +205,7 @@ export class HboApi {
 
     public async getEpisodesForSeries(seriesUrn: string) {
         const items = await this.fetchContent([seriesUrn]);
+        debug("items=", JSON.stringify(items, null, 2));
 
         const container = new EpisodeContainer<IHboEpisode>();
 
@@ -166,8 +214,8 @@ export class HboApi {
         const episodeTitles: { [key: string]: string } = {};
         for (const item of items) {
             const type = entityTypeFromUrn(item.id);
-            if (type === "episode") {
-                episodeTitles[item.id] = item.body.titles.full;
+            if (type === "episode" && item.body.titles != null) {
+                episodeTitles[item.id] = item.body.titles?.full;
             }
         }
 
@@ -181,7 +229,7 @@ export class HboApi {
             const episodes = item.body.references.episodes as [];
             for (let i = 0; i < episodes.length; ++i) {
                 const urn = episodes[i];
-                const season = item.body.seasonNumber - 1;
+                const season = (item.body.seasonNumber ?? 1) - 1;
                 container.add({
                     urn,
 
@@ -285,15 +333,14 @@ export class HboApi {
         // the results, which are resolved after it, so skip it
         const results = content.slice(1);
         for (const result of results) {
-            const urn: string = result.body.references?.viewable;
-            if (!urn) continue;
+            const urn = result.body.references?.viewable;
+            if (!urn || !result.body.titles) continue;
 
             const resolved: IHboResult = {
                 imageTemplate: result.body.images?.tile,
                 seriesTitle: result.body.seriesTitles?.full,
-                seriesUrn: result.body.references.series,
+                seriesUrn: result.body.references?.series,
                 title: result.body.titles.full,
-                type: result.body.contentType,
                 urn,
             };
             yield resolved;
@@ -382,7 +429,8 @@ export class HboApi {
         return headWaiter;
     }
 
-    private async fetchContent(urns: string[]) {
+    /** @internal */
+    public async fetchContent(urns: string[]): Promise<IHboRawItem[]> {
         return this.request("post", {
             body: urns.map((urn) => ({ id: urn })),
             json: true,
@@ -397,7 +445,7 @@ export class HboApi {
                 `Failed to fetch ${urn}: ${JSON.stringify(results[0])}`,
             );
         }
-        return results[0].body;
+        return results[0].body as any;
     }
 
     private async request(
