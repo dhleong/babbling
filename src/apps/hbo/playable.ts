@@ -1,9 +1,37 @@
 import createDebug from "debug";
 
 import type { HboApp } from ".";
-import { entityTypeFromUrn, HboApi } from "./api";
+import { IQueryResult } from "../../app";
+import { entityTypeFromUrn, HboApi, unpackUrn } from "./api";
 
 const debug = createDebug("babbling:hbo:playable");
+
+function normalizeUrn(urn: string) {
+    const unpacked = unpackUrn(urn);
+    if (unpacked.type === "page") {
+        return `urn:hbo:${unpacked.pageType}:${unpacked.id}`;
+    }
+    return urn;
+}
+
+export function urnFromUrl(url: string) {
+    const pathIndex = url.lastIndexOf("/");
+    if (pathIndex === 0) {
+        // This is *just* a URN
+        return normalizeUrn(url);
+    }
+    return normalizeUrn(url.substring(pathIndex + 1));
+}
+
+export function urnFromQueryResult(item: IQueryResult) {
+    if (item.appName !== "HboApp") {
+        throw new Error("Given QueryResult for wrong app");
+    } else if (item.url == null) {
+        throw new Error(`Given query result has no URL: ${item.title}`);
+    }
+
+    return urnFromUrl(item.url);
+}
 
 export async function createPlayableFromUrn(api: HboApi, urn: string) {
     try {

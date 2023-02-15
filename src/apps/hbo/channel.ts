@@ -21,26 +21,14 @@ import {
 import withRecommendationType from "../../util/withRecommendationType";
 import filterRecommendations from "../../util/filterRecommendations";
 import { HboEpisodeListings } from "./episodes";
-import { createPlayableFromUrn, formatCoverImage } from "./playable";
+import {
+    createPlayableFromUrn,
+    formatCoverImage,
+    urnFromQueryResult,
+    urnFromUrl,
+} from "./playable";
 
 const debug = createDebug("babbling:hbo:channel");
-
-function normalizeUrn(urn: string) {
-    const unpacked = unpackUrn(urn);
-    if (unpacked.type === "page") {
-        return `urn:hbo:${unpacked.pageType}:${unpacked.id}`;
-    }
-    return urn;
-}
-
-function urnFromUrl(url: string) {
-    const pathIndex = url.lastIndexOf("/");
-    if (pathIndex === 0) {
-        // This is *just* a URN
-        return normalizeUrn(url);
-    }
-    return normalizeUrn(url.substring(pathIndex + 1));
-}
 
 export class HboPlayerChannel implements IPlayerChannel<HboApp> {
     private api: HboApi;
@@ -59,13 +47,7 @@ export class HboPlayerChannel implements IPlayerChannel<HboApp> {
     }
 
     public async createEpisodeListingsFor(item: IQueryResult) {
-        if (item.appName !== "HboApp") {
-            throw new Error("Given QueryResult for wrong app");
-        } else if (item.url == null) {
-            throw new Error(`Given query result has no URL: ${item.title}`);
-        }
-
-        const urn = urnFromUrl(item.url);
+        const urn = urnFromQueryResult(item);
         if (entityTypeFromUrn(urn) !== "series") return; // cannot have it
 
         return new HboEpisodeListings(this.api, urn);
@@ -75,13 +57,7 @@ export class HboPlayerChannel implements IPlayerChannel<HboApp> {
         item: IQueryResult,
         query: IEpisodeQuery,
     ): Promise<IEpisodeQueryResult | undefined> {
-        if (item.appName !== "HboApp") {
-            throw new Error("Given QueryResult for wrong app");
-        } else if (item.url == null) {
-            throw new Error(`Given query result has no URL: ${item.title}`);
-        }
-
-        const urn = urnFromUrl(item.url);
+        const urn = urnFromQueryResult(item);
         if (entityTypeFromUrn(urn) !== "series") return; // cannot have it
 
         const resolver = new EpisodeResolver({

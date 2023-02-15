@@ -91,6 +91,7 @@ interface IHboRawBody {
         short: string;
     };
 
+    numberInSeason?: number;
     seasonNumber?: number;
     seriesTitles?: IHboTitles;
 

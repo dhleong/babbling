@@ -9,7 +9,11 @@ import {
     unpackUrn,
     urlForUrn,
 } from "./api";
-import { createPlayableFromUrn } from "./playable";
+import {
+    createPlayableFromUrn,
+    formatCoverImage,
+    urnFromQueryResult,
+} from "./playable";
 
 const debug = createDebug("babbling:hbo:episodes");
 
@@ -45,8 +49,32 @@ export class HboEpisodeListings implements IEpisodeListings {
         );
     }
 
-    public async listEpisodesInSeason(_season: IQueryResult) {
-        // TODO
-        return [];
+    public async listEpisodesInSeason(season: IQueryResult) {
+        const urn = urnFromQueryResult(season);
+        const items = await this.api.fetchContent([urn]); // TODO
+        const rawEpisodes = items.filter(
+            (item) =>
+                entityTypeFromUrn(item.id) === "episode" &&
+                item.body.references?.season === urn,
+        );
+        rawEpisodes.sort(
+            (a, b) =>
+                (a.body.numberInSeason ?? 0) - (b.body.numberInSeason ?? 0),
+        );
+
+        return Promise.all(
+            rawEpisodes.map(async (episode) => {
+                return {
+                    appName: "HboApp",
+                    cover: formatCoverImage(episode.body.images?.tile),
+                    desc: episode.body.summaries?.full,
+                    title:
+                        episode.body.titles?.full ??
+                        `Season ${episode.body.seasonNumber}`,
+                    playable: await createPlayableFromUrn(this.api, episode.id),
+                    url: urlForUrn(unpackUrn(episode.id)),
+                };
+            }),
+        );
     }
 }
