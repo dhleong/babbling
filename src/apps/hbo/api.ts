@@ -79,6 +79,7 @@ interface IHboRawBody {
         edits?: string[];
         episodes?: string[];
         extras?: string[];
+        items?: string[];
         next?: string;
         previews?: string[];
         season?: string;
@@ -107,9 +108,9 @@ export interface IHboRawItem {
 
 export function unpackUrn(urn: string) {
     const [, , entityType, id, , pageType] = urn.split(":");
-    if (entityType == "page") {
+    if (pageType != null) {
         return {
-            type: "page" as const,
+            type: entityType as "page" | "tile",
             id,
             pageType: pageType as EntityType,
         };
@@ -119,6 +120,11 @@ export function unpackUrn(urn: string) {
             id,
         };
     }
+}
+
+export function pageUrnFrom(urn: string) {
+    const { id, type } = unpackUrn(urn);
+    return `urn:hbo:page:${id}:type:${type}`;
 }
 
 function extractIdFromUrn(urnOrId: string) {
@@ -139,7 +145,7 @@ export function urlForUrn(urn: ReturnType<typeof unpackUrn>) {
 
 export function entityTypeFromUrn(urn: string): EntityType {
     const unpacked = unpackUrn(urn);
-    if (unpacked.type === "page") {
+    if (unpacked.pageType != null) {
         return unpacked.pageType;
     } else {
         return unpacked.type;
@@ -349,22 +355,8 @@ export class HboApi {
     }
 
     public async resolveFranchiseSeries(franchiseUrn: string) {
-        const unpacked = unpackUrn(franchiseUrn);
-        const urn = `urn:hbo:page:${unpacked.id}:type:series`;
-        const result = await this.request("get", {
-            json: true,
-            url: EXPRESS_CONTENT_URL_BASE + urn,
-            qs: {
-                "api-version": "v9.0",
-                brand: "HBO MAX",
-                "country-code": "US",
-                "device-code": "desktop",
-                language: "en-US",
-                "product-code": "hboMax",
-                "profile-type": "adult",
-                "signed-in": "true",
-            },
-        });
+        const urn = pageUrnFrom(franchiseUrn);
+        const result = await this.fetchExpressContent(urn);
         const reference = result?.[0]?.body?.references?.items?.[0];
         if (reference == null) {
             throw new Error(
@@ -428,6 +420,24 @@ export class HboApi {
 
         this.cachedHeadWaiter = headWaiter;
         return headWaiter;
+    }
+
+    /** @internal */
+    public async fetchExpressContent(urn: string): Promise<IHboRawItem[]> {
+        return this.request("get", {
+            json: true,
+            url: EXPRESS_CONTENT_URL_BASE + urn,
+            qs: {
+                "api-version": "v9.0",
+                brand: "HBO MAX",
+                "country-code": "US",
+                "device-code": "desktop",
+                language: "en-US",
+                "product-code": "hboMax",
+                "profile-type": "adult",
+                "signed-in": "true",
+            },
+        });
     }
 
     /** @internal */

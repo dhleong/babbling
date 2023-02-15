@@ -6,6 +6,7 @@ import {
     entityTypeFromUrn,
     HboApi,
     IHboRawItem,
+    pageUrnFrom,
     unpackUrn,
     urlForUrn,
 } from "./api";
@@ -18,14 +19,18 @@ import {
 const debug = createDebug("babbling:hbo:episodes");
 
 export class HboEpisodeListings implements IEpisodeListings {
-    private readonly listings: Shared<IHboRawItem[]>;
+    private readonly seasonListings: Shared<IHboRawItem[]>;
+    private readonly episodeListings: Shared<IHboRawItem[]>;
 
     constructor(private readonly api: HboApi, public readonly urn: string) {
-        this.listings = new Shared(() => this.api.fetchContent([urn]));
+        this.seasonListings = new Shared(() => this.api.fetchContent([urn]));
+        this.episodeListings = new Shared(() =>
+            this.api.fetchExpressContent(pageUrnFrom(urn)),
+        );
     }
 
     public async listSeasons(): Promise<IQueryResult[]> {
-        const items = await this.listings.get();
+        const items = await this.seasonListings.get();
         return Promise.all(
             items
                 .filter((item) => entityTypeFromUrn(item.id) === "season")
@@ -50,17 +55,27 @@ export class HboEpisodeListings implements IEpisodeListings {
     }
 
     public async listEpisodesInSeason(season: IQueryResult) {
-        const urn = urnFromQueryResult(season);
-        const items = await this.api.fetchContent([urn]); // TODO
+        const [items, resolvedSeason] = await Promise.all([
+            this.episodeListings.get(),
+            this.resolveSeasonItem(urnFromQueryResult(season)),
+        ]);
+
+        debug("Resolved season", season, " to ", resolvedSeason);
+
         const rawEpisodes = items.filter(
             (item) =>
                 entityTypeFromUrn(item.id) === "episode" &&
-                item.body.references?.season === urn,
+                item.body.seasonNumber === resolvedSeason.body.seasonNumber,
         );
         rawEpisodes.sort(
             (a, b) =>
                 (a.body.numberInSeason ?? 0) - (b.body.numberInSeason ?? 0),
         );
+
+        // NOTE: For some reason, naively doing fetchContent([seasonUrn]) does not
+        // consistently return all episodes for that season; using the express-content
+        // endpoint for the series returns *every* episode in the *series*, but omits
+        // things like `summaries`...
 
         return Promise.all(
             rawEpisodes.map(async (episode) => {
@@ -70,11 +85,20 @@ export class HboEpisodeListings implements IEpisodeListings {
                     desc: episode.body.summaries?.full,
                     title:
                         episode.body.titles?.full ??
-                        `Season ${episode.body.seasonNumber}`,
+                        `Episode ${episode.body.numberInSeason}`,
                     playable: await createPlayableFromUrn(this.api, episode.id),
                     url: urlForUrn(unpackUrn(episode.id)),
                 };
             }),
         );
+    }
+
+    private async resolveSeasonItem(urn: string) {
+        const listings = await this.seasonListings.get();
+        const season = listings.find((item) => item.id === urn);
+        if (season == null) {
+            throw new Error(`Invalid season ID '${urn}'`);
+        }
+        return season;
     }
 }
