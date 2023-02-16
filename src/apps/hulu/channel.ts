@@ -24,8 +24,16 @@ function seemsLikeValidUUID(uuid: string) {
     );
 }
 
-function createUrl(type: string, id: string) {
+export function createUrl(type: string, id: string) {
     return `https://www.hulu.com/${type}/${id}`;
+}
+
+export function extractIdFromUrl(url: string) {
+    if (url.length < UUID_LENGTH) {
+        throw new Error(`'${url}' doesn't seem playable`);
+    }
+
+    return url.substring(url.length - UUID_LENGTH);
 }
 
 function pickArtwork(item: any) {
@@ -52,11 +60,7 @@ export class HuluPlayerChannel implements IPlayerChannel<HuluApp> {
     }
 
     public async createPlayable(url: string) {
-        if (url.length < UUID_LENGTH) {
-            throw new Error(`'${url}' doesn't seem playable`);
-        }
-
-        const id = url.substr(-UUID_LENGTH);
+        const id = extractIdFromUrl(url);
         if (url.includes("/series/")) {
             debug("detected series", id);
 
@@ -81,7 +85,7 @@ export class HuluPlayerChannel implements IPlayerChannel<HuluApp> {
 
         const api = new HuluApi(this.options);
         const { url } = item;
-        const seriesId = url.substring(url.lastIndexOf("/") + 1);
+        const seriesId = extractIdFromUrl(url);
 
         const episode = await api.episodeResolver(seriesId).query(query);
         if (!episode) return;
