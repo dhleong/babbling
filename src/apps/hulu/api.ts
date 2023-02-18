@@ -27,6 +27,8 @@ const CSRF_COOKIE_NAME = "_tcv";
 const CHROMECAST_AUTH_URL =
     "https://auth.hulu.com/v1/web/chromecast/authenticate";
 
+const SEASONS_COMPONENT_ID = "94";
+
 export const supportedEntityTypes = new Set(["series", "movie", "episode"]);
 
 function extractCookie(cookies: string, cookieName: string) {
@@ -148,25 +150,59 @@ export class HuluApi {
     }
 
     public episodeResolver(seriesId: string) {
-        const api = this; // eslint-disable-line @typescript-eslint/no-this-alias
+        const episodesInSeason = (seasonIndex: number) =>
+            this.paginatedEpisodesInSeason(seriesId, seasonIndex + 1);
         return new EpisodeResolver<IHuluEpisode>({
-            async *episodesInSeason(seasonIndex: number) {
-                let page: string | undefined;
-                do {
-                    const { items, nextPage } = await api.episodesInSeason(
-                        seriesId,
-                        seasonIndex + 1,
-                        page,
-                    );
-
-                    yield items;
-                    page = nextPage;
-                } while (page);
-            },
+            episodesInSeason,
         });
     }
 
-    public async episodesInSeason(
+    public async getSeasons(seriesId: string) {
+        const json = await this.fetchSeriesHub(seriesId);
+        const seasonsComponent = json.components.find(
+            (component: any) => component.id === SEASONS_COMPONENT_ID,
+        );
+        if (seasonsComponent == null) {
+            return [];
+        }
+
+        return (seasonsComponent.items as any[]).map((item) => {
+            return {
+                id: item.id,
+                url: item.href,
+                title: item.name,
+                seasonNumber: item.series_grouping_metadata.season_number,
+            };
+        });
+    }
+
+    public async *episodesInSeason(seriesId: string, seasonNumber: number) {
+        for await (const batch of this.paginatedEpisodesInSeason(
+            seriesId,
+            seasonNumber,
+        )) {
+            yield* batch;
+        }
+    }
+
+    private async *paginatedEpisodesInSeason(
+        seriesId: string,
+        seasonNumber: number,
+    ) {
+        let page: string | undefined;
+        do {
+            const { items, nextPage } = await this.getPageOfEpisodesInSeason(
+                seriesId,
+                seasonNumber,
+                page,
+            );
+
+            yield items;
+            page = nextPage;
+        } while (page);
+    }
+
+    private async getPageOfEpisodesInSeason(
         seriesId: string,
         seasonNumber: number,
         pagination?: string,
@@ -206,16 +242,7 @@ export class HuluApi {
     public async findNextEntityForSeries(seriesId: string) {
         debug(`Fetching next entity for series ${seriesId}`);
 
-        const json = await request({
-            headers: {
-                Cookie: this.cookies,
-                Origin: "https://www.hulu.com",
-                Referer: "https://www.hulu.com/",
-                "User-Agent": USER_AGENT,
-            },
-            json: true,
-            url: SERIES_HUB_URL_FORMAT.replace("%s", seriesId),
-        });
+        const json = await this.fetchSeriesHub(seriesId);
 
         if (
             !(
@@ -246,6 +273,19 @@ export class HuluApi {
         for (const item of items) {
             yield item;
         }
+    }
+
+    private fetchSeriesHub(seriesId: string) {
+        return request({
+            headers: {
+                Cookie: this.cookies,
+                Origin: "https://www.hulu.com",
+                Referer: "https://www.hulu.com/",
+                "User-Agent": USER_AGENT,
+            },
+            json: true,
+            url: SERIES_HUB_URL_FORMAT.replace("%s", seriesId),
+        });
     }
 
     private generateHeaders() {

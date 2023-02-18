@@ -13,6 +13,8 @@ import type { HuluApp, IHuluOpts } from ".";
 import { HuluApi, supportedEntityTypes } from "./api";
 import withRecommendationType from "../../util/withRecommendationType";
 import filterRecommendations from "../../util/filterRecommendations";
+import { HuluEpisodeListings } from "./episodes";
+import { createUrl } from "./playable";
 
 const debug = _debug("babbling:hulu:channel");
 
@@ -22,10 +24,6 @@ function seemsLikeValidUUID(uuid: string) {
     return /^[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}$/.test(
         uuid,
     );
-}
-
-export function createUrl(type: string, id: string) {
-    return `https://www.hulu.com/${type}/${id}`;
 }
 
 export function extractIdFromUrl(url: string) {
@@ -73,6 +71,17 @@ export class HuluPlayerChannel implements IPlayerChannel<HuluApp> {
         }
 
         throw new Error(`Not sure how to play '${url}'`);
+    }
+
+    public async createEpisodeListingsFor(item: IQueryResult) {
+        if (item.url == null) {
+            throw new Error(`Missing url for query result: ${item.title}`);
+        }
+
+        const api = new HuluApi(this.options);
+        const { url } = item;
+        const seriesId = extractIdFromUrl(url);
+        return new HuluEpisodeListings(api, seriesId);
     }
 
     public async findEpisodeFor(
