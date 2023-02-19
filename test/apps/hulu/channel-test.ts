@@ -1,6 +1,7 @@
 import * as chai from "chai";
 
-import { createUrl, extractIdFromUrl } from "../../../src/apps/hulu/channel";
+import { extractIdFromUrl } from "../../../src/apps/hulu/channel";
+import { createUrl } from "../../../src/apps/hulu/playable";
 
 chai.should();
 
