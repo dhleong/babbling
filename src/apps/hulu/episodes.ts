@@ -1,7 +1,6 @@
-import { HuluApp } from ".";
 import { IEpisodeListings, IQueryResult } from "../../app";
 import { HuluApi } from "./api";
-import { createUrl } from "./playable";
+import { createUrl, pickArtwork, playableForVideoId } from "./playable";
 
 export class HuluEpisodeListings implements IEpisodeListings {
     constructor(
@@ -42,10 +41,12 @@ export class HuluEpisodeListings implements IEpisodeListings {
         )) {
             episodes.push({
                 appName: "HuluApp",
+                cover: pickArtwork(episode),
+                desc: episode.desc,
                 title: episode.name,
                 url: createUrl("watch", episode.id),
 
-                playable: (app: HuluApp) => app.play(episode.id, {}),
+                playable: playableForVideoId(episode.id),
             });
         }
 

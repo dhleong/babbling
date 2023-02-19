@@ -38,6 +38,8 @@ function extractCookie(cookies: string, cookieName: string) {
 }
 
 export interface IHuluEpisode {
+    artwork?: unknown;
+    desc?: string;
     entity: any;
     id: string;
     indexInSeason: number;
@@ -228,13 +230,17 @@ export class HuluApi {
         });
 
         return {
-            items: json.items.map((item: any, index: number) => ({
-                entity: item,
-                id: item.id,
-                indexInSeason: index,
-                name: item.name,
-                season: seasonNumber - 1,
-            })) as IHuluEpisode[],
+            items: (json.items as any[]).map<IHuluEpisode>(
+                (item: any, index: number) => ({
+                    artwork: item.artwork,
+                    entity: item,
+                    id: item.id,
+                    desc: item.description as string,
+                    indexInSeason: index,
+                    name: item.name,
+                    season: seasonNumber - 1,
+                }),
+            ),
             nextPage: json.pagination.next as string | undefined,
         };
     }

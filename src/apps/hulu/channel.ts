@@ -14,7 +14,13 @@ import { HuluApi, supportedEntityTypes } from "./api";
 import withRecommendationType from "../../util/withRecommendationType";
 import filterRecommendations from "../../util/filterRecommendations";
 import { HuluEpisodeListings } from "./episodes";
-import { createUrl } from "./playable";
+import {
+    createPlayable,
+    createUrl,
+    pickArtwork,
+    playableForSeries,
+    playableFromVideoId,
+} from "./playable";
 
 const debug = _debug("babbling:hulu:channel");
 
@@ -34,22 +40,6 @@ export function extractIdFromUrl(url: string) {
     return url.substring(url.length - UUID_LENGTH);
 }
 
-function pickArtwork(item: any) {
-    const artwork = item.artwork ?? item.visuals?.artwork;
-    if (artwork == null) return;
-
-    const path =
-        artwork["program.tile"]?.path ?? artwork.horizontal?.image?.path;
-
-    if (path == null) {
-        return;
-    }
-
-    return `${path}&operations=${encodeURIComponent(
-        JSON.stringify([{ resize: "600x600|max" }, { format: "jpeg" }]),
-    )}`;
-}
-
 export class HuluPlayerChannel implements IPlayerChannel<HuluApp> {
     constructor(private readonly options: IHuluOpts) {}
 
@@ -62,12 +52,12 @@ export class HuluPlayerChannel implements IPlayerChannel<HuluApp> {
         if (url.includes("/series/")) {
             debug("detected series", id);
 
-            return async (app: HuluApp) => app.resumeSeries(id);
+            return playableForSeries(id);
         }
 
         if (seemsLikeValidUUID(id)) {
             debug("detected some specific entity", id);
-            return async (app: HuluApp) => app.play(id, {});
+            return playableFromVideoId(id);
         }
 
         throw new Error(`Not sure how to play '${url}'`);
@@ -105,7 +95,7 @@ export class HuluPlayerChannel implements IPlayerChannel<HuluApp> {
             title: episode.name,
             url: createUrl("watch", episode.id),
 
-            playable: async (app: HuluApp) => app.play(episode.id, {}),
+            playable: playableFromVideoId(episode.id),
         };
     }
 
@@ -131,12 +121,7 @@ export class HuluPlayerChannel implements IPlayerChannel<HuluApp> {
                 title: item.metrics_info.entity_name,
                 url,
 
-                playable: async (app: HuluApp) => {
-                    if (type === "series") {
-                        return app.resumeSeries(id);
-                    }
-                    return app.play(id, {});
-                },
+                playable: createPlayable({ id, type }),
             };
         }
     }
@@ -159,12 +144,7 @@ export class HuluPlayerChannel implements IPlayerChannel<HuluApp> {
                 title: item.name,
                 url,
 
-                playable: async (app: HuluApp) => {
-                    if (type === "series") {
-                        return app.resumeSeries(id);
-                    }
-                    return app.play(id, {});
-                },
+                playable: createPlayable({ id, type }),
             };
         }
     }
