@@ -64,6 +64,9 @@ export class HuluPlayerChannel implements IPlayerChannel<HuluApp> {
     }
 
     public async createEpisodeListingsFor(item: IQueryResult) {
+        if (item.appName !== "HuluApp") {
+            throw new Error(`Received unexpected appName: ${item.appName}`);
+        }
         if (item.url == null) {
             throw new Error(`Missing url for query result: ${item.title}`);
         }
@@ -78,6 +81,9 @@ export class HuluPlayerChannel implements IPlayerChannel<HuluApp> {
         item: IQueryResult,
         query: IEpisodeQuery,
     ): Promise<IEpisodeQueryResult | undefined> {
+        if (item.appName !== "HuluApp") {
+            throw new Error(`Received unexpected appName: ${item.appName}`);
+        }
         if (item.url == null) {
             throw new Error(`Missing url for query result: ${item.title}`);
         }
