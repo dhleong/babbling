@@ -1,6 +1,5 @@
 import _debug from "debug";
 
-import jwt from "jsonwebtoken";
 import request from "request-promise-native";
 
 import { read, write } from "../../token";
@@ -91,6 +90,7 @@ export interface ICollection {
 
 export class DisneyApi {
     private clientInfo?: { apiKey: string; id: string };
+    private tokenExpiresAt = 0;
 
     constructor(private readonly options: IDisneyOpts) {}
 
@@ -290,14 +290,9 @@ export class DisneyApi {
     private async ensureToken() {
         const token = read(this.options.token);
 
-        const tokenData = jwt.decode(token) as any;
-        if (!tokenData) {
-            debug("Invalid token:", tokenData);
-            debug("From:", this.options.token);
-            throw new Error("Invalid token");
-        }
-
-        if (tokenData.exp * 1000 > Date.now() + MIN_TOKEN_VALIDITY_MS) {
+        // NOTE: Disney switched to using JWE instead of JWT, so we can't
+        // read the expiration directly from the token...
+        if (this.tokenExpiresAt > Date.now() + MIN_TOKEN_VALIDITY_MS) {
             debug("access token is valid");
             return token;
         }
@@ -331,6 +326,7 @@ export class DisneyApi {
 
         const newToken = response.access_token;
         const newRefreshToken = response.refresh_token;
+        this.tokenExpiresAt = Date.now() + response.expires_in * 1000;
 
         if (typeof this.options.token === "string") {
             this.options.token = newToken;
