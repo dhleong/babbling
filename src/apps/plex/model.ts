@@ -38,33 +38,42 @@ function buildThumbUrl(server: IPlexServer, path: string) {
     return url.toString();
 }
 
+export function buildItemUri(
+    server: IPlexServer,
+    itemKey: string,
+    { forChildren = false }: { forChildren?: boolean } = {},
+) {
+    const key = forChildren ? itemKey : itemKey.replace(/\/children$/, "");
+    return (
+        `https://app.plex.tv/desktop/#!/server/${server.clientIdentifier}/details?` +
+        new URLSearchParams({ key }).toString()
+    );
+}
+
 export function parseItemMetadata(
     server: IPlexServer,
     metadata: Record<string, any>,
-    { resolveRoot }: { resolveRoot?: boolean } = {},
+    { resolveRoot = true }: { resolveRoot?: boolean } = {},
 ): IPlexItem {
     // NOTE: We use grandparentKey etc if available to canonicalize to the series' ID
     // (unless resolveRoot is false!)
-    const key =
-        resolveRoot !== false
-            ? metadata.grandparentKey ?? metadata.parentKey ?? metadata.key
-            : metadata.key;
+    const key = resolveRoot
+        ? metadata.grandparentKey ?? metadata.parentKey ?? metadata.key
+        : metadata.key;
 
-    const uri =
-        `https://app.plex.tv/desktop/#!/server/${server.clientIdentifier}/details?` +
-        new URLSearchParams({ key: key.replace(/\/children$/, "") }).toString();
+    const uri = buildItemUri(server, key);
+
+    const art = resolveRoot
+        ? metadata.grandparentArt ?? metadata.parentArt ?? metadata.art
+        : metadata.thumb ?? metadata.art;
 
     return {
-        desc: metadata.summary,
+        desc: metadata.summary !== "" ? metadata.summary : undefined,
         lastViewedAt: metadata.lastViewedAt,
-        thumb: buildThumbUrl(
-            server,
-            metadata.grandparentArt ?? metadata.parentArt ?? metadata.art,
-        ),
+        thumb: buildThumbUrl(server, art),
         title: metadata.title,
         seriesTitle: metadata.grandparentTitle ?? metadata.parentTitle,
         type: metadata.type,
-        // uri: server.uri.replace("http", "plex") + key.replace(/\/children$/, ""),
         uri: uri.toString(),
     };
 }
