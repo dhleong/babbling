@@ -1,6 +1,7 @@
 import _debug from "debug";
 
 import {
+    IEpisodeListings,
     IEpisodeQuery,
     IEpisodeQueryResult,
     IPlayableOptions,
@@ -16,6 +17,7 @@ import { mergeAsyncIterables } from "../../async";
 import type { DisneyApp, IDisneyOpts } from ".";
 import { DisneyApi, ICollection, ISearchHit, pickPreferredImage } from "./api";
 import filterRecommendations from "../../util/filterRecommendations";
+import { DisneyEpisodeListings } from "./episodes";
 
 const debug = _debug("babbling:DisneyApp:channel");
 
@@ -41,6 +43,19 @@ function getMovieIdFromUrl(url: string) {
     if (m) return m[1];
 }
 
+function unpackSeriesFromResult(result: IQueryResult) {
+    if (result.appName !== "DisneyApp") {
+        throw new Error("Given QueryResult for wrong app");
+    }
+
+    const { url } = result;
+    if (url == null) {
+        throw new Error(`No url on query result: ${result.title}`);
+    }
+
+    return getSeriesIdFromUrl(url);
+}
+
 export class DisneyPlayerChannel implements IPlayerChannel<DisneyApp> {
     private readonly api: DisneyApi;
 
@@ -56,21 +71,24 @@ export class DisneyPlayerChannel implements IPlayerChannel<DisneyApp> {
         return this.createPlayableSync(url);
     }
 
+    public async createEpisodeListingsFor(
+        result: IQueryResult,
+    ): Promise<IEpisodeListings | undefined> {
+        const seriesId = unpackSeriesFromResult(result);
+        if (seriesId == null) {
+            // not a series
+            return;
+        }
+
+        return new DisneyEpisodeListings(this.api, seriesId);
+    }
+
     public async findEpisodeFor(
         item: IQueryResult,
         query: IEpisodeQuery,
     ): Promise<IEpisodeQueryResult | undefined> {
-        if (item.appName !== "DisneyApp") {
-            throw new Error("Given QueryResult for wrong app");
-        }
-
-        const { url } = item;
-        if (url == null) {
-            throw new Error(`No error on query result: ${item.title}`);
-        }
-
-        const seriesId = getSeriesIdFromUrl(url);
-        if (!seriesId) {
+        const seriesId = unpackSeriesFromResult(item);
+        if (seriesId == null) {
             // not a series
             return;
         }
