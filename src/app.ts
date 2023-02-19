@@ -142,8 +142,7 @@ export type IEpisodeQuery = ISeasonAndEpisodeQuery;
  */
 export interface IEpisodeListings {
     listSeasons(): Promise<IQueryResult[]>;
-    listEpisodesInCurrentSeason?(): Promise<IQueryResult[]>;
-    listEpisodesInSeason?(season: IQueryResult): Promise<IQueryResult[]>;
+    listEpisodesInSeason(season: IQueryResult): Promise<IQueryResult[]>;
 }
 
 /**
