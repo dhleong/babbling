@@ -19,7 +19,7 @@ import {
     createUrl,
     pickArtwork,
     playableForSeries,
-    playableFromVideoId,
+    playableForVideoId,
 } from "./playable";
 
 const debug = _debug("babbling:hulu:channel");
@@ -57,7 +57,7 @@ export class HuluPlayerChannel implements IPlayerChannel<HuluApp> {
 
         if (seemsLikeValidUUID(id)) {
             debug("detected some specific entity", id);
-            return playableFromVideoId(id);
+            return playableForVideoId(id);
         }
 
         throw new Error(`Not sure how to play '${url}'`);
@@ -95,7 +95,7 @@ export class HuluPlayerChannel implements IPlayerChannel<HuluApp> {
             title: episode.name,
             url: createUrl("watch", episode.id),
 
-            playable: playableFromVideoId(episode.id),
+            playable: playableForVideoId(episode.id),
         };
     }
 
