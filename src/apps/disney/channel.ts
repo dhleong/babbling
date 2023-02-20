@@ -14,7 +14,7 @@ import { mergeAsyncIterables } from "../../async";
 // NOTE: this sure looks like a circular dependency, but we're just
 // importing it for the type definition
 import type { DisneyApp, IDisneyOpts } from ".";
-import { DisneyApi, ICollection, ISearchHit } from "./api";
+import { DisneyApi, ICollection, ISearchHit, pickPreferredImage } from "./api";
 import filterRecommendations from "../../util/filterRecommendations";
 
 const debug = _debug("babbling:DisneyApp:channel");
@@ -25,6 +25,7 @@ const MOVIE_URL = "https://www.disneyplus.com/movies/";
 
 const RECOMMENDATION_SET_TYPES = new Set([
     "RecommendationSet",
+    "CuratedSet",
     "ContinueWatchingSet",
 ] as const);
 
@@ -83,13 +84,8 @@ export class DisneyPlayerChannel implements IPlayerChannel<DisneyApp> {
         });
         if (!queryResult) return;
 
-        const seriesTitleObj = episode.texts.find(
-            (text) =>
-                text.field === "title" &&
-                text.type === "full" &&
-                text.sourceEntity === "series",
-        );
-        const seriesTitle = seriesTitleObj ? seriesTitleObj.content : "";
+        const seriesTitle =
+            episode.text.title?.full?.series?.default?.content ?? "";
 
         return {
             ...queryResult,
@@ -138,7 +134,7 @@ export class DisneyPlayerChannel implements IPlayerChannel<DisneyApp> {
 
     private async *collectionIterable(coll: ICollection) {
         const items = await this.api.loadCollection(coll);
-        const info = this.collectionTypeToRecommendationInfo(coll.type);
+        const info = this.collectionToRecommendationInfo(coll);
 
         for (const item of items) {
             const result = this.searchHitToQueryResult(item);
@@ -151,26 +147,36 @@ export class DisneyPlayerChannel implements IPlayerChannel<DisneyApp> {
         }
     }
 
-    private collectionTypeToRecommendationInfo(type: CollectionSetType) {
+    private collectionToRecommendationInfo({ type, title }: ICollection) {
         switch (type) {
             case "BecauseYouSet":
-                return { recommendationType: RecommendationType.Interest };
+                return {
+                    recommendationType: RecommendationType.Interest,
+                    recommendationCategoryTitle: title,
+                };
 
             case "ContinueWatchingSet":
                 return { recommendationType: RecommendationType.Recent };
 
             case "CuratedSet":
-                return { recommendationType: RecommendationType.Curated };
+                return {
+                    recommendationType: RecommendationType.Curated,
+                    recommendationCategoryTitle: title,
+                };
 
             case "RecommendationSet": // ?
-                return { recommendationType: RecommendationType.Popular };
+                return {
+                    recommendationType: RecommendationType.Popular,
+
+                    recommendationCategoryTitle: title,
+                };
         }
     }
 
     private searchHitToQueryResult(
         result: ISearchHit,
         {
-            playEpisodeDirectly,
+            playEpisodeDirectly = false,
         }: {
             playEpisodeDirectly?: boolean;
         } = {},
@@ -178,37 +184,36 @@ export class DisneyPlayerChannel implements IPlayerChannel<DisneyApp> {
         const id = result.contentId;
         const isSeries = result.encodedSeriesId;
         const isMovie = !isSeries && result.programType === "movie";
-        const sourceEntity =
-            isMovie || (isSeries && playEpisodeDirectly) ? "program" : null;
 
-        const filteredTexts = result.texts.filter(
-            (item) => !sourceEntity || item.sourceEntity === sourceEntity,
-        );
-        const titleObj = filteredTexts.find(
-            (item) => item.field === "title" && item.type === "full",
-        );
-        const descObj = filteredTexts.find(
-            (item) => item.field === "description" && item.type === "full",
-        );
+        const slugContainer = result.text?.title?.slug;
+        if (slugContainer == null) {
+            debug("No slug for", result);
+            return;
+        }
+        const textKey = playEpisodeDirectly
+            ? "program" in slugContainer
+                ? "program"
+                : "series"
+            : "series" in slugContainer
+            ? "series"
+            : "program";
 
-        if (!titleObj) {
+        const titleObj = result.text.title?.full?.[textKey];
+        const descObj = result.text.description?.full?.[textKey];
+        const slugObj = slugContainer?.[textKey];
+
+        if (!titleObj || !slugObj) {
             debug("No full title object for", result);
             return;
         }
 
         let url: string;
         if (isSeries && !playEpisodeDirectly) {
-            const slugObj =
-                result.texts.find(
-                    (item) => item.field === "title" && item.type === "slug",
-                ) ?? ({} as any);
-            url = `${SERIES_URL + slugObj.content}/${result.encodedSeriesId}`;
+            url = `${SERIES_URL + slugObj.default.content}/${
+                result.encodedSeriesId
+            }`;
         } else if (isMovie && result.family) {
-            const slugObj =
-                result.texts.find(
-                    (item) => item.field === "title" && item.type === "slug",
-                ) ?? ({} as any);
-            url = `${MOVIE_URL + slugObj.content}/${
+            url = `${MOVIE_URL + slugObj.default.content}/${
                 result.family.encodedFamilyId
             }`;
         } else {
@@ -216,10 +221,13 @@ export class DisneyPlayerChannel implements IPlayerChannel<DisneyApp> {
             url = PLAYBACK_URL + id;
         }
 
+        const cover = pickPreferredImage(result.image, textKey)?.url;
+
         return {
             appName: "DisneyApp",
-            desc: descObj ? descObj.content : undefined,
-            title: titleObj.content,
+            cover,
+            desc: descObj ? descObj.default.content : undefined,
+            title: titleObj.default.content,
             url,
 
             playable: this.createPlayableSync(url),

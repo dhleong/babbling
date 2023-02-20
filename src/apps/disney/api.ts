@@ -4,6 +4,7 @@ import request from "request-promise-native";
 
 import { read, write } from "../../token";
 import { EpisodeResolver } from "../../util/episode-resolver";
+import { CollectionItem } from "../../util/types";
 
 import { IDisneyOpts } from "./config";
 
@@ -12,49 +13,70 @@ const debug = _debug("babbling:DisneyApp:api");
 const CLIENT_API_KEY_URL = "https://www.disneyplus.com/home";
 const TOKEN_URL = "https://global.edge.bamgrid.com/token";
 
-const GRAPHQL_URL_BASE =
-    "https://search-api-disney.svcs.dssott.com/svc/search/v2/graphql/persisted/query/core/";
-const SEARCH_KEY = "disneysearch";
+const GRAPHQL_URL_BASE = "https://disney.content.edge.bamgrid.com/svc/";
+const SEARCH_KEY = ["search", "disney"];
 const RESUME_SERIES_KEY = "ContinueWatchingSeries";
 
 const MIN_TOKEN_VALIDITY_MS = 5 * 60_000;
 
+/** `program` is used for eg movies, or episodes in a show */
+export type SearchEntityType = "program" | "series" | "set";
+
+const IMAGE_TYPES = [
+    "tile",
+    "thumbnail",
+    "background_details",
+    "background_up_next",
+] as const;
+export type ImageTypes = CollectionItem<typeof IMAGE_TYPES>;
+
+const IMAGE_RATIOS = ["1.78", "1.33", "1.0", "0.75", "0.71", "0.67"] as const;
+export type ImageRatios = CollectionItem<typeof IMAGE_RATIOS>;
+
+type ResourceSet<
+    TopLevelTypes extends string,
+    Variants extends string,
+    Content,
+> = Partial<
+    Record<
+        TopLevelTypes,
+        {
+            [variant in Variants]: {
+                [key in SearchEntityType]: { default: Content };
+            };
+        }
+    >
+>;
+
 export interface ISearchHit {
-    images: Array<{
-        purpose: string;
-        url: string;
-    }>;
+    // Yeah, these got weird:
+    image: ResourceSet<
+        ImageTypes,
+        ImageRatios,
+        {
+            masterId: string;
+            masterHeight: number;
+            masterWidth: number;
+            url: string;
+        }
+    >;
+    text: ResourceSet<
+        "title" | "description",
+        "full" | "slug",
+        {
+            content: string;
+            language: string;
+            sourceEntity: SearchEntityType;
+        }
+    >;
+
+    family?: {
+        encodedFamilyId: string;
+    };
 
     mediaRights: {
         downloadBlocked: true;
         rewind: true;
-    };
-
-    milestones: Array<{
-        id: "95985aab-01a8-4ad0-948a-ed7c86b2a026";
-        milestoneTime: Array<{
-            startMillis: number;
-            type: "offset";
-        }>;
-        milestoneType:
-            | "up_next"
-            | "intro_start"
-            | "intro_end"
-            | "recap_start"
-            | "recap_end";
-    }>;
-
-    texts: Array<{
-        content: string;
-        field: "description" | "title";
-        language: string;
-        sourceEntity: "series" | "program";
-        targetEntity: "series" | "program";
-        type: "brief" | "full" | "medium" | "slug" | "sort";
-    }>;
-
-    family?: {
-        encodedFamilyId: string;
     };
 
     contentId: string;
@@ -86,6 +108,25 @@ export interface ICollection {
         | "ContinueWatchingSet"
         | "CuratedSet"
         | "RecommendationSet"; // others?
+}
+
+export function pickPreferredImage(
+    imageContainer: ISearchHit["image"],
+    key: SearchEntityType,
+) {
+    for (const imageType of IMAGE_TYPES) {
+        const typeContainer = imageContainer[imageType];
+        if (typeContainer == null) {
+            continue;
+        }
+
+        for (const candidateRatio of IMAGE_RATIOS) {
+            const content = typeContainer[candidateRatio]?.[key]?.default;
+            if (content != null) {
+                return content;
+            }
+        }
+    }
 }
 
 export class DisneyApi {
@@ -172,31 +213,48 @@ export class DisneyApi {
         debug(`search: ${query}`);
 
         const disneysearch = await this.request(SEARCH_KEY, {
-            index: "disney_global",
-            q: query,
+            queryType: "ge",
+            pageSize: "30",
+            query,
         });
 
+        debug(
+            "search hits=",
+            debug.enabled
+                ? JSON.stringify(disneysearch.hits, null, 2)
+                : disneysearch.hits,
+        );
         return disneysearch.hits.map(
             (obj: any) => obj.hit as ISearchHit,
         ) as ISearchHit[];
     }
 
     public async getCollections() {
-        const { containers } = await this.request("CollectionBySlug", {
-            contentClass: "home",
-            slug: "home",
-        });
+        const { containers } = await this.request(
+            ["content", "Collection", "PersonalizedCollection"],
+            {
+                contentClass: "home",
+                slug: "home",
+            },
+        );
+
+        debug(
+            "got raw collections =",
+            debug.enabled ? JSON.stringify(containers, null, 2) : containers,
+        );
 
         const collections: ICollection[] = containers
             // NOTE: these are usually links to eg Marvel collection
-            .filter((container: any) => container.set.contentClass !== "brand")
+            .filter((container: any) => container.style !== "brand")
             .map((container: any) => {
                 const { set } = container;
+                const texts = set.text as ISearchHit["text"];
+
                 const c: ICollection = {
                     id: set.refId,
                     items: set.items,
                     meta: set.meta,
-                    title: set.texts[0].content,
+                    title: texts?.title?.full?.set?.default?.content ?? "",
                     type: set.refType,
                 };
 
@@ -218,22 +276,37 @@ export class DisneyApi {
         }
 
         debug(`loading collection ${collection.title}...`);
-        const { items } = await this.request("SetBySetId", {
-            setId: collection.id,
-            setType: collection.type,
-        });
 
+        // I don't even...
+        let path: string[];
+        const params: Record<string, unknown> = {
+            setId: collection.id,
+        };
+        if (collection.type === "ContinueWatchingSet") {
+            path = ["content", "ContinueWatching/Set"];
+        } else {
+            path = ["content", collection.type];
+            params.pageSize = 15;
+            params.page = 1;
+        }
+
+        const { items } = await this.request(path, params);
         return items;
     }
 
-    public async getSeriesEpisodes(encodedSeriesId: string) {
+    public async getSeriesSeasons(encodedSeriesId: string) {
         const response = await this.request("DmcSeriesBundle", {
-            episodePageSize: 12,
-            seriesId: encodedSeriesId,
+            encodedSeriesId,
         });
         const { seasons } = response.seasons;
 
         debug("loaded seasons for", encodedSeriesId, " = ", seasons);
+        return seasons;
+    }
+
+    public async getSeriesEpisodes(encodedSeriesId: string) {
+        const seasons = await this.getSeriesSeasons(encodedSeriesId);
+
         const api = this; // eslint-disable-line @typescript-eslint/no-this-alias
         return new EpisodeResolver<IDisneyEpisode>({
             async *episodesInSeason(seasonIndex: number) {
@@ -254,14 +327,14 @@ export class DisneyApi {
     }
 
     private async *getSeasonEpisodeBatchesById(seasonId: string) {
-        const episodePageSize = 25; // can we bump this?
-        let episodePage = 0;
+        const pageSize = 25; // can we bump this?
+        let page = 1;
 
         while (true) {
             const { meta, videos } = await this.request("DmcEpisodes", {
-                episodePage,
-                episodePageSize,
-                seasonId: [seasonId],
+                seasonId,
+                pageSize,
+                page,
             });
 
             const results: IDisneyEpisode[] = [];
@@ -283,7 +356,7 @@ export class DisneyApi {
             if (!meta) break;
             if (videos.length < meta.episode_page_size) break;
 
-            episodePage++;
+            page++;
         }
     }
 
@@ -329,6 +402,7 @@ export class DisneyApi {
         this.tokenExpiresAt = Date.now() + response.expires_in * 1000;
 
         if (typeof this.options.token === "string") {
+            debug("Updating tokens...");
             this.options.token = newToken;
             this.options.refreshToken = newRefreshToken;
         } else {
@@ -366,25 +440,48 @@ export class DisneyApi {
         return result;
     }
 
-    private async request(graphQlKey: string, variablesMap: any) {
+    private async request(
+        graphQlKey: string[] | string,
+        variablesMap: Record<string, unknown>,
+    ) {
         const token = await this.ensureToken();
 
-        const variables = JSON.stringify({
-            preferredLanguage: ["en"],
+        const variables = {
+            version: "5.1",
+            region: "US",
+            audience: "k-false,l-true",
+            maturity: "1830", // ?
+            language: "en",
             ...variablesMap,
-        });
+        };
 
-        const { data } = await request({
-            headers: {
-                Authorization: `Bearer ${token}`,
-            },
-            json: true,
-            qs: {
-                variables,
-            },
-            url: GRAPHQL_URL_BASE + graphQlKey,
-        });
+        const keyArray = Array.isArray(graphQlKey) ? graphQlKey : [graphQlKey];
+        if (keyArray.length === 1) {
+            keyArray.splice(0, 0, "content");
+        }
+        const dataKey =
+            keyArray[0] === "content"
+                ? keyArray[1].replace("/", "")
+                : keyArray[0];
 
-        return data[graphQlKey];
+        let url = GRAPHQL_URL_BASE + keyArray.join("/");
+
+        for (const [k, v] of Object.entries(variables)) {
+            url += "/" + k + "/" + encodeURIComponent(v);
+        }
+
+        try {
+            const { data } = await request({
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+                json: true,
+                url,
+            });
+
+            return data[dataKey];
+        } catch (e) {
+            throw new Error(`Error @ ${url}:\n` + e);
+        }
     }
 }
