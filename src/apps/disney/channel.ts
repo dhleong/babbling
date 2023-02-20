@@ -25,6 +25,7 @@ const MOVIE_URL = "https://www.disneyplus.com/movies/";
 
 const RECOMMENDATION_SET_TYPES = new Set([
     "RecommendationSet",
+    "CuratedSet",
     "ContinueWatchingSet",
 ] as const);
 
