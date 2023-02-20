@@ -14,13 +14,13 @@ const CLIENT_API_KEY_URL = "https://www.disneyplus.com/home";
 const TOKEN_URL = "https://global.edge.bamgrid.com/token";
 
 const GRAPHQL_URL_BASE = "https://disney.content.edge.bamgrid.com/svc/";
-const SEARCH_KEY = "search/disney";
+const SEARCH_KEY = ["search", "disney"];
 const RESUME_SERIES_KEY = "ContinueWatchingSeries";
 
 const MIN_TOKEN_VALIDITY_MS = 5 * 60_000;
 
 /** `program` is used for eg movies, or episodes in a show */
-export type SearchEntityType = "program" | "series";
+export type SearchEntityType = "program" | "series" | "set";
 
 const IMAGE_TYPES = [
     "tile",
@@ -228,21 +228,31 @@ export class DisneyApi {
     }
 
     public async getCollections() {
-        const { containers } = await this.request("CollectionBySlug", {
-            contentClass: "home",
-            slug: "home",
-        });
+        const { containers } = await this.request(
+            ["content", "Collection", "PersonalizedCollection"],
+            {
+                contentClass: "home",
+                slug: "home",
+            },
+        );
+
+        debug(
+            "got raw collections =",
+            debug.enabled ? JSON.stringify(containers, null, 2) : containers,
+        );
 
         const collections: ICollection[] = containers
             // NOTE: these are usually links to eg Marvel collection
-            .filter((container: any) => container.set.contentClass !== "brand")
+            .filter((container: any) => container.style !== "brand")
             .map((container: any) => {
                 const { set } = container;
+                const texts = set.text as ISearchHit["text"];
+
                 const c: ICollection = {
                     id: set.refId,
                     items: set.items,
                     meta: set.meta,
-                    title: set.texts[0].content,
+                    title: texts?.title?.full?.set?.default?.content ?? "",
                     type: set.refType,
                 };
 
@@ -264,11 +274,21 @@ export class DisneyApi {
         }
 
         debug(`loading collection ${collection.title}...`);
-        const { items } = await this.request("SetBySetId", {
-            setId: collection.id,
-            setType: collection.type,
-        });
 
+        // I don't even...
+        let path: string[];
+        const params: Record<string, unknown> = {
+            setId: collection.id,
+        };
+        if (collection.type === "ContinueWatchingSet") {
+            path = ["content", "ContinueWatching/Set"];
+        } else {
+            path = ["content", collection.type];
+            params.pageSize = 15;
+            params.page = 1;
+        }
+
+        const { items } = await this.request(path, params);
         return items;
     }
 
@@ -419,7 +439,7 @@ export class DisneyApi {
     }
 
     private async request(
-        graphQlKey: string,
+        graphQlKey: string[] | string,
         variablesMap: Record<string, unknown>,
     ) {
         const token = await this.ensureToken();
@@ -433,15 +453,16 @@ export class DisneyApi {
             ...variablesMap,
         };
 
-        const prefixEndIdx = graphQlKey.indexOf("/");
-        const isPrefixed = prefixEndIdx !== -1;
-        let url =
-            GRAPHQL_URL_BASE +
-            (isPrefixed ? graphQlKey : `content/${graphQlKey}`);
+        const keyArray = Array.isArray(graphQlKey) ? graphQlKey : [graphQlKey];
+        if (keyArray.length === 1) {
+            keyArray.splice(0, 0, "content");
+        }
+        const dataKey =
+            keyArray[0] === "content"
+                ? keyArray[1].replace("/", "")
+                : keyArray[0];
 
-        const dataKey = isPrefixed
-            ? graphQlKey.substring(0, prefixEndIdx)
-            : graphQlKey;
+        let url = GRAPHQL_URL_BASE + keyArray.join("/");
 
         for (const [k, v] of Object.entries(variables)) {
             url += "/" + k + "/" + encodeURIComponent(v);

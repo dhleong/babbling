@@ -133,7 +133,7 @@ export class DisneyPlayerChannel implements IPlayerChannel<DisneyApp> {
 
     private async *collectionIterable(coll: ICollection) {
         const items = await this.api.loadCollection(coll);
-        const info = this.collectionTypeToRecommendationInfo(coll.type);
+        const info = this.collectionToRecommendationInfo(coll);
 
         for (const item of items) {
             const result = this.searchHitToQueryResult(item);
@@ -146,26 +146,36 @@ export class DisneyPlayerChannel implements IPlayerChannel<DisneyApp> {
         }
     }
 
-    private collectionTypeToRecommendationInfo(type: CollectionSetType) {
+    private collectionToRecommendationInfo({ type, title }: ICollection) {
         switch (type) {
             case "BecauseYouSet":
-                return { recommendationType: RecommendationType.Interest };
+                return {
+                    recommendationType: RecommendationType.Interest,
+                    recommendationCategoryTitle: title,
+                };
 
             case "ContinueWatchingSet":
                 return { recommendationType: RecommendationType.Recent };
 
             case "CuratedSet":
-                return { recommendationType: RecommendationType.Curated };
+                return {
+                    recommendationType: RecommendationType.Curated,
+                    recommendationCategoryTitle: title,
+                };
 
             case "RecommendationSet": // ?
-                return { recommendationType: RecommendationType.Popular };
+                return {
+                    recommendationType: RecommendationType.Popular,
+
+                    recommendationCategoryTitle: title,
+                };
         }
     }
 
     private searchHitToQueryResult(
         result: ISearchHit,
         {
-            playEpisodeDirectly,
+            playEpisodeDirectly = false,
         }: {
             playEpisodeDirectly?: boolean;
         } = {},
@@ -179,7 +189,13 @@ export class DisneyPlayerChannel implements IPlayerChannel<DisneyApp> {
             debug("No slug for", result);
             return;
         }
-        const textKey = "program" in slugContainer ? "program" : "series";
+        const textKey = playEpisodeDirectly
+            ? "program" in slugContainer
+                ? "program"
+                : "series"
+            : "series" in slugContainer
+            ? "series"
+            : "program";
 
         const titleObj = result.text.title?.full?.[textKey];
         const descObj = result.text.description?.full?.[textKey];
