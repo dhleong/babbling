@@ -83,13 +83,15 @@ export class DisneyPlayerChannel implements IPlayerChannel<DisneyApp> {
         });
         if (!queryResult) return;
 
-        const seriesTitleObj = episode.texts.find(
-            (text) =>
-                text.field === "title" &&
-                text.type === "full" &&
-                text.sourceEntity === "series",
-        );
-        const seriesTitle = seriesTitleObj ? seriesTitleObj.content : "";
+        // TODO: ?
+        // const seriesTitleObj = episode.texts.find(
+        //     (text) =>
+        //         text.field === "title" &&
+        //         text.type === "full" &&
+        //         text.sourceEntity === "series",
+        // );
+        // const seriesTitle = seriesTitleObj ? seriesTitleObj.content : "";
+        const seriesTitle = "";
 
         return {
             ...queryResult,
@@ -178,38 +180,31 @@ export class DisneyPlayerChannel implements IPlayerChannel<DisneyApp> {
         const id = result.contentId;
         const isSeries = result.encodedSeriesId;
         const isMovie = !isSeries && result.programType === "movie";
-        const sourceEntity =
-            isMovie || (isSeries && playEpisodeDirectly) ? "program" : null;
 
-        const filteredTexts =
-            result.texts?.filter(
-                (item) => !sourceEntity || item.sourceEntity === sourceEntity,
-            ) ?? [];
-        const titleObj = filteredTexts.find(
-            (item) => item.field === "title" && item.type === "full",
-        );
-        const descObj = filteredTexts.find(
-            (item) => item.field === "description" && item.type === "full",
-        );
+        const slugContainer = result.text?.title?.slug;
+        const textKey =
+            slugContainer == null ? undefined : Object.keys(slugContainer)[0];
+        if (textKey == null) {
+            debug("No full title key for", result);
+            return;
+        }
 
-        if (!titleObj) {
+        const titleObj = result.text.title?.full?.[textKey];
+        const descObj = result.text.description?.full?.[textKey];
+        const slugObj = slugContainer?.[textKey];
+
+        if (!titleObj || !slugObj) {
             debug("No full title object for", result);
             return;
         }
 
         let url: string;
         if (isSeries && !playEpisodeDirectly) {
-            const slugObj =
-                result.texts.find(
-                    (item) => item.field === "title" && item.type === "slug",
-                ) ?? ({} as any);
-            url = `${SERIES_URL + slugObj.content}/${result.encodedSeriesId}`;
+            url = `${SERIES_URL + slugObj.default.content}/${
+                result.encodedSeriesId
+            }`;
         } else if (isMovie && result.family) {
-            const slugObj =
-                result.texts.find(
-                    (item) => item.field === "title" && item.type === "slug",
-                ) ?? ({} as any);
-            url = `${MOVIE_URL + slugObj.content}/${
+            url = `${MOVIE_URL + slugObj.default.content}/${
                 result.family.encodedFamilyId
             }`;
         } else {
@@ -219,8 +214,8 @@ export class DisneyPlayerChannel implements IPlayerChannel<DisneyApp> {
 
         return {
             appName: "DisneyApp",
-            desc: descObj ? descObj.content : undefined,
-            title: titleObj.content,
+            desc: descObj ? descObj.default.content : undefined,
+            title: titleObj.default.content,
             url,
 
             playable: this.createPlayableSync(url),

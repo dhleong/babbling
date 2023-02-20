@@ -43,14 +43,24 @@ export interface ISearchHit {
             | "recap_end";
     }>;
 
-    texts: Array<{
-        content: string;
-        field: "description" | "title";
-        language: string;
-        sourceEntity: "series" | "program";
-        targetEntity: "series" | "program";
-        type: "brief" | "full" | "medium" | "slug" | "sort";
-    }>;
+    // Yeah, this got weird:
+    text: Partial<
+        Record<
+            "title" | "description",
+            Record<
+                "full" | "slug",
+                {
+                    [key: string]: {
+                        default: {
+                            content: string;
+                            language: string;
+                            sourceEntity: typeof key;
+                        };
+                    };
+                }
+            >
+        >
+    >;
 
     family?: {
         encodedFamilyId: string;
@@ -176,7 +186,12 @@ export class DisneyApi {
             query,
         });
 
-        debug("search hits=", disneysearch.hits);
+        debug(
+            "search hits=",
+            debug.enabled
+                ? JSON.stringify(disneysearch.hits, null, 2)
+                : disneysearch.hits,
+        );
         return disneysearch.hits.map(
             (obj: any) => obj.hit as ISearchHit,
         ) as ISearchHit[];
