@@ -33,39 +33,41 @@ export type ImageTypes = CollectionItem<typeof IMAGE_TYPES>;
 const IMAGE_RATIOS = ["1.78", "1.33", "1.0", "0.75", "0.71", "0.67"] as const;
 export type ImageRatios = CollectionItem<typeof IMAGE_RATIOS>;
 
+type ResourceSet<
+    TopLevelTypes extends string,
+    Variants extends string,
+    Content,
+> = Partial<
+    Record<
+        TopLevelTypes,
+        {
+            [variant in Variants]: {
+                [key in SearchEntityType]: { default: Content };
+            };
+        }
+    >
+>;
+
 export interface ISearchHit {
     // Yeah, these got weird:
-    image: Record<
+    image: ResourceSet<
         ImageTypes,
-        Partial<{
-            [ratio in ImageRatios]: {
-                [key in SearchEntityType]: {
-                    default: {
-                        masterId: string;
-                        masterHeight: number;
-                        masterWidth: number;
-                        url: string;
-                    };
-                };
-            };
-        }>
+        ImageRatios,
+        {
+            masterId: string;
+            masterHeight: number;
+            masterWidth: number;
+            url: string;
+        }
     >;
-    text: Partial<
-        Record<
-            "title" | "description",
-            Record<
-                "full" | "slug",
-                {
-                    [key in SearchEntityType]: {
-                        default: {
-                            content: string;
-                            language: string;
-                            sourceEntity: key;
-                        };
-                    };
-                }
-            >
-        >
+    text: ResourceSet<
+        "title" | "description",
+        "full" | "slug",
+        {
+            content: string;
+            language: string;
+            sourceEntity: SearchEntityType;
+        }
     >;
 
     family?: {
