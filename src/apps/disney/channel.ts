@@ -18,6 +18,11 @@ import type { DisneyApp, IDisneyOpts } from ".";
 import { DisneyApi, ICollection, ISearchHit, pickPreferredImage } from "./api";
 import filterRecommendations from "../../util/filterRecommendations";
 import { DisneyEpisodeListings } from "./episodes";
+import {
+    getMovieIdFromUrl,
+    getSeriesIdFromUrl,
+    unpackSeriesFromResult,
+} from "./playable";
 
 const debug = _debug("babbling:DisneyApp:channel");
 
@@ -32,29 +37,6 @@ const RECOMMENDATION_SET_TYPES = new Set([
 ] as const);
 
 export type CollectionSetType = ICollection["type"];
-
-function getSeriesIdFromUrl(url: string) {
-    const m = url.match(/\/series\/[^/]+\/(.+)$/);
-    if (m) return m[1];
-}
-
-function getMovieIdFromUrl(url: string) {
-    const m = url.match(/\/movies\/[^/]+\/(.+)$/);
-    if (m) return m[1];
-}
-
-function unpackSeriesFromResult(result: IQueryResult) {
-    if (result.appName !== "DisneyApp") {
-        throw new Error("Given QueryResult for wrong app");
-    }
-
-    const { url } = result;
-    if (url == null) {
-        throw new Error(`No url on query result: ${result.title}`);
-    }
-
-    return getSeriesIdFromUrl(url);
-}
 
 export class DisneyPlayerChannel implements IPlayerChannel<DisneyApp> {
     private readonly api: DisneyApi;
@@ -80,7 +62,11 @@ export class DisneyPlayerChannel implements IPlayerChannel<DisneyApp> {
             return;
         }
 
-        return new DisneyEpisodeListings(this.api, seriesId);
+        if (result.url == null) {
+            throw new Error("Illegal state: no url?");
+        }
+
+        return new DisneyEpisodeListings(this.api, result.url);
     }
 
     public async findEpisodeFor(
