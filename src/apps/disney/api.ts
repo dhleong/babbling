@@ -4,6 +4,7 @@ import request from "request-promise-native";
 
 import { read, write } from "../../token";
 import { EpisodeResolver } from "../../util/episode-resolver";
+import { CollectionItem } from "../../util/types";
 
 import { IDisneyOpts } from "./config";
 
@@ -21,32 +22,26 @@ const MIN_TOKEN_VALIDITY_MS = 5 * 60_000;
 /** `program` is used for eg movies, or episodes in a show */
 export type SearchEntityType = "program" | "series";
 
+const IMAGE_RATIOS = ["1.78", "1.33", "1.0", "0.75", "0.71", "0.67"] as const;
+export type ImageRatios = CollectionItem<typeof IMAGE_RATIOS>;
+
 export interface ISearchHit {
-    images: Array<{
-        purpose: string;
-        url: string;
-    }>;
-
-    mediaRights: {
-        downloadBlocked: true;
-        rewind: true;
-    };
-
-    milestones: Array<{
-        id: "95985aab-01a8-4ad0-948a-ed7c86b2a026";
-        milestoneTime: Array<{
-            startMillis: number;
-            type: "offset";
-        }>;
-        milestoneType:
-            | "up_next"
-            | "intro_start"
-            | "intro_end"
-            | "recap_start"
-            | "recap_end";
-    }>;
-
-    // Yeah, this got weird:
+    // Yeah, these got weird:
+    image: Record<
+        "background_detail" | "tile",
+        Partial<{
+            [ratio in ImageRatios]: {
+                [key in SearchEntityType]: {
+                    default: {
+                        masterId: string;
+                        masterHeight: number;
+                        masterWidth: number;
+                        url: string;
+                    };
+                };
+            };
+        }>
+    >;
     text: Partial<
         Record<
             "title" | "description",
@@ -67,6 +62,11 @@ export interface ISearchHit {
 
     family?: {
         encodedFamilyId: string;
+    };
+
+    mediaRights: {
+        downloadBlocked: true;
+        rewind: true;
     };
 
     contentId: string;
@@ -98,6 +98,18 @@ export interface ICollection {
         | "ContinueWatchingSet"
         | "CuratedSet"
         | "RecommendationSet"; // others?
+}
+
+export function pickPreferredImage(
+    imageContainer: ISearchHit["image"]["tile"],
+    key: SearchEntityType,
+) {
+    for (const candidateRatio of IMAGE_RATIOS) {
+        const content = imageContainer[candidateRatio]?.[key]?.default;
+        if (content != null) {
+            return content;
+        }
+    }
 }
 
 export class DisneyApi {

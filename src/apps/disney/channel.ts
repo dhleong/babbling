@@ -14,7 +14,7 @@ import { mergeAsyncIterables } from "../../async";
 // NOTE: this sure looks like a circular dependency, but we're just
 // importing it for the type definition
 import type { DisneyApp, IDisneyOpts } from ".";
-import { DisneyApi, ICollection, ISearchHit } from "./api";
+import { DisneyApi, ICollection, ISearchHit, pickPreferredImage } from "./api";
 import filterRecommendations from "../../util/filterRecommendations";
 
 const debug = _debug("babbling:DisneyApp:channel");
@@ -204,8 +204,13 @@ export class DisneyPlayerChannel implements IPlayerChannel<DisneyApp> {
             url = PLAYBACK_URL + id;
         }
 
+        const imageContainer =
+            result.image?.tile ?? result.image?.background_detail;
+        const cover = pickPreferredImage(imageContainer, textKey)?.url;
+
         return {
             appName: "DisneyApp",
+            cover,
             desc: descObj ? descObj.default.content : undefined,
             title: titleObj.default.content,
             url,
