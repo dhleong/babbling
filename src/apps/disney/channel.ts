@@ -83,15 +83,8 @@ export class DisneyPlayerChannel implements IPlayerChannel<DisneyApp> {
         });
         if (!queryResult) return;
 
-        // TODO: ?
-        // const seriesTitleObj = episode.texts.find(
-        //     (text) =>
-        //         text.field === "title" &&
-        //         text.type === "full" &&
-        //         text.sourceEntity === "series",
-        // );
-        // const seriesTitle = seriesTitleObj ? seriesTitleObj.content : "";
-        const seriesTitle = "";
+        const seriesTitle =
+            episode.text.title?.full?.series?.default?.content ?? "";
 
         return {
             ...queryResult,
@@ -182,12 +175,11 @@ export class DisneyPlayerChannel implements IPlayerChannel<DisneyApp> {
         const isMovie = !isSeries && result.programType === "movie";
 
         const slugContainer = result.text?.title?.slug;
-        const textKey =
-            slugContainer == null ? undefined : Object.keys(slugContainer)[0];
-        if (textKey == null) {
-            debug("No full title key for", result);
+        if (slugContainer == null) {
+            debug("No slug for", result);
             return;
         }
+        const textKey = "program" in slugContainer ? "program" : "series";
 
         const titleObj = result.text.title?.full?.[textKey];
         const descObj = result.text.description?.full?.[textKey];

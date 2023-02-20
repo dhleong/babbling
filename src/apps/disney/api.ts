@@ -18,6 +18,9 @@ const RESUME_SERIES_KEY = "ContinueWatchingSeries";
 
 const MIN_TOKEN_VALIDITY_MS = 5 * 60_000;
 
+/** `program` is used for eg movies, or episodes in a show */
+export type SearchEntityType = "program" | "series";
+
 export interface ISearchHit {
     images: Array<{
         purpose: string;
@@ -50,11 +53,11 @@ export interface ISearchHit {
             Record<
                 "full" | "slug",
                 {
-                    [key: string]: {
+                    [key in SearchEntityType]: {
                         default: {
                             content: string;
                             language: string;
-                            sourceEntity: typeof key;
+                            sourceEntity: key;
                         };
                     };
                 }
