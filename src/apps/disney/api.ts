@@ -12,9 +12,8 @@ const debug = _debug("babbling:DisneyApp:api");
 const CLIENT_API_KEY_URL = "https://www.disneyplus.com/home";
 const TOKEN_URL = "https://global.edge.bamgrid.com/token";
 
-const GRAPHQL_URL_BASE =
-    "https://search-api-disney.svcs.dssott.com/svc/search/v2/graphql/persisted/query/core/";
-const SEARCH_KEY = "disneysearch";
+const GRAPHQL_URL_BASE = "https://disney.content.edge.bamgrid.com/svc/";
+const SEARCH_KEY = "search/disney";
 const RESUME_SERIES_KEY = "ContinueWatchingSeries";
 
 const MIN_TOKEN_VALIDITY_MS = 5 * 60_000;
@@ -172,10 +171,12 @@ export class DisneyApi {
         debug(`search: ${query}`);
 
         const disneysearch = await this.request(SEARCH_KEY, {
-            index: "disney_global",
-            q: query,
+            queryType: "ge",
+            pageSize: "30",
+            query,
         });
 
+        debug("search hits=", disneysearch.hits);
         return disneysearch.hits.map(
             (obj: any) => obj.hit as ISearchHit,
         ) as ISearchHit[];
@@ -226,7 +227,7 @@ export class DisneyApi {
         return items;
     }
 
-    public async getSeriesEpisodes(encodedSeriesId: string) {
+    public async getSeriesSeasons(encodedSeriesId: string) {
         const response = await this.request("DmcSeriesBundle", {
             episodePageSize: 12,
             seriesId: encodedSeriesId,
@@ -234,6 +235,12 @@ export class DisneyApi {
         const { seasons } = response.seasons;
 
         debug("loaded seasons for", encodedSeriesId, " = ", seasons);
+        return seasons;
+    }
+
+    public async getSeriesEpisodes(encodedSeriesId: string) {
+        const seasons = await this.getSeriesSeasons(encodedSeriesId);
+
         const api = this; // eslint-disable-line @typescript-eslint/no-this-alias
         return new EpisodeResolver<IDisneyEpisode>({
             async *episodesInSeason(seasonIndex: number) {
@@ -329,6 +336,7 @@ export class DisneyApi {
         this.tokenExpiresAt = Date.now() + response.expires_in * 1000;
 
         if (typeof this.options.token === "string") {
+            debug("Updating tokens...");
             this.options.token = newToken;
             this.options.refreshToken = newRefreshToken;
         } else {
@@ -366,25 +374,47 @@ export class DisneyApi {
         return result;
     }
 
-    private async request(graphQlKey: string, variablesMap: any) {
+    private async request(
+        graphQlKey: string,
+        variablesMap: Record<string, unknown>,
+    ) {
         const token = await this.ensureToken();
 
-        const variables = JSON.stringify({
-            preferredLanguage: ["en"],
+        const variables = {
+            version: "5.1",
+            region: "US",
+            audience: "k-false,l-true",
+            maturity: "1830", // ?
+            language: "en",
             ...variablesMap,
-        });
+        };
 
-        const { data } = await request({
-            headers: {
-                Authorization: `Bearer ${token}`,
-            },
-            json: true,
-            qs: {
-                variables,
-            },
-            url: GRAPHQL_URL_BASE + graphQlKey,
-        });
+        const prefixEndIdx = graphQlKey.indexOf("/");
+        const isPrefixed = prefixEndIdx !== -1;
+        let url =
+            GRAPHQL_URL_BASE +
+            (isPrefixed ? graphQlKey : `content/${graphQlKey}`);
 
-        return data[graphQlKey];
+        const dataKey = isPrefixed
+            ? graphQlKey.substring(0, prefixEndIdx)
+            : graphQlKey;
+
+        for (const [k, v] of Object.entries(variables)) {
+            url += "/" + k + "/" + encodeURIComponent(v);
+        }
+
+        try {
+            const { data } = await request({
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+                json: true,
+                url,
+            });
+
+            return data[dataKey];
+        } catch (e) {
+            throw new Error(`Error @ ${url}:\n` + e);
+        }
     }
 }

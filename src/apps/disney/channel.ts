@@ -181,9 +181,10 @@ export class DisneyPlayerChannel implements IPlayerChannel<DisneyApp> {
         const sourceEntity =
             isMovie || (isSeries && playEpisodeDirectly) ? "program" : null;
 
-        const filteredTexts = result.texts.filter(
-            (item) => !sourceEntity || item.sourceEntity === sourceEntity,
-        );
+        const filteredTexts =
+            result.texts?.filter(
+                (item) => !sourceEntity || item.sourceEntity === sourceEntity,
+            ) ?? [];
         const titleObj = filteredTexts.find(
             (item) => item.field === "title" && item.type === "full",
         );
