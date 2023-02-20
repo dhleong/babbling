@@ -22,13 +22,21 @@ const MIN_TOKEN_VALIDITY_MS = 5 * 60_000;
 /** `program` is used for eg movies, or episodes in a show */
 export type SearchEntityType = "program" | "series";
 
+const IMAGE_TYPES = [
+    "tile",
+    "thumbnail",
+    "background_details",
+    "background_up_next",
+] as const;
+export type ImageTypes = CollectionItem<typeof IMAGE_TYPES>;
+
 const IMAGE_RATIOS = ["1.78", "1.33", "1.0", "0.75", "0.71", "0.67"] as const;
 export type ImageRatios = CollectionItem<typeof IMAGE_RATIOS>;
 
 export interface ISearchHit {
     // Yeah, these got weird:
     image: Record<
-        "background_detail" | "tile",
+        ImageTypes,
         Partial<{
             [ratio in ImageRatios]: {
                 [key in SearchEntityType]: {
@@ -101,13 +109,20 @@ export interface ICollection {
 }
 
 export function pickPreferredImage(
-    imageContainer: ISearchHit["image"]["tile"],
+    imageContainer: ISearchHit["image"],
     key: SearchEntityType,
 ) {
-    for (const candidateRatio of IMAGE_RATIOS) {
-        const content = imageContainer[candidateRatio]?.[key]?.default;
-        if (content != null) {
-            return content;
+    for (const imageType of IMAGE_TYPES) {
+        const typeContainer = imageContainer[imageType];
+        if (typeContainer == null) {
+            continue;
+        }
+
+        for (const candidateRatio of IMAGE_RATIOS) {
+            const content = typeContainer[candidateRatio]?.[key]?.default;
+            if (content != null) {
+                return content;
+            }
         }
     }
 }
@@ -259,8 +274,7 @@ export class DisneyApi {
 
     public async getSeriesSeasons(encodedSeriesId: string) {
         const response = await this.request("DmcSeriesBundle", {
-            episodePageSize: 12,
-            seriesId: encodedSeriesId,
+            encodedSeriesId,
         });
         const { seasons } = response.seasons;
 
@@ -291,14 +305,14 @@ export class DisneyApi {
     }
 
     private async *getSeasonEpisodeBatchesById(seasonId: string) {
-        const episodePageSize = 25; // can we bump this?
-        let episodePage = 0;
+        const pageSize = 25; // can we bump this?
+        let page = 1;
 
         while (true) {
             const { meta, videos } = await this.request("DmcEpisodes", {
-                episodePage,
-                episodePageSize,
-                seasonId: [seasonId],
+                seasonId,
+                pageSize,
+                page,
             });
 
             const results: IDisneyEpisode[] = [];
@@ -320,7 +334,7 @@ export class DisneyApi {
             if (!meta) break;
             if (videos.length < meta.episode_page_size) break;
 
-            episodePage++;
+            page++;
         }
     }
 

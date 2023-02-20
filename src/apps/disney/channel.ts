@@ -204,9 +204,7 @@ export class DisneyPlayerChannel implements IPlayerChannel<DisneyApp> {
             url = PLAYBACK_URL + id;
         }
 
-        const imageContainer =
-            result.image?.tile ?? result.image?.background_detail;
-        const cover = pickPreferredImage(imageContainer, textKey)?.url;
+        const cover = pickPreferredImage(result.image, textKey)?.url;
 
         return {
             appName: "DisneyApp",
