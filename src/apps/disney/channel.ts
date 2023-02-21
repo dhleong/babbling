@@ -4,7 +4,6 @@ import {
     IEpisodeListings,
     IEpisodeQuery,
     IEpisodeQueryResult,
-    IPlayableOptions,
     IPlayerChannel,
     IQueryResult,
     IRecommendationQuery,
@@ -19,14 +18,13 @@ import { DisneyApi, ICollection, ISearchHit, pickPreferredImage } from "./api";
 import filterRecommendations from "../../util/filterRecommendations";
 import { DisneyEpisodeListings } from "./episodes";
 import {
-    getMovieIdFromUrl,
-    getSeriesIdFromUrl,
+    createPlayableFromUrl,
+    createVideoPlaybackUrl,
     unpackSeriesFromResult,
 } from "./playable";
 
 const debug = _debug("babbling:DisneyApp:channel");
 
-const PLAYBACK_URL = "https://www.disneyplus.com/video/";
 const SERIES_URL = "https://www.disneyplus.com/series/";
 const MOVIE_URL = "https://www.disneyplus.com/movies/";
 
@@ -50,7 +48,7 @@ export class DisneyPlayerChannel implements IPlayerChannel<DisneyApp> {
     }
 
     public async createPlayable(url: string) {
-        return this.createPlayableSync(url);
+        return createPlayableFromUrl(url);
     }
 
     public async createEpisodeListingsFor(
@@ -222,7 +220,7 @@ export class DisneyPlayerChannel implements IPlayerChannel<DisneyApp> {
             }`;
         } else {
             debug("non-series result:", result);
-            url = PLAYBACK_URL + id;
+            url = createVideoPlaybackUrl(id);
         }
 
         const cover = pickPreferredImage(result.image, textKey)?.url;
@@ -234,33 +232,7 @@ export class DisneyPlayerChannel implements IPlayerChannel<DisneyApp> {
             title: titleObj.default.content,
             url,
 
-            playable: this.createPlayableSync(url),
+            playable: createPlayableFromUrl(url),
         };
-    }
-
-    private createPlayableSync(url: string) {
-        // other urls?
-        const videoMatch = url.match(/\/video\/(.+)$/);
-        if (videoMatch && videoMatch[1]) {
-            const id = videoMatch[1];
-
-            return async (app: DisneyApp, _opts: IPlayableOptions) => {
-                await app.playById(id);
-            };
-        }
-
-        const seriesId = getSeriesIdFromUrl(url);
-        if (seriesId) {
-            return async (app: DisneyApp, opts: IPlayableOptions) =>
-                app.playSeriesById(seriesId, opts);
-        }
-
-        const movieId = getMovieIdFromUrl(url);
-        if (movieId) {
-            return async (app: DisneyApp, opts: IPlayableOptions) =>
-                app.playByFamilyId(movieId, opts);
-        }
-
-        throw new Error(`Unsure how to play ${url}`);
     }
 }
