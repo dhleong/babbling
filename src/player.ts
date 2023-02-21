@@ -137,6 +137,19 @@ export class Player {
         );
     }
 
+    /**
+     * See [IPlayerChannel.createContentListingsFor]. Returns `null` if the
+     * [item]'s app doesn't support content listings, or `undefined` if the [item]
+     * itself doesn't support content listings (eg: it's not a series).
+     */
+    public async createContentListingsFor(item: IQueryResult) {
+        const configured = findAppNamed(this.apps, item.appName);
+        if (!configured.channel.createContentListingsFor) {
+            return null;
+        }
+        return configured.channel.createContentListingsFor(item);
+    }
+
     public async findEpisodeFor(
         item: IQueryResult,
         query: IEpisodeQuery,
