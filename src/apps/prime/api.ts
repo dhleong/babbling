@@ -502,6 +502,7 @@ export class PrimeApi {
                 title: string;
                 titleId: string;
             };
+            seasons?: Array<{ title: string; titleId: string }>;
             seasonIds?: string[];
             seasonIdSet?: Set<string>;
             selectedEpisode?: IEpisode & {
@@ -517,6 +518,10 @@ export class PrimeApi {
         }
 
         if (resource.seasons) {
+            info.seasons = resource.seasons.map((s: any) => ({
+                title: s.displayText ?? s.title,
+                titleId: s.titleId,
+            }));
             info.seasonIds = resource.seasons.map((s: any) => s.titleId);
             info.seasonIdSet = new Set<string>(info.seasonIds);
         }

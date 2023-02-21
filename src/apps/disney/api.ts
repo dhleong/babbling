@@ -93,6 +93,11 @@ export interface ISearchHit {
     videoId: string;
 }
 
+export interface IDisneySeason {
+    seasonId: string;
+    seasonSequenceNumber: number;
+}
+
 export interface IDisneyEpisode extends ISearchHit {
     indexInSeason: number;
     season: number;
@@ -301,7 +306,7 @@ export class DisneyApi {
         const { seasons } = response.seasons;
 
         debug("loaded seasons for", encodedSeriesId, " = ", seasons);
-        return seasons;
+        return seasons as IDisneySeason[];
     }
 
     public async getSeriesEpisodes(encodedSeriesId: string) {
@@ -315,6 +320,15 @@ export class DisneyApi {
                 );
             },
         });
+    }
+
+    public async *getSeasonEpisodesById(
+        encodedSeriesId: string,
+        seasonId: string,
+    ) {
+        for await (const batch of this.getSeasonEpisodeBatchesById(seasonId)) {
+            yield* batch;
+        }
     }
 
     public async ensureTokensValid() {

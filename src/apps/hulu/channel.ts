@@ -13,6 +13,14 @@ import type { HuluApp, IHuluOpts } from ".";
 import { HuluApi, supportedEntityTypes } from "./api";
 import withRecommendationType from "../../util/withRecommendationType";
 import filterRecommendations from "../../util/filterRecommendations";
+import { HuluContentListings } from "./listings";
+import {
+    createPlayable,
+    createUrl,
+    pickArtwork,
+    playableForSeries,
+    playableForVideoId,
+} from "./playable";
 
 const debug = _debug("babbling:hulu:channel");
 
@@ -24,32 +32,12 @@ function seemsLikeValidUUID(uuid: string) {
     );
 }
 
-export function createUrl(type: string, id: string) {
-    return `https://www.hulu.com/${type}/${id}`;
-}
-
 export function extractIdFromUrl(url: string) {
     if (url.length < UUID_LENGTH) {
         throw new Error(`'${url}' doesn't seem playable`);
     }
 
     return url.substring(url.length - UUID_LENGTH);
-}
-
-function pickArtwork(item: any) {
-    const artwork = item.artwork ?? item.visuals?.artwork;
-    if (artwork == null) return;
-
-    const path =
-        artwork["program.tile"]?.path ?? artwork.horizontal?.image?.path;
-
-    if (path == null) {
-        return;
-    }
-
-    return `${path}&operations=${encodeURIComponent(
-        JSON.stringify([{ resize: "600x600|max" }, { format: "jpeg" }]),
-    )}`;
 }
 
 export class HuluPlayerChannel implements IPlayerChannel<HuluApp> {
@@ -64,21 +52,38 @@ export class HuluPlayerChannel implements IPlayerChannel<HuluApp> {
         if (url.includes("/series/")) {
             debug("detected series", id);
 
-            return async (app: HuluApp) => app.resumeSeries(id);
+            return playableForSeries(id);
         }
 
         if (seemsLikeValidUUID(id)) {
             debug("detected some specific entity", id);
-            return async (app: HuluApp) => app.play(id, {});
+            return playableForVideoId(id);
         }
 
         throw new Error(`Not sure how to play '${url}'`);
+    }
+
+    public async createContentListingsFor(item: IQueryResult) {
+        if (item.appName !== "HuluApp") {
+            throw new Error(`Received unexpected appName: ${item.appName}`);
+        }
+        if (item.url == null) {
+            throw new Error(`Missing url for query result: ${item.title}`);
+        }
+
+        const api = new HuluApi(this.options);
+        const { url } = item;
+        const seriesId = extractIdFromUrl(url);
+        return new HuluContentListings(api, seriesId);
     }
 
     public async findEpisodeFor(
         item: IQueryResult,
         query: IEpisodeQuery,
     ): Promise<IEpisodeQueryResult | undefined> {
+        if (item.appName !== "HuluApp") {
+            throw new Error(`Received unexpected appName: ${item.appName}`);
+        }
         if (item.url == null) {
             throw new Error(`Missing url for query result: ${item.title}`);
         }
@@ -96,7 +101,7 @@ export class HuluPlayerChannel implements IPlayerChannel<HuluApp> {
             title: episode.name,
             url: createUrl("watch", episode.id),
 
-            playable: async (app: HuluApp) => app.play(episode.id, {}),
+            playable: playableForVideoId(episode.id),
         };
     }
 
@@ -122,12 +127,7 @@ export class HuluPlayerChannel implements IPlayerChannel<HuluApp> {
                 title: item.metrics_info.entity_name,
                 url,
 
-                playable: async (app: HuluApp) => {
-                    if (type === "series") {
-                        return app.resumeSeries(id);
-                    }
-                    return app.play(id, {});
-                },
+                playable: createPlayable({ id, type }),
             };
         }
     }
@@ -150,12 +150,7 @@ export class HuluPlayerChannel implements IPlayerChannel<HuluApp> {
                 title: item.name,
                 url,
 
-                playable: async (app: HuluApp) => {
-                    if (type === "series") {
-                        return app.resumeSeries(id);
-                    }
-                    return app.play(id, {});
-                },
+                playable: createPlayable({ id, type }),
             };
         }
     }

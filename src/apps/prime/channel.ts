@@ -5,7 +5,6 @@ import { ContentType } from "chakram-ts";
 import {
     IEpisodeQuery,
     IEpisodeQueryResult,
-    IPlayableOptions,
     IPlayerChannel,
     IQueryResult,
     IRecommendationQuery,
@@ -22,6 +21,14 @@ import { PrimeEpisodeCapabilities } from "./api/episode-capabilities";
 import { AvailabilityType, IAvailability, ISearchResult } from "./model";
 import withRecommendationType from "../../util/withRecommendationType";
 import filterRecommendations from "../../util/filterRecommendations";
+import { PrimeContentListings } from "./listings";
+import {
+    pickTitleIdFromUrl,
+    playableForMovieById,
+    playableFromTitleId,
+    playableFromTitleInfo,
+    urlFor,
+} from "./playable";
 
 const debug = _debug("babbling:PrimeApp:player");
 
@@ -42,48 +49,6 @@ function isAvailableOnlyWithAds(availability: IAvailability[]) {
                 a.type === AvailabilityType.OWNED,
         ) === -1
     );
-}
-
-function pickTitleIdFromUrl(url: string) {
-    try {
-        const obj = new URL(url);
-        const gti = obj.searchParams.get("gti");
-        if (gti != null) {
-            return gti;
-        }
-    } catch {
-        // Ignore and fall through
-    }
-
-    const m1 = url.match(/video\/detail\/([^/]+)/);
-    if (m1) {
-        return m1[1];
-    }
-
-    const m2 = url.match(/gp\/product\/([^/?]+)/);
-    if (m2) {
-        return m2[1];
-    }
-
-    const m3 = url.match(/dp\/([^/?]+)/);
-    if (m3) {
-        return m3[1];
-    }
-}
-
-function playableForMovieById(id: string) {
-    return async (app: PrimeApp, opts: IPlayableOptions) => {
-        if (opts.resume === false) {
-            await app.play(id, { startTime: 0 });
-        } else {
-            await app.play(id, {});
-        }
-    };
-}
-
-function playableFromTitleId(titleId: string) {
-    return async (app: PrimeApp, _opts: IPlayableOptions) =>
-        app.resumeSeriesByTitleId(titleId);
 }
 
 function playableFromSearchResult(result: ISearchResult) {
@@ -113,15 +78,34 @@ export class PrimePlayerChannel implements IPlayerChannel<PrimeApp> {
         const titleIdInfo = await api.getTitleInfo(titleId);
         debug("titleInfo for ", titleId, " = ", titleIdInfo);
 
-        if (titleIdInfo.series) {
-            return playableFromTitleId(titleIdInfo.series.titleId);
+        return (
+            playableFromTitleInfo(titleIdInfo) ?? playableForMovieById(titleId)
+        );
+    }
+
+    public async createContentListingsFor(item: IQueryResult) {
+        if (item.appName !== "PrimeApp") {
+            throw new Error(`Received unexpected appName: ${item.appName}`);
         }
-        if (titleIdInfo.movie) {
-            return playableForMovieById(titleIdInfo.movie.titleId);
+        if (item.url == null) {
+            throw new Error(`Missing url for query result: ${item.title}`);
         }
 
-        // *probably* a movie
-        return playableForMovieById(titleId);
+        const titleId = pickTitleIdFromUrl(item.url);
+        if (!titleId) {
+            throw new Error(`Unsure how to play ${item.url}`);
+        }
+
+        const api = new PrimeApi(this.options);
+        const titleIdInfo = await api.getTitleInfo(titleId);
+        debug("titleInfo for ", titleId, " = ", titleIdInfo);
+
+        if (titleIdInfo.series == null) {
+            // Not a series
+            return;
+        }
+
+        return new PrimeContentListings(api, titleIdInfo);
     }
 
     public async findEpisodeFor(
@@ -180,7 +164,7 @@ export class PrimePlayerChannel implements IPlayerChannel<PrimeApp> {
                 isPreferred: result.isInWatchlist || result.isPurchased,
                 playable: playableFromSearchResult(result),
                 title: result.title,
-                url: this.urlFor(result),
+                url: urlFor(result),
             };
         }
     }
@@ -194,7 +178,7 @@ export class PrimePlayerChannel implements IPlayerChannel<PrimeApp> {
                 desc: result.desc,
                 playable: playableFromTitleId(result.titleId),
                 title: result.title,
-                url: this.urlFor(result),
+                url: urlFor(result),
             };
         }
     }
@@ -212,9 +196,5 @@ export class PrimePlayerChannel implements IPlayerChannel<PrimeApp> {
                 this.queryRecent(),
             ),
         );
-    }
-
-    public urlFor(item: { titleId: string }) {
-        return `https://watch.amazon.com/detail?gti=${item.titleId}`;
     }
 }

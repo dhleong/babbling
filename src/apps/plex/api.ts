@@ -55,7 +55,7 @@ export class PlexApi {
         return this.queryMedia("/hubs/continueWatching");
     }
 
-    public async resolveOnDeckForUri(uri: string) {
+    public async getApiItemsByUri(uri: string) {
         const server = await this.getServerForUri(uri);
         const contentId = extractMediaKeyFromUri(uri);
 
@@ -66,8 +66,18 @@ export class PlexApi {
             },
             headers: this.serverRequestHeaders(server),
         });
-        const metadata = response.MediaContainer.Metadata[0];
-        return parseItemMetadata(server, metadata.OnDeck.Metadata, {
+        return { server, items: response.MediaContainer.Metadata as any[] };
+    }
+
+    public async getApiItemByUri(uri: string) {
+        const { server, items } = await this.getApiItemsByUri(uri);
+        return { server, item: items[0] };
+    }
+
+    public async resolveOnDeckForUri(uri: string) {
+        const { server, item } = await this.getApiItemByUri(uri);
+
+        return parseItemMetadata(server, item.OnDeck.Metadata, {
             resolveRoot: false,
         });
     }

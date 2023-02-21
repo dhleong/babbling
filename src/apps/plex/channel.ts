@@ -2,7 +2,7 @@ import createDebug from "debug";
 
 import { PlexApp } from ".";
 import {
-    IPlayableOptions,
+    ISeriesContentListings,
     IPlayerChannel,
     IQueryResult,
     IRecommendationQuery,
@@ -12,7 +12,9 @@ import filterRecommendations from "../../util/filterRecommendations";
 import withRecommendationType from "../../util/withRecommendationType";
 import { PlexApi } from "./api";
 import { IPlexOpts } from "./config";
+import { PlexContentListings } from "./listings";
 import { IPlexItem } from "./model";
+import { createPlayableForUri } from "./playable";
 
 const debug = createDebug("babbling:plex:channel");
 
@@ -31,13 +33,28 @@ export class PlexPlayerChannel implements IPlayerChannel<PlexApp> {
     }
 
     public async createPlayable(url: string) {
-        return async (app: PlexApp, opts: IPlayableOptions) => {
-            debug("resuming on plex: ", url);
-            return app.resumeByUri(url, {
-                // TODO language options?
-                startTime: opts.resume === false ? 0 : undefined,
-            });
-        };
+        return createPlayableForUri(url);
+    }
+
+    public async createContentListingsFor(
+        result: IQueryResult,
+    ): Promise<ISeriesContentListings | undefined> {
+        if (result.appName !== "PlexApp") {
+            throw new Error(
+                `QueryResult from wrong app (${result.appName}) provided to PlexPlayerChannel`,
+            );
+        }
+        if (result.url == null) {
+            throw new Error("Invalid query result; missing url");
+        }
+
+        const { server, item } = await this.api.getApiItemByUri(result.url);
+        if (item.type !== "show") {
+            debug("item not a series: type=", item.type);
+            return undefined;
+        }
+
+        return new PlexContentListings(this.api, server, item);
     }
 
     public async *queryRecent() {

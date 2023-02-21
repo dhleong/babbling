@@ -1,9 +1,9 @@
 import _debug from "debug";
 
 import {
+    ISeriesContentListings,
     IEpisodeQuery,
     IEpisodeQueryResult,
-    IPlayableOptions,
     IPlayerChannel,
     IQueryResult,
     IRecommendationQuery,
@@ -16,10 +16,15 @@ import { mergeAsyncIterables } from "../../async";
 import type { DisneyApp, IDisneyOpts } from ".";
 import { DisneyApi, ICollection, ISearchHit, pickPreferredImage } from "./api";
 import filterRecommendations from "../../util/filterRecommendations";
+import { DisneyContentListings } from "./listings";
+import {
+    createPlayableFromUrl,
+    createVideoPlaybackUrl,
+    unpackSeriesFromResult,
+} from "./playable";
 
 const debug = _debug("babbling:DisneyApp:channel");
 
-const PLAYBACK_URL = "https://www.disneyplus.com/video/";
 const SERIES_URL = "https://www.disneyplus.com/series/";
 const MOVIE_URL = "https://www.disneyplus.com/movies/";
 
@@ -30,16 +35,6 @@ const RECOMMENDATION_SET_TYPES = new Set([
 ] as const);
 
 export type CollectionSetType = ICollection["type"];
-
-function getSeriesIdFromUrl(url: string) {
-    const m = url.match(/\/series\/[^/]+\/(.+)$/);
-    if (m) return m[1];
-}
-
-function getMovieIdFromUrl(url: string) {
-    const m = url.match(/\/movies\/[^/]+\/(.+)$/);
-    if (m) return m[1];
-}
 
 export class DisneyPlayerChannel implements IPlayerChannel<DisneyApp> {
     private readonly api: DisneyApi;
@@ -53,24 +48,31 @@ export class DisneyPlayerChannel implements IPlayerChannel<DisneyApp> {
     }
 
     public async createPlayable(url: string) {
-        return this.createPlayableSync(url);
+        return createPlayableFromUrl(url);
+    }
+
+    public async createContentListingsFor(
+        result: IQueryResult,
+    ): Promise<ISeriesContentListings | undefined> {
+        const seriesId = unpackSeriesFromResult(result);
+        if (seriesId == null) {
+            // not a series
+            return;
+        }
+
+        if (result.url == null) {
+            throw new Error("Illegal state: no url?");
+        }
+
+        return new DisneyContentListings(this.api, result.url);
     }
 
     public async findEpisodeFor(
         item: IQueryResult,
         query: IEpisodeQuery,
     ): Promise<IEpisodeQueryResult | undefined> {
-        if (item.appName !== "DisneyApp") {
-            throw new Error("Given QueryResult for wrong app");
-        }
-
-        const { url } = item;
-        if (url == null) {
-            throw new Error(`No error on query result: ${item.title}`);
-        }
-
-        const seriesId = getSeriesIdFromUrl(url);
-        if (!seriesId) {
+        const seriesId = unpackSeriesFromResult(item);
+        if (seriesId == null) {
             // not a series
             return;
         }
@@ -218,7 +220,7 @@ export class DisneyPlayerChannel implements IPlayerChannel<DisneyApp> {
             }`;
         } else {
             debug("non-series result:", result);
-            url = PLAYBACK_URL + id;
+            url = createVideoPlaybackUrl(id);
         }
 
         const cover = pickPreferredImage(result.image, textKey)?.url;
@@ -230,33 +232,7 @@ export class DisneyPlayerChannel implements IPlayerChannel<DisneyApp> {
             title: titleObj.default.content,
             url,
 
-            playable: this.createPlayableSync(url),
+            playable: createPlayableFromUrl(url),
         };
-    }
-
-    private createPlayableSync(url: string) {
-        // other urls?
-        const videoMatch = url.match(/\/video\/(.+)$/);
-        if (videoMatch && videoMatch[1]) {
-            const id = videoMatch[1];
-
-            return async (app: DisneyApp, _opts: IPlayableOptions) => {
-                await app.playById(id);
-            };
-        }
-
-        const seriesId = getSeriesIdFromUrl(url);
-        if (seriesId) {
-            return async (app: DisneyApp, opts: IPlayableOptions) =>
-                app.playSeriesById(seriesId, opts);
-        }
-
-        const movieId = getMovieIdFromUrl(url);
-        if (movieId) {
-            return async (app: DisneyApp, opts: IPlayableOptions) =>
-                app.playByFamilyId(movieId, opts);
-        }
-
-        throw new Error(`Unsure how to play ${url}`);
     }
 }
