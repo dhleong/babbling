@@ -1,4 +1,4 @@
-import { IEpisodeListings, IQueryResult } from "../../app";
+import { ISeriesContentListings, IQueryResult } from "../../app";
 import { DisneyApi, pickPreferredImage } from "./api";
 import {
     createPlayableFromUrl,
@@ -6,7 +6,7 @@ import {
     getSeriesIdFromUrl,
 } from "./playable";
 
-export class DisneyEpisodeListings implements IEpisodeListings {
+export class DisneyContentListings implements ISeriesContentListings {
     constructor(
         private readonly api: DisneyApi,
         private readonly seriesUrl: string,

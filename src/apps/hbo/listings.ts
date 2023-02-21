@@ -1,6 +1,6 @@
 import createDebug from "debug";
 
-import type { IEpisodeListings, IQueryResult } from "../../app";
+import type { ISeriesContentListings, IQueryResult } from "../../app";
 import Shared from "../../util/Shared";
 import {
     entityTypeFromUrn,
@@ -18,7 +18,7 @@ import {
 
 const debug = createDebug("babbling:hbo:episodes");
 
-export class HboEpisodeListings implements IEpisodeListings {
+export class HboContentListings implements ISeriesContentListings {
     private readonly seasonListings: Shared<IHboRawItem[]>;
     private readonly episodeListings: Shared<IHboRawItem[]>;
 

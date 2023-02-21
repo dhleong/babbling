@@ -1,7 +1,7 @@
 import _debug from "debug";
 
 import {
-    IEpisodeListings,
+    ISeriesContentListings,
     IEpisodeQuery,
     IEpisodeQueryResult,
     IPlayerChannel,
@@ -16,7 +16,7 @@ import { mergeAsyncIterables } from "../../async";
 import type { DisneyApp, IDisneyOpts } from ".";
 import { DisneyApi, ICollection, ISearchHit, pickPreferredImage } from "./api";
 import filterRecommendations from "../../util/filterRecommendations";
-import { DisneyEpisodeListings } from "./episodes";
+import { DisneyContentListings } from "./listings";
 import {
     createPlayableFromUrl,
     createVideoPlaybackUrl,
@@ -51,9 +51,9 @@ export class DisneyPlayerChannel implements IPlayerChannel<DisneyApp> {
         return createPlayableFromUrl(url);
     }
 
-    public async createEpisodeListingsFor(
+    public async createContentListingsFor(
         result: IQueryResult,
-    ): Promise<IEpisodeListings | undefined> {
+    ): Promise<ISeriesContentListings | undefined> {
         const seriesId = unpackSeriesFromResult(result);
         if (seriesId == null) {
             // not a series
@@ -64,7 +64,7 @@ export class DisneyPlayerChannel implements IPlayerChannel<DisneyApp> {
             throw new Error("Illegal state: no url?");
         }
 
-        return new DisneyEpisodeListings(this.api, result.url);
+        return new DisneyContentListings(this.api, result.url);
     }
 
     public async findEpisodeFor(

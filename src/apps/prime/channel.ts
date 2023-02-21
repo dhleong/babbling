@@ -21,7 +21,7 @@ import { PrimeEpisodeCapabilities } from "./api/episode-capabilities";
 import { AvailabilityType, IAvailability, ISearchResult } from "./model";
 import withRecommendationType from "../../util/withRecommendationType";
 import filterRecommendations from "../../util/filterRecommendations";
-import { PrimeEpisodeListings } from "./episodes";
+import { PrimeContentListings } from "./listings";
 import {
     pickTitleIdFromUrl,
     playableForMovieById,
@@ -83,7 +83,7 @@ export class PrimePlayerChannel implements IPlayerChannel<PrimeApp> {
         );
     }
 
-    public async createEpisodeListingsFor(item: IQueryResult) {
+    public async createContentListingsFor(item: IQueryResult) {
         if (item.appName !== "PrimeApp") {
             throw new Error(`Received unexpected appName: ${item.appName}`);
         }
@@ -105,7 +105,7 @@ export class PrimePlayerChannel implements IPlayerChannel<PrimeApp> {
             return;
         }
 
-        return new PrimeEpisodeListings(api, titleIdInfo);
+        return new PrimeContentListings(api, titleIdInfo);
     }
 
     public async findEpisodeFor(

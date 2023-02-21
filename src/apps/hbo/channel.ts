@@ -20,7 +20,7 @@ import {
 } from "./api";
 import withRecommendationType from "../../util/withRecommendationType";
 import filterRecommendations from "../../util/filterRecommendations";
-import { HboEpisodeListings } from "./episodes";
+import { HboContentListings } from "./listings";
 import {
     createPlayableFromUrn,
     formatCoverImage,
@@ -46,11 +46,11 @@ export class HboPlayerChannel implements IPlayerChannel<HboApp> {
         return createPlayableFromUrn(this.api, urn);
     }
 
-    public async createEpisodeListingsFor(item: IQueryResult) {
+    public async createContentListingsFor(item: IQueryResult) {
         const urn = urnFromQueryResult(item);
         if (entityTypeFromUrn(urn) !== "series") return; // cannot have it
 
-        return new HboEpisodeListings(this.api, urn);
+        return new HboContentListings(this.api, urn);
     }
 
     public async findEpisodeFor(

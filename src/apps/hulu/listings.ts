@@ -1,8 +1,8 @@
-import { IEpisodeListings, IQueryResult } from "../../app";
+import { ISeriesContentListings, IQueryResult } from "../../app";
 import { HuluApi } from "./api";
 import { createUrl, pickArtwork, playableForVideoId } from "./playable";
 
-export class HuluEpisodeListings implements IEpisodeListings {
+export class HuluContentListings implements ISeriesContentListings {
     constructor(
         private readonly api: HuluApi,
         private readonly seriesId: string,

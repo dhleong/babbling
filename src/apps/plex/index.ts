@@ -4,7 +4,7 @@ import { ChromecastDevice, MEDIA_NS } from "stratocaster";
 import { ILoadRequest, IMedia } from "../../cast";
 
 import { BaseApp } from "../base";
-import { PlexApi } from "./api";
+import { getApiItemsByUri } from "./api";
 import { PlexPlayerChannel } from "./channel";
 import { IPlexOpts } from "./config";
 import { extractMediaKeyFromUri } from "./model";
@@ -19,7 +19,7 @@ export interface IPlaybackOptions {
 }
 
 export class PlexApp extends BaseApp {
-    private readonly api: PlexApi;
+    private readonly api: getApiItemsByUri;
 
     public static createPlayerChannel(options: IPlexOpts) {
         return new PlexPlayerChannel(options);
@@ -31,7 +31,10 @@ export class PlexApp extends BaseApp {
             sessionNs: MEDIA_NS,
         });
 
-        this.api = new PlexApi(options.token, options.clientIdentifier);
+        this.api = new getApiItemsByUri(
+            options.token,
+            options.clientIdentifier,
+        );
     }
 
     public async resumeByUri(uri: string, opts: IPlaybackOptions = {}) {

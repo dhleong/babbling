@@ -1,13 +1,13 @@
 import createDebug from "debug";
 
-import { IEpisodeListings, IQueryResult } from "../../app";
+import { ISeriesContentListings, IQueryResult } from "../../app";
 import { PlexApi } from "./api";
 import { buildItemUri, IPlexServer, parseItemMetadata } from "./model";
 import { createPlayableForUri } from "./playable";
 
 const debug = createDebug("babbling:plex:listings");
 
-export class PlexEpisodeListings implements IEpisodeListings {
+export class PlexContentListings implements ISeriesContentListings {
     constructor(
         private readonly api: PlexApi,
         private readonly server: IPlexServer,

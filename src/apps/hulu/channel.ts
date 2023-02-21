@@ -13,7 +13,7 @@ import type { HuluApp, IHuluOpts } from ".";
 import { HuluApi, supportedEntityTypes } from "./api";
 import withRecommendationType from "../../util/withRecommendationType";
 import filterRecommendations from "../../util/filterRecommendations";
-import { HuluEpisodeListings } from "./episodes";
+import { HuluContentListings } from "./listings";
 import {
     createPlayable,
     createUrl,
@@ -63,7 +63,7 @@ export class HuluPlayerChannel implements IPlayerChannel<HuluApp> {
         throw new Error(`Not sure how to play '${url}'`);
     }
 
-    public async createEpisodeListingsFor(item: IQueryResult) {
+    public async createContentListingsFor(item: IQueryResult) {
         if (item.appName !== "HuluApp") {
             throw new Error(`Received unexpected appName: ${item.appName}`);
         }
@@ -74,7 +74,7 @@ export class HuluPlayerChannel implements IPlayerChannel<HuluApp> {
         const api = new HuluApi(this.options);
         const { url } = item;
         const seriesId = extractIdFromUrl(url);
-        return new HuluEpisodeListings(api, seriesId);
+        return new HuluContentListings(api, seriesId);
     }
 
     public async findEpisodeFor(

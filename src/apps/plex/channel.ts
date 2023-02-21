@@ -2,7 +2,7 @@ import createDebug from "debug";
 
 import { PlexApp } from ".";
 import {
-    IEpisodeListings,
+    ISeriesContentListings,
     IPlayerChannel,
     IQueryResult,
     IRecommendationQuery,
@@ -12,7 +12,7 @@ import filterRecommendations from "../../util/filterRecommendations";
 import withRecommendationType from "../../util/withRecommendationType";
 import { PlexApi } from "./api";
 import { IPlexOpts } from "./config";
-import { PlexEpisodeListings } from "./episodes";
+import { PlexContentListings } from "./listings";
 import { IPlexItem } from "./model";
 import { createPlayableForUri } from "./playable";
 
@@ -36,9 +36,9 @@ export class PlexPlayerChannel implements IPlayerChannel<PlexApp> {
         return createPlayableForUri(url);
     }
 
-    public async createEpisodeListingsFor(
+    public async createContentListingsFor(
         result: IQueryResult,
-    ): Promise<IEpisodeListings | undefined> {
+    ): Promise<ISeriesContentListings | undefined> {
         if (result.appName !== "PlexApp") {
             throw new Error(
                 `QueryResult from wrong app (${result.appName}) provided to PlexPlayerChannel`,
@@ -54,7 +54,7 @@ export class PlexPlayerChannel implements IPlayerChannel<PlexApp> {
             return undefined;
         }
 
-        return new PlexEpisodeListings(this.api, server, item);
+        return new PlexContentListings(this.api, server, item);
     }
 
     public async *queryRecent() {

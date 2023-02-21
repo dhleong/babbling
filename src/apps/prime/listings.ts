@@ -1,12 +1,12 @@
 import createDebug from "debug";
 
-import type { IEpisodeListings, IQueryResult } from "../../app";
+import type { ISeriesContentListings, IQueryResult } from "../../app";
 import type { ITitleInfo, PrimeApi } from "./api";
 import { pickTitleIdFromUrl, playableFromTitleId, urlFor } from "./playable";
 
 const debug = createDebug("babbling:prime:episodes");
 
-export class PrimeEpisodeListings implements IEpisodeListings {
+export class PrimeContentListings implements ISeriesContentListings {
     constructor(
         private readonly api: PrimeApi,
         private readonly title: ITitleInfo,
