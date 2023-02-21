@@ -19,7 +19,7 @@ export class DisneyContentListings implements ISeriesContentListings {
         }
 
         const seasons = await this.api.getSeriesSeasons(seriesId);
-        return seasons.map((season: any) => ({
+        return seasons.map((season) => ({
             appName: "DisneyApp",
             title: `Season ${season.seasonSequenceNumber}`,
             playable: () => {
