@@ -9,6 +9,7 @@ import {
     IPlayerChannel,
     IPlayerEnabledConstructor,
     IQueryResult,
+    IRecommendationQuery,
     OptionsFor,
     Opts,
 } from "./app";
@@ -229,13 +230,43 @@ export class Player {
     }
 
     /**
-     * Get a map each key is the name of an App and each value is an
+     * Get a map where each key is the name of an App and each value is an
      * AsyncIterable representing recommended media from that app. Each result
      * can be passed directly to `play`.
+     * @deprecated Use getQueryRecommendationsMap instead.
      */
     public getRecommendationsMap(options?: QueryOptions) {
+        return this.getDeprecatedRecommendationsMap(options);
+    }
+
+    /**
+     * Get an AsyncIterable representing playables from across all
+     * configured apps. Each result can be passed directly to `play`.
+     * @deprecated
+     */
+    public queryRecommended(options?: QueryOptions) {
+        const m = this.getDeprecatedRecommendationsMap(options);
+        return interleaveAsyncIterables(Object.values(m));
+    }
+
+    private getDeprecatedRecommendationsMap(options?: QueryOptions) {
         return this.buildQueryMap(options, (app) =>
             app.channel.queryRecommended?.bind(app.channel),
+        );
+    }
+
+    /**
+     * Get a map where each key is the name of an App and each value is an
+     * AsyncIterable representing recommended media from that app. Each result
+     * can be passed directly to `play`.
+     * @see [IPlayerChannel.queryRecommendations]
+     */
+    public getQueryRecommendationsMap(
+        query?: IRecommendationQuery,
+        options?: QueryOptions,
+    ) {
+        return this.buildQueryMap(options, (app) =>
+            app.channel.queryRecommendations?.bind(app.channel, query),
         );
     }
 
@@ -243,8 +274,11 @@ export class Player {
      * Get an AsyncIterable representing playables from across all
      * configured apps. Each result can be passed directly to `play`.
      */
-    public queryRecommended(options?: QueryOptions) {
-        const m = this.getRecommendationsMap(options);
+    public queryRecommendations(
+        query?: IRecommendationQuery,
+        options?: QueryOptions,
+    ) {
+        const m = this.getQueryRecommendationsMap(query, options);
         return interleaveAsyncIterables(Object.values(m));
     }
 
@@ -255,7 +289,7 @@ export class Player {
      */
     public getRecentsMap(options?: QueryOptions) {
         return this.buildQueryMap(options, (app) =>
-            app.channel.queryRecommended?.bind(app.channel),
+            app.channel.queryRecent?.bind(app.channel),
         );
     }
 
@@ -275,8 +309,6 @@ export class Player {
         ) => (() => AsyncIterable<IQueryResult>) | undefined,
     ) {
         const { onError } = unpackQueryOptions(options);
-
-        /* eslint-disable no-param-reassign */
         return this.apps.reduce((m, app) => {
             const query = getQueryFn(app);
             if (query == null) return m;
@@ -296,7 +328,6 @@ export class Player {
 
             return m;
         }, {} as { [app: string]: AsyncIterable<IQueryResult> });
-        /* eslint-enable no-param-reassign */
     }
 
     private async playOnEachDevice(
